@@ -13,6 +13,3 @@ thead th{ position:sticky; top:0; background:var(--bg); cursor:pointer; }
 .stats { display:flex; gap:1rem; flex-wrap:wrap; }
 .stat { padding:.5rem .8rem; border:1px solid #ddd; border-radius:.6rem; }
 .row { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
-.status { margin-top:.75rem; padding:.6rem .9rem; border-radius:.6rem; border:1px solid transparent; }
-.status-info { background:#eef5ff; border-color:#c1dafc; }
-.status-error { background:#ffecec; border-color:#f3b9b9; color:#6b0000; }
