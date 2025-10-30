@@ -1,5 +1,14 @@
-import { headers, filtered, currentPageSlice } from './data.js';
-import * as data from './data.js';
+//import { headers, filtered, currentPageSlice } from './data.js';
+//import * as data from './data.js';
+import {
+  headers,
+  filtered,
+  currentPageSlice,
+  toggleSort,
+  getSort,
+  getPage,
+  setPage,
+} from './data.js';
 
 const els = {
   q: document.getElementById('q'),
@@ -45,15 +54,18 @@ export function renderTable(){
 
   // Header mit Sort-Clicks
   els.thead.innerHTML = '';
+  const { sortKey, sortDir } = getSort();
   headers.forEach(h => {
     const th = document.createElement('th');
     th.textContent = h;
     th.title = 'Klicken zum Sortieren';
     th.addEventListener('click', () => {
-      if (data.sortKey === h) data.sortDir *= -1; else { data.sortKey = h; data.sortDir = 1; }
+      //if (data.sortKey === h) data.sortDir *= -1; else { data.sortKey = h; data.sortDir = 1; }
+      toggleSort(h);
       renderTable();
     });
-    if (data.sortKey === h){ th.textContent += data.sortDir === 1 ? ' ▲' : ' ▼'; }
+    //if (data.sortKey === h){ th.textContent += data.sortDir === 1 ? ' ▲' : ' ▼'; }
+    if (sortKey === h){ th.textContent += sortDir === 1 ? ' ▲' : ' ▼'; }
     els.thead.appendChild(th);
   });
 
@@ -74,10 +86,14 @@ export function renderTable(){
   els.tbody.appendChild(frag);
 
   // Footer/Info
+  const currentPage = getPage();
   els.count.textContent = `${slice.length} angezeigt · ${filtered.length} gefiltert · ${total} gesamt`;
-  els.pageInfo.textContent = `Seite ${data.page}/${pages}`;
-  els.prev.disabled = data.page <= 1;
-  els.next.disabled = data.page >= pages;
+  //els.pageInfo.textContent = `Seite ${data.page}/${pages}`;
+  //els.prev.disabled = data.page <= 1;
+  //els.next.disabled = data.page >= pages;
+  els.pageInfo.textContent = `Seite ${currentPage}/${pages}`;
+  els.prev.disabled = currentPage <= 1;
+  els.next.disabled = currentPage >= pages;
 }
 
 export function bindTableEvents(onReload){
@@ -87,8 +103,9 @@ export function bindTableEvents(onReload){
     els.q.value = ''; els.team.value=''; els.pos.value=''; els.subset.value='';
     onReload();
   });
-  els.prev.addEventListener('click', () => { data.page = Math.max(1, data.page-1); renderTable(); });
-  els.next.addEventListener('click', () => { data.page = data.page+1; renderTable(); });
-
+  //els.prev.addEventListener('click', () => { data.page = Math.max(1, data.page-1); renderTable(); });
+  //els.next.addEventListener('click', () => { data.page = data.page+1; renderTable(); });
+  els.prev.addEventListener('click', () => { setPage(Math.max(1, getPage()-1)); renderTable(); });
+  els.next.addEventListener('click', () => { setPage(getPage()+1); renderTable(); });
   return { els, rebuildFilters };
 }

@@ -8,6 +8,31 @@ export let filtered = [];  // Gefilterte Ansicht
 export let sortKey = null, sortDir = 1; // 1=asc, -1=desc
 export let page = 1, pageSize = 50;
 
+export function setPageSize(size){
+  pageSize = size;
+}
+
+export function setPage(newPage){
+  page = newPage;
+}
+
+export function toggleSort(key){
+  if (sortKey === key){
+    sortDir *= -1;
+  } else {
+    sortKey = key;
+    sortDir = 1;
+  }
+}
+
+export function getSort(){
+  return { sortKey, sortDir };
+}
+
+export function getPage(){
+  return page;
+}
+
 export async function loadSheetData(){
   const arr = await parseCSV(CSV_URL);
   headers = arr[0];

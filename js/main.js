@@ -1,6 +1,7 @@
 import { CSV_URL, REFRESH_MINUTES } from './config.js';
-import { loadSheetData, applyFilters } from './data.js';
-import * as data from './data.js';
+//import { loadSheetData, applyFilters } from './data.js';
+//import * as data from './data.js';
+import { loadSheetData, applyFilters, setPageSize } from './data.js';
 import { renderTable, renderStats, bindTableEvents } from './table.js';
 import { renderCharts } from './charts.js';
 
@@ -37,13 +38,15 @@ async function loadAndRender(){
   });
   const { rebuildFilters } = bindTableEvents(()=>{
     applyFilters({ q: els.q.value, team: els.team.value, pos: els.pos.value, subset: els.subset.value });
-    data.pageSize = (els.pageSize.value === 'Alle') ? 0 : parseInt(els.pageSize.value || '50',10);
+    //data.pageSize = (els.pageSize.value === 'Alle') ? 0 : parseInt(els.pageSize.value || '50',10);
+    setPageSize((els.pageSize.value === 'Alle') ? 0 : parseInt(els.pageSize.value || '50',10));
     renderTable();
     rebuildFilters();
     renderStats();
     if (location.hash === '#charts') renderCharts();
   });
-  data.pageSize = (els.pageSize.value === 'Alle') ? 0 : parseInt(els.pageSize.value || '50',10);
+  //data.pageSize = (els.pageSize.value === 'Alle') ? 0 : parseInt(els.pageSize.value || '50',10);
+  setPageSize((els.pageSize.value === 'Alle') ? 0 : parseInt(els.pageSize.value || '50',10));
   renderTable();
   rebuildFilters();
   renderStats();
