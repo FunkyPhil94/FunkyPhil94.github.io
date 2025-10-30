@@ -81,11 +81,13 @@
     let chartTeam, chartPos, chartSubset;
 
     function parseCSV(url){
-      return new Promise((resolve) => {
-        Papa.parse(url + '?v=' + Date.now(), {
+      return new Promise((resolve, reject) => {
+        const sep = url.includes('?') ? '&' : '?';
+        Papa.parse(url + sep + 'v=' + Date.now(), {
           download: true,
           skipEmptyLines: true,
-          complete: (res) => resolve(res.data)
+          complete: (res) => resolve(res.data),
+          error: (err) => reject(err)
         });
       });
     }
@@ -196,6 +198,7 @@
 
     async function loadAndRender(){
       const arr = await parseCSV(CSV_URL);
+      console.log('CSV rows:', arr.length, arr.slice(0,3));
       rows = arrayToObjects(arr);
       filtered = [...rows];
       rebuildFilters();
