@@ -1,7 +1,7 @@
 import { CSV_URL, REFRESH_MINUTES } from './config.js';
 import { loadSheetData, applyFilters } from './data.js';
 import * as data from './data.js';
-import { renderTable, renderStats, bindTableEvents, setStatus } from './table.js';
+import { renderTable, renderStats, bindTableEvents } from './table.js';
 import { renderCharts } from './charts.js';
 
 const els = {
@@ -27,52 +27,30 @@ function syncView(){
   if (!isTable) renderCharts();
 }
 
-let tableBindings;
-let tableEventsBound = false;
-
-function handleFilterChange(){
+async function loadAndRender(){
+  await loadSheetData();
   applyFilters({
     q: els.q.value,
     team: els.team.value,
     pos: els.pos.value,
     subset: els.subset.value
   });
-  data.pageSize = (els.pageSize.value === 'Alle') ? 0 : parseInt(els.pageSize.value || '50', 10);
+  const { rebuildFilters } = bindTableEvents(()=>{
+    applyFilters({ q: els.q.value, team: els.team.value, pos: els.pos.value, subset: els.subset.value });
+    data.pageSize = (els.pageSize.value === 'Alle') ? 0 : parseInt(els.pageSize.value || '50',10);
+    renderTable();
+    rebuildFilters();
+    renderStats();
+    if (location.hash === '#charts') renderCharts();
+  });
+  data.pageSize = (els.pageSize.value === 'Alle') ? 0 : parseInt(els.pageSize.value || '50',10);
   renderTable();
-  tableBindings?.rebuildFilters();
+  rebuildFilters();
   renderStats();
-  if (location.hash === '#charts') renderCharts();
-
-  const hasRows = data.filtered.length > 0;
-  setStatus(
-    hasRows ? '' : 'Keine Einträge entsprechen den aktuellen Filtern.',
-    'info'
-  );
-}
-
-async function loadAndRender(){
-  setStatus('Daten werden geladen…', 'info');
-  try {
-    await loadSheetData();
-  } catch (err) {
-    console.error('Fehler beim Laden der Daten', err);
-    setStatus('Fehler beim Laden der Daten. Bitte später erneut versuchen.', 'error');
-    return;
-  }
-
-  handleFilterChange();
-
-  if (!tableEventsBound){
-    tableBindings = bindTableEvents(handleFilterChange);
-    tableEventsBound = true;
-  }
-
-  tableBindings.rebuildFilters();
 }
 
 // Init
 window.addEventListener('hashchange', syncView);
 syncView();
-els.reload.addEventListener('click', loadAndRender);
 loadAndRender();
 if (REFRESH_MINUTES > 0) setInterval(loadAndRender, REFRESH_MINUTES*60*1000);
