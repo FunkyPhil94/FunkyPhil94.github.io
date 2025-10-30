@@ -1,0 +1,240 @@
+diff --git a/css/style.css b/css/style.css
+index c56816ef0ee5a0676f42edae14c46a80f9e7e783..e247ea11c2dac0f04a3717409a7c59b03c45405e 100644
+--- a/css/style.css
++++ b/css/style.css
+@@ -1,15 +1,18 @@
+ :root{ --pad: .85rem; }
+ header.nav { display:flex; gap:1rem; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+ .tabs { display:flex; gap:.5rem; flex-wrap:wrap; }
+ .tab { padding:.4rem .8rem; border:1px solid #ccc; border-radius:.6rem; text-decoration:none; }
+ .tab.active { font-weight:600; box-shadow:0 0 0 2px inset var(--accent,#4442); }
+ .controls { display:grid; gap:.75rem; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); align-items:end; }
+ thead th{ position:sticky; top:0; background:var(--bg); cursor:pointer; }
+ .muted{ opacity:.75; font-size:.9rem; }
+ .content{ margin-top:1rem; }
+ .table-wrap{ max-height:60vh; overflow:auto; }
+ .grid-2{ display:grid; gap:1rem; grid-template-columns:1fr; }
+ @media (min-width: 980px){ .grid-2{ grid-template-columns:1fr 1fr; } }
+ .stats { display:flex; gap:1rem; flex-wrap:wrap; }
+ .stat { padding:.5rem .8rem; border:1px solid #ddd; border-radius:.6rem; }
+ .row { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
++.status { margin-top:.75rem; padding:.6rem .9rem; border-radius:.6rem; border:1px solid transparent; }
++.status-info { background:#eef5ff; border-color:#c1dafc; }
++.status-error { background:#ffecec; border-color:#f3b9b9; color:#6b0000; }
+diff --git a/index.html b/index.html
+index 6b6e958c48875f8348721c575312964f74bd6425..d15552da8a6405901ecdaaf1b202992ca5bdc414 100644
+--- a/index.html
++++ b/index.html
+@@ -34,50 +34,52 @@
+       <label>Position
+         <select id="pos"><option value="">Alle</option></select>
+       </label>
+       <label>Subset
+         <select id="subset"><option value="">Alle</option></select>
+       </label>
+       <div class="row">
+         <button id="reset">Filter zurücksetzen</button>
+         <button id="reload">Daten neu laden</button>
+       </div>
+       <label>Zeilen pro Seite
+         <select id="pageSize">
+           <option>25</option>
+           <option selected>50</option>
+           <option>100</option>
+           <option>Alle</option>
+         </select>
+       </label>
+     </div>
+ 
+     <div class="stats" style="margin:.5rem 0 0">
+       <div class="stat" id="stat-total">Gesamt: –</div>
+       <div class="stat" id="stat-amount">Summe Amount: –</div>
+     </div>
+ 
++    <p id="status" class="status" hidden aria-live="polite"></p>
++
+     <div class="table-wrap">
+       <table id="tbl">
+         <thead><tr id="thead"></tr></thead>
+         <tbody id="tbody"></tbody>
+       </table>
+     </div>
+ 
+     <div class="row" style="justify-content:space-between; margin-top:.5rem">
+       <p id="count" class="muted" style="margin:0"></p>
+       <div class="row">
+         <button id="prev">← Zurück</button>
+         <span id="pageInfo" class="muted">Seite 1/1</span>
+         <button id="next">Weiter →</button>
+       </div>
+     </div>
+   </section>
+ 
+   <section id="view-charts" class="content" hidden>
+     <div class="grid-2">
+       <section>
+         <h2>Cards pro Team</h2>
+         <canvas id="chartTeam" height="140"></canvas>
+       </section>
+       <section>
+         <h2>Cards pro Position</h2>
+diff --git a/js/main.js b/js/main.js
+index 49f4ad8e20d9f21581441633ab75eea8e4368dbb..6a929525124dddc772efe98661910b05de0be940 100644
+--- a/js/main.js
++++ b/js/main.js
+@@ -1,56 +1,78 @@
+ import { CSV_URL, REFRESH_MINUTES } from './config.js';
+ import { loadSheetData, applyFilters } from './data.js';
+ import * as data from './data.js';
+-import { renderTable, renderStats, bindTableEvents } from './table.js';
++import { renderTable, renderStats, bindTableEvents, setStatus } from './table.js';
+ import { renderCharts } from './charts.js';
+ 
+ const els = {
+   viewTable: document.getElementById('view-table'),
+   viewCharts: document.getElementById('view-charts'),
+   tabTable: document.getElementById('tabTable'),
+   tabCharts: document.getElementById('tabCharts'),
+   q: document.getElementById('q'),
+   team: document.getElementById('team'),
+   pos: document.getElementById('pos'),
+   subset: document.getElementById('subset'),
+   reload: document.getElementById('reload'),
+   pageSize: document.getElementById('pageSize'),
+ };
+ 
+ function syncView(){
+   const hash = location.hash || '#table';
+   const isTable = hash === '#table';
+   els.viewTable.hidden = !isTable;
+   els.viewCharts.hidden = isTable;
+   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+   (isTable ? els.tabTable : els.tabCharts).classList.add('active');
+   if (!isTable) renderCharts();
+ }
+ 
+-async function loadAndRender(){
+-  await loadSheetData();
++let tableBindings;
++let tableEventsBound = false;
++
++function handleFilterChange(){
+   applyFilters({
+     q: els.q.value,
+     team: els.team.value,
+     pos: els.pos.value,
+     subset: els.subset.value
+   });
+-  const { rebuildFilters } = bindTableEvents(()=>{
+-    applyFilters({ q: els.q.value, team: els.team.value, pos: els.pos.value, subset: els.subset.value });
+-    data.pageSize = (els.pageSize.value === 'Alle') ? 0 : parseInt(els.pageSize.value || '50',10);
+-    renderTable();
+-    rebuildFilters();
+-    renderStats();
+-    if (location.hash === '#charts') renderCharts();
+-  });
+-  data.pageSize = (els.pageSize.value === 'Alle') ? 0 : parseInt(els.pageSize.value || '50',10);
++  data.pageSize = (els.pageSize.value === 'Alle') ? 0 : parseInt(els.pageSize.value || '50', 10);
+   renderTable();
+-  rebuildFilters();
++  tableBindings?.rebuildFilters();
+   renderStats();
++  if (location.hash === '#charts') renderCharts();
++
++  const hasRows = data.filtered.length > 0;
++  setStatus(
++    hasRows ? '' : 'Keine Einträge entsprechen den aktuellen Filtern.',
++    'info'
++  );
++}
++
++async function loadAndRender(){
++  setStatus('Daten werden geladen…', 'info');
++  try {
++    await loadSheetData();
++  } catch (err) {
++    console.error('Fehler beim Laden der Daten', err);
++    setStatus('Fehler beim Laden der Daten. Bitte später erneut versuchen.', 'error');
++    return;
++  }
++
++  handleFilterChange();
++
++  if (!tableEventsBound){
++    tableBindings = bindTableEvents(handleFilterChange);
++    tableEventsBound = true;
++  }
++
++  tableBindings.rebuildFilters();
+ }
+ 
+ // Init
+ window.addEventListener('hashchange', syncView);
+ syncView();
++els.reload.addEventListener('click', loadAndRender);
+ loadAndRender();
+ if (REFRESH_MINUTES > 0) setInterval(loadAndRender, REFRESH_MINUTES*60*1000);
+diff --git a/js/table.js b/js/table.js
+index 471a404b8a755d15a44bccbda98d1958c53752dc..d37081e378c3b3ad08b3861b6b22e1720284187b 100644
+--- a/js/table.js
++++ b/js/table.js
+@@ -1,46 +1,59 @@
+ import { headers, filtered, currentPageSlice } from './data.js';
+ import * as data from './data.js';
+ 
+ const els = {
+   q: document.getElementById('q'),
+   team: document.getElementById('team'),
+   pos: document.getElementById('pos'),
+   subset: document.getElementById('subset'),
+   reset: document.getElementById('reset'),
+   reload: document.getElementById('reload'),
+   thead: document.getElementById('thead'),
+   tbody: document.getElementById('tbody'),
+   count: document.getElementById('count'),
+   statTotal: document.getElementById('stat-total'),
+   statAmount: document.getElementById('stat-amount'),
++  status: document.getElementById('status'),
+   prev: document.getElementById('prev'),
+   next: document.getElementById('next'),
+   pageInfo: document.getElementById('pageInfo'),
+   pageSize: document.getElementById('pageSize'),
+ };
+ 
++const STATUS_CLASSES = ['status-info', 'status-error'];
++
++export function setStatus(message = '', type = 'info'){
++  if (!els.status) return;
++  els.status.textContent = message;
++  els.status.hidden = !message;
++  STATUS_CLASSES.forEach(cls => els.status.classList.remove(cls));
++  if (message){
++    els.status.classList.add(type === 'error' ? 'status-error' : 'status-info');
++  }
++}
++
+ function setOptions(id, values){
+   const sel = els[id];
+   const cur = sel.value;
+   sel.innerHTML = '<option value=\"\">Alle</option>' +
+     Array.from(values).sort((a,b)=>a.localeCompare(b)).map(v => `<option>${v}</option>`).join('');
+   if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+ }
+ 
+ function rebuildFilters(){
+   setOptions('team', new Set(filtered.map(x => x['Team']).filter(Boolean)));
+   setOptions('pos', new Set(filtered.map(x => x['Position']).filter(Boolean)));
+   setOptions('subset', new Set(filtered.map(x => x['Subset']).filter(Boolean)));
+ }
+ 
+ export function renderStats(){
+   const total = filtered.length;
+   const sumAmount = filtered.reduce((acc, r) => acc + (isNaN(r._amount) ? 0 : r._amount), 0);
+   els.statTotal.textContent = `Gesamt: ${total.toLocaleString('de-DE')} Karten`;
+   els.statAmount.textContent = `Summe Amount: ${sumAmount.toLocaleString('de-DE')}`;
+ }
+ 
+ export function renderTable(){
+   const { pages, slice, total } = currentPageSlice();
+ 
+   // Header mit Sort-Clicks
