@@ -3,66 +3,159 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cards Dashboard</title>
+  <title>Cards – Tabelle & Charts</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simpledotcss/simple.min.css">
   <style>
+    :root{ --pad: .85rem; }
+    header.nav { display:flex; gap:1rem; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+    .tabs { display:flex; gap:.5rem; flex-wrap:wrap; }
+    .tab { padding:.4rem .8rem; border:1px solid #ccc; border-radius:.6rem; text-decoration:none; }
+    .tab.active { font-weight:600; box-shadow:0 0 0 2px inset var(--accent,#4442); }
+
     .controls { display:grid; gap:.75rem; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); align-items:end; }
-    .grid { display:grid; gap:1rem; grid-template-columns:1fr; margin-top:1rem; }
-    thead th{ position:sticky; top:0; background:var(--bg); }
+    thead th{ position:sticky; top:0; background:var(--bg); cursor:pointer; }
     .muted{ opacity:.75; font-size:.9rem; }
+    .content{ margin-top:1rem; }
+
+    .table-wrap{ max-height:60vh; overflow:auto; }
+    .grid-2{ display:grid; gap:1rem; grid-template-columns:1fr; }
+    @media (min-width: 980px){ .grid-2{ grid-template-columns:1fr 1fr; } }
+
+    .stats { display:flex; gap:1rem; flex-wrap:wrap; }
+    .stat { padding:.5rem .8rem; border:1px solid #ddd; border-radius:.6rem; }
+
+    .row { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
   </style>
 </head>
 <body>
-  <h1>Cards Dashboard</h1>
-  <p class="muted">Daten live aus Google Sheets. Spalten: <code>Card Number</code>, <code>Last Name</code>, <code>Team</code>, <code>Position</code>, <code>Subset</code>.</p>
+  <header class="nav">
+    <div>
+      <h1 style="margin:0">Cards Dashboard</h1>
+      <p class="muted" style="margin:.25rem 0 0">Daten live aus Google Sheets · Spalten: <code>Card Number</code>, <code>Last Name</code>, <code>Team</code>, <code>Position</code>, <code>Subset</code>, <code>Amount</code></p>
+    </div>
+    <nav class="tabs">
+      <a href="#table" id="tabTable" class="tab">Tabelle</a>
+      <a href="#charts" id="tabCharts" class="tab">Charts</a>
+    </nav>
+  </header>
 
-  <section class="controls">
-    <label>Suche (Nummer/Name)
-      <input id="q" type="search" placeholder="z. B. 123 oder Smith">
-    </label>
-    <label>Team
-      <select id="team"><option value="">Alle</option></select>
-    </label>
-    <label>Position
-      <select id="pos"><option value="">Alle</option></select>
-    </label>
-    <label>Subset
-      <select id="subset"><option value="">Alle</option></select>
-    </label>
-    <button id="reset">Filter zurücksetzen</button>
-  </section>
+  <section id="view-table" class="content" hidden>
+    <div class="controls">
+      <label>Suche (Nummer/Name)
+        <input id="q" type="search" placeholder="z. B. 123 oder Smith">
+      </label>
+      <label>Team
+        <select id="team"><option value="">Alle</option></select>
+      </label>
+      <label>Position
+        <select id="pos"><option value="">Alle</option></select>
+      </label>
+      <label>Subset
+        <select id="subset"><option value="">Alle</option></select>
+      </label>
+      <div class="row">
+        <button id="reset">Filter zurücksetzen</button>
+        <button id="reload">Daten neu laden</button>
+      </div>
+      <label>Zeilen pro Seite
+        <select id="pageSize">
+          <option>25</option>
+          <option selected>50</option>
+          <option>100</option>
+          <option>Alle</option>
+        </select>
+      </label>
+    </div>
 
-  <section>
-    <h2>Tabelle</h2>
-    <div style="max-height:60vh; overflow:auto;">
+    <div class="stats" style="margin:.5rem 0 0">
+      <div class="stat" id="stat-total">Gesamt: –</div>
+      <div class="stat" id="stat-amount">Summe Amount: –</div>
+    </div>
+
+    <div class="table-wrap">
       <table id="tbl">
         <thead><tr id="thead"></tr></thead>
         <tbody id="tbody"></tbody>
       </table>
     </div>
-    <p id="count" class="muted"></p>
+
+    <div class="row" style="justify-content:space-between; margin-top:.5rem">
+      <p id="count" class="muted" style="margin:0"></p>
+      <div class="row">
+        <button id="prev">← Zurück</button>
+        <span id="pageInfo" class="muted">Seite 1/1</span>
+        <button id="next">Weiter →</button>
+      </div>
+    </div>
   </section>
 
+  <section id="view-charts" class="content" hidden>
+    <div class="grid-2">
+      <section>
+        <h2>Cards pro Team</h2>
+        <canvas id="chartTeam" height="140"></canvas>
+      </section>
+      <section>
+        <h2>Cards pro Position</h2>
+        <canvas id="chartPos" height="140"></canvas>
+      </section>
+      <section>
+        <h2>Cards pro Subset</h2>
+        <canvas id="chartSubset" height="140"></canvas>
+      </section>
+      <section>
+        <h2>Summe Amount pro Team</h2>
+        <canvas id="chartAmountTeam" height="140"></canvas>
+      </section>
+    </div>
+  </section>
+
+  <!-- Libs -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
-    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRg81HZFdz1UqGpGP2hbobxDSY4Pqib25LcxppShhYuVU9DHxWYb7QV-qpjZpnXvyOuU15_t1HeKPGk/pub?gid=522258962&single=true&output=csv';
+    // ==== KONFIG ====
+    // >>>>>>>>>>>> DEINE VERÖFFENTLICHTE SHEETS-CSV-URL EINFÜGEN <<<<<<<<<<<<
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRg81HZFdz1UqGpGP2hbobxDSY4Pqib25LcxppShhYuVU9DHxWYb7QV-qpjZpnXvyOuU15_t1HeKPGk/pubhtml?gid=522258962&single=true';
+    // automatisch neu laden? in Minuten (0 = aus)
     const REFRESH_MINUTES = 0.5;
 
+    // ==== STATE ====
     let headers = [];
-    let rows = [];
-    let filtered = [];
+    let rows = [];        // Originaldaten (Objekte)
+    let filtered = [];    // Gefilterte Daten
 
+    let sortKey = null, sortDir = 1; // 1=asc, -1=desc
+    let page = 1, pageSize = 50;
+
+    // Charts
+    let chartTeam, chartPos, chartSubset, chartAmountTeam;
+
+    // ==== ELEMENTE ====
     const els = {
+      viewTable: document.getElementById('view-table'),
+      viewCharts: document.getElementById('view-charts'),
+      tabTable: document.getElementById('tabTable'),
+      tabCharts: document.getElementById('tabCharts'),
+
       q: document.getElementById('q'),
       team: document.getElementById('team'),
       pos: document.getElementById('pos'),
       subset: document.getElementById('subset'),
       reset: document.getElementById('reset'),
+      reload: document.getElementById('reload'),
       thead: document.getElementById('thead'),
       tbody: document.getElementById('tbody'),
-      count: document.getElementById('count')
+      count: document.getElementById('count'),
+      statTotal: document.getElementById('stat-total'),
+      statAmount: document.getElementById('stat-amount'),
+      prev: document.getElementById('prev'),
+      next: document.getElementById('next'),
+      pageInfo: document.getElementById('pageInfo'),
+      pageSize: document.getElementById('pageSize'),
     };
 
+    // ==== HELPERS ====
     function parseCSV(url){
       return new Promise((resolve, reject) => {
         const sep = url.includes('?') ? '&' : '?';
@@ -75,11 +168,21 @@
       });
     }
 
+    function toNumberMaybe(v){
+      if (v == null) return NaN;
+      const s = String(v).replace(/\./g,'').replace(',','.');
+      const n = parseFloat(s);
+      return isNaN(n) ? NaN : n;
+    }
+
     function arrayToObjects(arr){
       headers = arr[0];
+      const idxAmount = headers.indexOf('Amount');
       return arr.slice(1).map(r => {
         const o = {};
         headers.forEach((h,i)=> o[h] = (r[i] ?? '').toString());
+        // numerischen Amount ableiten
+        o._amount = idxAmount >= 0 ? toNumberMaybe(r[idxAmount]) : NaN;
         return o;
       });
     }
@@ -112,32 +215,118 @@
         return qhit && thit && phit && shit;
       });
 
+      // nach Filter immer auf Seite 1
+      page = 1;
       renderTable();
       rebuildFilters();
+      renderStats();
+      if (location.hash === '#charts') renderCharts();
+    }
+
+    function renderStats(){
+      const total = filtered.length;
+      const sumAmount = filtered.reduce((acc, r) => acc + (isNaN(r._amount) ? 0 : r._amount), 0);
+      els.statTotal.textContent = `Gesamt: ${total.toLocaleString('de-DE')} Karten`;
+      els.statAmount.textContent = `Summe Amount: ${sumAmount.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
     }
 
     function renderTable(){
+      // Sort
+      let data = [...filtered];
+      if (sortKey){
+        data.sort((a,b)=>{
+          const av = a[sortKey] || '';
+          const bv = b[sortKey] || '';
+          if (sortKey === 'Amount'){
+            const an = isNaN(a._amount) ? -Infinity : a._amount;
+            const bn = isNaN(b._amount) ? -Infinity : b._amount;
+            return (an - bn) * sortDir;
+          }
+          return av.localeCompare(bv, 'de', {numeric:true, sensitivity:'base'}) * sortDir;
+        });
+      }
+
+      // Pagination
+      const size = (els.pageSize.value === 'Alle') ? data.length : parseInt(els.pageSize.value || '50',10);
+      pageSize = size;
+      const pages = Math.max(1, Math.ceil(data.length / (pageSize || data.length)));
+      page = Math.min(Math.max(1, page), pages);
+      const start = (page-1) * (pageSize || data.length);
+      const slice = data.slice(start, pageSize ? start + pageSize : undefined);
+
+      // Header mit Sort-Clicks
       els.thead.innerHTML = '';
       headers.forEach(h => {
         const th = document.createElement('th');
         th.textContent = h;
+        th.title = 'Klicken zum Sortieren';
+        th.addEventListener('click', () => {
+          if (sortKey === h) sortDir *= -1; else { sortKey = h; sortDir = 1; }
+          renderTable();
+        });
+        if (sortKey === h){ th.textContent += sortDir === 1 ? ' ▲' : ' ▼'; }
         els.thead.appendChild(th);
       });
 
+      // Body
       els.tbody.innerHTML = '';
       const frag = document.createDocumentFragment();
-      filtered.forEach(r => {
+      slice.forEach(r => {
         const tr = document.createElement('tr');
         headers.forEach(h => {
           const td = document.createElement('td');
-          td.textContent = r[h] ?? '';
+          td.textContent = (h === 'Amount' && !isNaN(r._amount)) ? r._amount.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) : (r[h] ?? '');
           tr.appendChild(td);
         });
         frag.appendChild(tr);
       });
       els.tbody.appendChild(frag);
 
-      els.count.textContent = `${filtered.length} Einträge angezeigt (${rows.length} gesamt)`;
+      // Footer/Info
+      els.count.textContent = `${slice.length} angezeigt · ${filtered.length} gefiltert · ${rows.length} gesamt`;
+      els.pageInfo.textContent = `Seite ${page}/${pages}`;
+      els.prev.disabled = page <= 1;
+      els.next.disabled = page >= pages;
+    }
+
+    function groupCount(arr, key){
+      const m = new Map();
+      arr.forEach(o => {
+        const k = (o[key] || '').trim() || '(leer)';
+        m.set(k, (m.get(k)||0)+1);
+      });
+      return [...m.entries()].sort((a,b)=> b[1]-a[1]);
+    }
+    function groupSum(arr, key){
+      const m = new Map();
+      arr.forEach(o => {
+        const k = (o[key] || '').trim() || '(leer)';
+        const v = isNaN(o._amount) ? 0 : o._amount;
+        m.set(k, (m.get(k)||0)+v);
+      });
+      return [...m.entries()].sort((a,b)=> b[1]-a[1]);
+    }
+
+    function makeOrUpdateChart(existing, canvasId, labels, data, title){
+      const ctx = document.getElementById(canvasId).getContext('2d');
+      if (existing) existing.destroy();
+      return new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets: [{ label: title, data }] },
+        options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true } } }
+      });
+    }
+
+    function renderCharts(){
+      const teamPairs = groupCount(filtered, 'Team');
+      const posPairs = groupCount(filtered, 'Position');
+      const subsetPairs = groupCount(filtered, 'Subset');
+      const amountTeam = groupSum(filtered, 'Team');
+
+      chartTeam = makeOrUpdateChart(chartTeam, 'chartTeam', teamPairs.map(x=>x[0]), teamPairs.map(x=>x[1]), 'Cards pro Team');
+      chartPos = makeOrUpdateChart(chartPos, 'chartPos', posPairs.map(x=>x[0]), posPairs.map(x=>x[1]), 'Cards pro Position');
+      chartSubset = makeOrUpdateChart(chartSubset, 'chartSubset', subsetPairs.map(x=>x[0]), subsetPairs.map(x=>x[1]), 'Cards pro Subset');
+      chartAmountTeam = makeOrUpdateChart(chartAmountTeam, 'chartAmountTeam', amountTeam.map(x=>x[0]), amountTeam.map(x=>x[1]), 'Summe Amount pro Team');
     }
 
     async function loadAndRender(){
@@ -148,15 +337,28 @@
       applyFilters();
     }
 
-    ['q','team','pos','subset'].forEach(id => {
-      (id === 'q' ? els[id] : els[id]).addEventListener('input', applyFilters);
-      if (id !== 'q') els[id].addEventListener('change', applyFilters);
-    });
-    els.reset.addEventListener('click', () => {
-      els.q.value = ''; els.team.value=''; els.pos.value=''; els.subset.value='';
-      applyFilters();
-    });
+    // ==== EVENTS ====
+    ['q'].forEach(id => els[id].addEventListener('input', applyFilters));
+    ['team','pos','subset','pageSize'].forEach(id => els[id].addEventListener('change', applyFilters));
+    els.reset.addEventListener('click', () => { els.q.value = ''; els.team.value=''; els.pos.value=''; els.subset.value=''; applyFilters(); });
+    els.reload.addEventListener('click', loadAndRender);
+    els.prev.addEventListener('click', () => { page = Math.max(1, page-1); renderTable(); });
+    els.next.addEventListener('click', () => { page = page+1; renderTable(); });
 
+    // Tabs / Views
+    function syncView(){
+      const hash = location.hash || '#table';
+      const isTable = hash === '#table';
+      els.viewTable.hidden = !isTable;
+      els.viewCharts.hidden = isTable;
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      (isTable ? els.tabTable : els.tabCharts).classList.add('active');
+      if (!isTable) renderCharts();
+    }
+    window.addEventListener('hashchange', syncView);
+
+    // Init
+    syncView();
     loadAndRender();
     if (REFRESH_MINUTES > 0) setInterval(loadAndRender, REFRESH_MINUTES*60*1000);
   </script>
