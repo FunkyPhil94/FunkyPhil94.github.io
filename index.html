@@ -8,7 +8,6 @@
   <style>
     .controls { display:grid; gap:.75rem; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); align-items:end; }
     .grid { display:grid; gap:1rem; grid-template-columns:1fr; margin-top:1rem; }
-    @media (min-width: 920px){ .grid{ grid-template-columns:1fr 1fr; } }
     thead th{ position:sticky; top:0; background:var(--bg); }
     .muted{ opacity:.75; font-size:.9rem; }
   </style>
@@ -33,38 +32,25 @@
     <button id="reset">Filter zurücksetzen</button>
   </section>
 
-  <div class="grid">
-    <section>
-      <h2>Tabelle</h2>
-      <div style="max-height:60vh; overflow:auto;">
-        <table id="tbl">
-          <thead><tr id="thead"></tr></thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
-      <p id="count" class="muted"></p>
-    </section>
+  <section>
+    <h2>Tabelle</h2>
+    <div style="max-height:60vh; overflow:auto;">
+      <table id="tbl">
+        <thead><tr id="thead"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <p id="count" class="muted"></p>
+  </section>
 
-    <section>
-      <h2>Charts</h2>
-      <canvas id="chartTeam" height="110"></canvas>
-      <canvas id="chartPos" height="110" style="margin-top:1rem;"></canvas>
-      <canvas id="chartSubset" height="110" style="margin-top:1rem;"></canvas>
-    </section>
-  </div>
-
-  <!-- CSV-Parser & Charts -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
-    // >>>>>>>>>>>> HIER DEINE VERÖFFENTLICHTE SHEETS-CSV-URL EINTRAGEN <<<<<<<<<<<<
     const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRg81HZFdz1UqGpGP2hbobxDSY4Pqib25LcxppShhYuVU9DHxWYb7QV-qpjZpnXvyOuU15_t1HeKPGk/pub?gid=522258962&single=true&output=csv';
-    // Optional: alle X Minuten Daten neu laden (0 = aus)
     const REFRESH_MINUTES = 0.5;
 
     let headers = [];
-    let rows = [];      // Originaldaten (Array von Objekten)
-    let filtered = [];  // Gefilterte Daten
+    let rows = [];
+    let filtered = [];
 
     const els = {
       q: document.getElementById('q'),
@@ -76,9 +62,6 @@
       tbody: document.getElementById('tbody'),
       count: document.getElementById('count')
     };
-
-    // Charts
-    let chartTeam, chartPos, chartSubset;
 
     function parseCSV(url){
       return new Promise((resolve, reject) => {
@@ -110,7 +93,6 @@
     }
 
     function rebuildFilters(){
-      // Options aus gefilterten Daten aufbauen (damit Filter kaskadieren)
       setOptions('team', new Set(filtered.map(x => x['Team']).filter(Boolean)));
       setOptions('pos', new Set(filtered.map(x => x['Position']).filter(Boolean)));
       setOptions('subset', new Set(filtered.map(x => x['Subset']).filter(Boolean)));
@@ -123,8 +105,7 @@
       const subset = els.subset.value;
 
       filtered = rows.filter(r => {
-        const qhit = !q || (r['Card Number']?.toLowerCase().includes(q) ||
-                            r['Last Name']?.toLowerCase().includes(q));
+        const qhit = !q || (r['Card Number']?.toLowerCase().includes(q) || r['Last Name']?.toLowerCase().includes(q));
         const thit = !team || r['Team'] === team;
         const phit = !pos || r['Position'] === pos;
         const shit = !subset || r['Subset'] === subset;
@@ -132,12 +113,10 @@
       });
 
       renderTable();
-      renderCharts();
-      rebuildFilters(); // Optionen nachziehen
+      rebuildFilters();
     }
 
     function renderTable(){
-      // Header
       els.thead.innerHTML = '';
       headers.forEach(h => {
         const th = document.createElement('th');
@@ -145,7 +124,6 @@
         els.thead.appendChild(th);
       });
 
-      // Body
       els.tbody.innerHTML = '';
       const frag = document.createDocumentFragment();
       filtered.forEach(r => {
@@ -162,50 +140,14 @@
       els.count.textContent = `${filtered.length} Einträge angezeigt (${rows.length} gesamt)`;
     }
 
-    function groupCount(arr, key){
-      const m = new Map();
-      arr.forEach(o => {
-        const k = (o[key] || '').trim() || '(leer)';
-        m.set(k, (m.get(k)||0)+1);
-      });
-      return [...m.entries()].sort((a,b)=> b[1]-a[1]); // desc
-    }
-
-    function makeOrUpdateChart(existing, canvasId, labels, data, title){
-      const ctx = document.getElementById(canvasId).getContext('2d');
-      if (existing) existing.destroy();
-      return new Chart(ctx, {
-        type: 'bar',
-        data: { labels, datasets: [{ label: title, data }] },
-        options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } } }
-      });
-    }
-
-    function renderCharts(){
-      const teamPairs = groupCount(filtered, 'Team');
-      const posPairs = groupCount(filtered, 'Position');
-      const subsetPairs = groupCount(filtered, 'Subset');
-
-      chartTeam = makeOrUpdateChart(chartTeam, 'chartTeam',
-        teamPairs.map(x=>x[0]), teamPairs.map(x=>x[1]), 'Cards pro Team');
-
-      chartPos = makeOrUpdateChart(chartPos, 'chartPos',
-        posPairs.map(x=>x[0]), posPairs.map(x=>x[1]), 'Cards pro Position');
-
-      chartSubset = makeOrUpdateChart(chartSubset, 'chartSubset',
-        subsetPairs.map(x=>x[0]), subsetPairs.map(x=>x[1]), 'Cards pro Subset');
-    }
-
     async function loadAndRender(){
       const arr = await parseCSV(CSV_URL);
-      console.log('CSV rows:', arr.length, arr.slice(0,3));
       rows = arrayToObjects(arr);
       filtered = [...rows];
       rebuildFilters();
       applyFilters();
     }
 
-    // Events
     ['q','team','pos','subset'].forEach(id => {
       (id === 'q' ? els[id] : els[id]).addEventListener('input', applyFilters);
       if (id !== 'q') els[id].addEventListener('change', applyFilters);
