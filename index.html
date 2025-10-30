@@ -1,104 +1,88 @@
-<!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="UTF-8">
-        <title> Meine Beispielseite </title>
-    </head>
-    <body>
-    <!-- Kopf: Seitentitel -->
-        <h1> Meine Beispielseite</h1>
-        <table border="1">
-            <tr>
-            <!-- Navigationszeile -->
-                <td>
-                    Logo
-                </td>
-                <td>
-                    <a href="#"> Start </a> |
-                    <a href="#"> Themen </a> |
-                    <a href="#"> Über uns </a> |
-                    <a href="#"> Kontakt </a>
-                </td>
-            </tr>
-        </table>
-        <hr> 
-        <!-- 2-spaltiger Bereich -->
-        <table border="1">
-            <tr>
-                <!-- Linke Spalte -->     
-                <td>
-                    <h2> Menü </h2>
-                    <ul>
-                        <li>
-                            <a href=""> Eintrag 1</a>
-                        </li>
-                        <li>
-                            <a href=""> Eintrag 2</a>
-                        </li>
-                        <li>
-                            <a href=""> Eintrag 3</a>
-                        </li>
-                    </ul>
-                    <h2> Portrait </h2>
-                      <img src="portrait.jpg" alt="Portrait" width="220" height="160">                
-                </td>
-                <!-- Rechte Spalte -->
-                <td>
-                    <h2> Hauptinhalt</h2>
-                    <p> Dies ist der zentrale Inhaltsbereich. </p>
-                    <table border="1">
-                        <caption> Übersicht </caption>
-                        <tr>
-                            <th>
-                                Titel
-                            </th>
-                            <th>
-                                Beschreibung
-                            </th>
-                            <th>
-                                Link
-                            </th>
-                        </tr>
-                        <tr>
-                            <td>
-                                Kapitel 1
-                            </td>
-                            <td>
-                                Kurzinfo zu Kapitel 1
-                            </td>
-                            <td>
-                                <a href="#"> Details </a>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>
-                                Kapitel 2
-                            </td>
-                            <td>
-                                Kurzinfo zu Kapitel 2
-                            </td>
-                            <td>
-                                <a href="#"> Details </a>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>
-                                Kapitel 3
-                            </td>
-                            <td>
-                                Kurzinfo zu Kapitel 3
-                            </td>
-                            <td>
-                                <a href="#"> Details </a>
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
-        <hr>
-        <!-- Fußzeile -->
-        <p> © 2025 Beispielseite </p>
-        <p> <a href="#"> Impressum</a> | <a href="#"> Datenschutz</a> </p>
-    </body>
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Daten & Charts</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simpledotcss/simple.min.css">
+</head>
+<body>
+  <h1>Meine Kennzahlen</h1>
+  <p>Die Daten kommen live aus Google Sheets. Änderungen sind sofort sichtbar.</p>
+
+  <div id="table"></div>
+  <canvas id="chart" height="120"></canvas>
+
+  <!-- CSV-Parser & Chart-Bibliothek -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    // 1) ERSETZEN: veröffentlichte CSV-URL deines Google Sheets
+    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRg81HZFdz1UqGpGP2hbobxDSY4Pqib25LcxppShhYuVU9DHxWYb7QV-qpjZpnXvyOuU15_t1HeKPGk/pubhtml';
+
+    // Optional: alle X Minuten neu laden (damit Charts sich aktualisieren)
+    const REFRESH_MINUTES = 3;
+
+    function buildTable(rows) {
+      const table = document.createElement('table');
+      const thead = document.createElement('thead');
+      const tbody = document.createElement('tbody');
+
+      // Header
+      const headerRow = document.createElement('tr');
+      rows[0].forEach(h => { const th = document.createElement('th'); th.textContent = h; headerRow.appendChild(th); });
+      thead.appendChild(headerRow);
+
+      // Body
+      rows.slice(1).forEach(r => {
+        const tr = document.createElement('tr');
+        r.forEach(c => { const td = document.createElement('td'); td.textContent = c; tr.appendChild(td); });
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(thead); table.appendChild(tbody);
+      document.getElementById('table').replaceChildren(table);
+    }
+
+    let chart; // global, damit wir updaten können
+    function buildChart(rows) {
+      // Erwartetes Format (Beispiel):
+      // Datum,Serie A,Serie B
+      // 2025-01-01,12,5
+      const labels = rows.slice(1).map(r => r[0]);
+      const seriesA = rows.slice(1).map(r => Number(r[1] || 0));
+      const seriesB = rows[0].length > 2 ? rows.slice(1).map(r => Number(r[2] || 0)) : null;
+
+      const data = {
+        labels,
+        datasets: [
+          { label: rows[0][1], data: seriesA, tension: 0.25, pointRadius: 2 },
+          ...(seriesB ? [{ label: rows[0][2], data: seriesB, tension: 0.25, pointRadius: 2 }] : [])
+        ]
+      };
+
+      const ctx = document.getElementById('chart').getContext('2d');
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'line',
+        data,
+        options: { responsive: true, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    function loadData() {
+      Papa.parse(csvUrl + '?v=' + Date.now(), {
+        download: true,
+        complete: (res) => {
+          const rows = res.data.filter(r => r.length && r.join('').trim() !== '');
+          buildTable(rows);
+          buildChart(rows);
+        }
+      });
+    }
+
+    loadData();
+    if (REFRESH_MINUTES > 0) setInterval(loadData, REFRESH_MINUTES * 60 * 1000);
+  </script>
+</body>
 </html>
