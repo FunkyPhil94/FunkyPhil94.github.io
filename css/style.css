@@ -1,1 +1,15 @@
-
+:root{ --pad: .85rem; }
+header.nav { display:flex; gap:1rem; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+.tabs { display:flex; gap:.5rem; flex-wrap:wrap; }
+.tab { padding:.4rem .8rem; border:1px solid #ccc; border-radius:.6rem; text-decoration:none; }
+.tab.active { font-weight:600; box-shadow:0 0 0 2px inset var(--accent,#4442); }
+.controls { display:grid; gap:.75rem; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); align-items:end; }
+thead th{ position:sticky; top:0; background:var(--bg); cursor:pointer; }
+.muted{ opacity:.75; font-size:.9rem; }
+.content{ margin-top:1rem; }
+.table-wrap{ max-height:60vh; overflow:auto; }
+.grid-2{ display:grid; gap:1rem; grid-template-columns:1fr; }
+@media (min-width: 980px){ .grid-2{ grid-template-columns:1fr 1fr; } }
+.stats { display:flex; gap:1rem; flex-wrap:wrap; }
+.stat { padding:.5rem .8rem; border:1px solid #ddd; border-radius:.6rem; }
+.row { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
