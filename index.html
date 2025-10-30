@@ -3,86 +3,217 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Daten & Charts</title>
+  <title>Cards Dashboard</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simpledotcss/simple.min.css">
+  <style>
+    .controls { display:grid; gap:.75rem; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); align-items:end; }
+    .grid { display:grid; gap:1rem; grid-template-columns:1fr; margin-top:1rem; }
+    @media (min-width: 920px){ .grid{ grid-template-columns:1fr 1fr; } }
+    thead th{ position:sticky; top:0; background:var(--bg); }
+    .muted{ opacity:.75; font-size:.9rem; }
+  </style>
 </head>
 <body>
-  <h1>Meine Kennzahlen</h1>
-  <p>Die Daten kommen live aus Google Sheets. Änderungen sind sofort sichtbar.</p>
+  <h1>Cards Dashboard</h1>
+  <p class="muted">Daten live aus Google Sheets. Spalten: <code>Card Number</code>, <code>Last Name</code>, <code>Team</code>, <code>Position</code>, <code>Subset</code>.</p>
 
-  <div id="table"></div>
-  <canvas id="chart" height="120"></canvas>
+  <section class="controls">
+    <label>Suche (Nummer/Name)
+      <input id="q" type="search" placeholder="z. B. 123 oder Smith">
+    </label>
+    <label>Team
+      <select id="team"><option value="">Alle</option></select>
+    </label>
+    <label>Position
+      <select id="pos"><option value="">Alle</option></select>
+    </label>
+    <label>Subset
+      <select id="subset"><option value="">Alle</option></select>
+    </label>
+    <button id="reset">Filter zurücksetzen</button>
+  </section>
 
-  <!-- CSV-Parser & Chart-Bibliothek -->
+  <div class="grid">
+    <section>
+      <h2>Tabelle</h2>
+      <div style="max-height:60vh; overflow:auto;">
+        <table id="tbl">
+          <thead><tr id="thead"></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <p id="count" class="muted"></p>
+    </section>
+
+    <section>
+      <h2>Charts</h2>
+      <canvas id="chartTeam" height="110"></canvas>
+      <canvas id="chartPos" height="110" style="margin-top:1rem;"></canvas>
+      <canvas id="chartSubset" height="110" style="margin-top:1rem;"></canvas>
+    </section>
+  </div>
+
+  <!-- CSV-Parser & Charts -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
-    // 1) ERSETZEN: veröffentlichte CSV-URL deines Google Sheets
-    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRg81HZFdz1UqGpGP2hbobxDSY4Pqib25LcxppShhYuVU9DHxWYb7QV-qpjZpnXvyOuU15_t1HeKPGk/pubhtml';
-
-    // Optional: alle X Minuten neu laden (damit Charts sich aktualisieren)
+    // >>>>>>>>>>>> HIER DEINE VERÖFFENTLICHTE SHEETS-CSV-URL EINTRAGEN <<<<<<<<<<<<
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/DEINE-PUBLISH-URL.csv';
+    // Optional: alle X Minuten Daten neu laden (0 = aus)
     const REFRESH_MINUTES = 3;
 
-    function buildTable(rows) {
-      const table = document.createElement('table');
-      const thead = document.createElement('thead');
-      const tbody = document.createElement('tbody');
+    let headers = [];
+    let rows = [];      // Originaldaten (Array von Objekten)
+    let filtered = [];  // Gefilterte Daten
 
+    const els = {
+      q: document.getElementById('q'),
+      team: document.getElementById('team'),
+      pos: document.getElementById('pos'),
+      subset: document.getElementById('subset'),
+      reset: document.getElementById('reset'),
+      thead: document.getElementById('thead'),
+      tbody: document.getElementById('tbody'),
+      count: document.getElementById('count')
+    };
+
+    // Charts
+    let chartTeam, chartPos, chartSubset;
+
+    function parseCSV(url){
+      return new Promise((resolve) => {
+        Papa.parse(url + '?v=' + Date.now(), {
+          download: true,
+          skipEmptyLines: true,
+          complete: (res) => resolve(res.data)
+        });
+      });
+    }
+
+    function arrayToObjects(arr){
+      headers = arr[0];
+      return arr.slice(1).map(r => {
+        const o = {};
+        headers.forEach((h,i)=> o[h] = (r[i] ?? '').toString());
+        return o;
+      });
+    }
+
+    function setOptions(id, values){
+      const sel = els[id];
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">Alle</option>' +
+        Array.from(values).sort((a,b)=>a.localeCompare(b)).map(v => `<option>${v}</option>`).join('');
+      if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+    }
+
+    function rebuildFilters(){
+      // Options aus gefilterten Daten aufbauen (damit Filter kaskadieren)
+      setOptions('team', new Set(filtered.map(x => x['Team']).filter(Boolean)));
+      setOptions('pos', new Set(filtered.map(x => x['Position']).filter(Boolean)));
+      setOptions('subset', new Set(filtered.map(x => x['Subset']).filter(Boolean)));
+    }
+
+    function applyFilters(){
+      const q = els.q.value.trim().toLowerCase();
+      const team = els.team.value;
+      const pos = els.pos.value;
+      const subset = els.subset.value;
+
+      filtered = rows.filter(r => {
+        const qhit = !q || (r['Card Number']?.toLowerCase().includes(q) ||
+                            r['Last Name']?.toLowerCase().includes(q));
+        const thit = !team || r['Team'] === team;
+        const phit = !pos || r['Position'] === pos;
+        const shit = !subset || r['Subset'] === subset;
+        return qhit && thit && phit && shit;
+      });
+
+      renderTable();
+      renderCharts();
+      rebuildFilters(); // Optionen nachziehen
+    }
+
+    function renderTable(){
       // Header
-      const headerRow = document.createElement('tr');
-      rows[0].forEach(h => { const th = document.createElement('th'); th.textContent = h; headerRow.appendChild(th); });
-      thead.appendChild(headerRow);
+      els.thead.innerHTML = '';
+      headers.forEach(h => {
+        const th = document.createElement('th');
+        th.textContent = h;
+        els.thead.appendChild(th);
+      });
 
       // Body
-      rows.slice(1).forEach(r => {
+      els.tbody.innerHTML = '';
+      const frag = document.createDocumentFragment();
+      filtered.forEach(r => {
         const tr = document.createElement('tr');
-        r.forEach(c => { const td = document.createElement('td'); td.textContent = c; tr.appendChild(td); });
-        tbody.appendChild(tr);
+        headers.forEach(h => {
+          const td = document.createElement('td');
+          td.textContent = r[h] ?? '';
+          tr.appendChild(td);
+        });
+        frag.appendChild(tr);
       });
+      els.tbody.appendChild(frag);
 
-      table.appendChild(thead); table.appendChild(tbody);
-      document.getElementById('table').replaceChildren(table);
+      els.count.textContent = `${filtered.length} Einträge angezeigt (${rows.length} gesamt)`;
     }
 
-    let chart; // global, damit wir updaten können
-    function buildChart(rows) {
-      // Erwartetes Format (Beispiel):
-      // Datum,Serie A,Serie B
-      // 2025-01-01,12,5
-      const labels = rows.slice(1).map(r => r[0]);
-      const seriesA = rows.slice(1).map(r => Number(r[1] || 0));
-      const seriesB = rows[0].length > 2 ? rows.slice(1).map(r => Number(r[2] || 0)) : null;
+    function groupCount(arr, key){
+      const m = new Map();
+      arr.forEach(o => {
+        const k = (o[key] || '').trim() || '(leer)';
+        m.set(k, (m.get(k)||0)+1);
+      });
+      return [...m.entries()].sort((a,b)=> b[1]-a[1]); // desc
+    }
 
-      const data = {
-        labels,
-        datasets: [
-          { label: rows[0][1], data: seriesA, tension: 0.25, pointRadius: 2 },
-          ...(seriesB ? [{ label: rows[0][2], data: seriesB, tension: 0.25, pointRadius: 2 }] : [])
-        ]
-      };
-
-      const ctx = document.getElementById('chart').getContext('2d');
-      if (chart) chart.destroy();
-      chart = new Chart(ctx, {
-        type: 'line',
-        data,
-        options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    function makeOrUpdateChart(existing, canvasId, labels, data, title){
+      const ctx = document.getElementById(canvasId).getContext('2d');
+      if (existing) existing.destroy();
+      return new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets: [{ label: title, data }] },
+        options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } } }
       });
     }
 
-    function loadData() {
-      Papa.parse(csvUrl + '?v=' + Date.now(), {
-        download: true,
-        complete: (res) => {
-          const rows = res.data.filter(r => r.length && r.join('').trim() !== '');
-          buildTable(rows);
-          buildChart(rows);
-        }
-      });
+    function renderCharts(){
+      const teamPairs = groupCount(filtered, 'Team');
+      const posPairs = groupCount(filtered, 'Position');
+      const subsetPairs = groupCount(filtered, 'Subset');
+
+      chartTeam = makeOrUpdateChart(chartTeam, 'chartTeam',
+        teamPairs.map(x=>x[0]), teamPairs.map(x=>x[1]), 'Cards pro Team');
+
+      chartPos = makeOrUpdateChart(chartPos, 'chartPos',
+        posPairs.map(x=>x[0]), posPairs.map(x=>x[1]), 'Cards pro Position');
+
+      chartSubset = makeOrUpdateChart(chartSubset, 'chartSubset',
+        subsetPairs.map(x=>x[0]), subsetPairs.map(x=>x[1]), 'Cards pro Subset');
     }
 
-    loadData();
-    if (REFRESH_MINUTES > 0) setInterval(loadData, REFRESH_MINUTES * 60 * 1000);
+    async function loadAndRender(){
+      const arr = await parseCSV(CSV_URL);
+      rows = arrayToObjects(arr);
+      filtered = [...rows];
+      rebuildFilters();
+      applyFilters();
+    }
+
+    // Events
+    ['q','team','pos','subset'].forEach(id => {
+      (id === 'q' ? els[id] : els[id]).addEventListener('input', applyFilters);
+      if (id !== 'q') els[id].addEventListener('change', applyFilters);
+    });
+    els.reset.addEventListener('click', () => {
+      els.q.value = ''; els.team.value=''; els.pos.value=''; els.subset.value='';
+      applyFilters();
+    });
+
+    loadAndRender();
+    if (REFRESH_MINUTES > 0) setInterval(loadAndRender, REFRESH_MINUTES*60*1000);
   </script>
 </body>
 </html>
