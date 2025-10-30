@@ -8,91 +8,106 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <header class="nav">
-    <div>
-      <h1 style="margin:0">Cards Dashboard</h1>
-      <p class="muted" style="margin:.25rem 0 0">
-        Daten live aus Google Sheets · Spalten:
-        <code>Card Number</code>, <code>Last Name</code>,
-        <code>Team</code>, <code>Position</code>, <code>Subset</code>, <code>Amount</code>
-      </p>
-    </div>
-    <nav class="tabs">
-      <a href="#table" id="tabTable" class="tab">Tabelle</a>
-      <a href="#charts" id="tabCharts" class="tab">Charts</a>
-    </nav>
-  </header>
-
-  <section id="view-table" class="content" hidden>
-    <div class="controls">
-      <label>Suche (Nummer/Name)
-        <input id="q" type="search" placeholder="z. B. 123 oder Smith">
-      </label>
-      <label>Team
-        <select id="team"><option value="">Alle</option></select>
-      </label>
-      <label>Position
-        <select id="pos"><option value="">Alle</option></select>
-      </label>
-      <label>Subset
-        <select id="subset"><option value="">Alle</option></select>
-      </label>
-      <div class="row">
-        <button id="reset">Filter zurücksetzen</button>
-        <button id="reload">Daten neu laden</button>
+<main class="page">
+    <header class="nav page-header">
+        <div class="page-heading">
+            <h1>Cards Dashboard</h1>
+            <p class="muted">
+                Daten live aus Google Sheets · Spalten:
+                <code>Card Number</code>, <code>Last Name</code>,
+                <code>Team</code>, <code>Position</code>, <code>Subset</code>, <code>Amount</code>
+            </p>
+        </div>
+        <div class="page-actions">
+            <button id="themeToggle" class="theme-toggle" type="button" aria-pressed="false">Dunkler Modus</button>
+            <nav class="tabs">
+                <a href="#table" id="tabTable" class="tab">Tabelle</a>
+                <a href="#charts" id="tabCharts" class="tab">Charts</a>
+            </nav>
       </div>
-      <label>Zeilen pro Seite
-        <select id="pageSize">
-          <option>25</option>
-          <option selected>50</option>
-          <option>100</option>
-          <option>Alle</option>
-        </select>
-      </label>
-    </div>
+    </header>
+    <section id="view-table" class="content" hidden>
+        <div class="table-layout">
+            <aside class="table-filters">
+                <section class="panel filters-panel">
+                    <div class="filters-header">
+                        <h2>Filter &amp; Suche</h2>
+                        <button id="reset" type="button" class="ghost">Zurücksetzen</button>
+                    </div>
+                    <div class="filters-grid">
+                        <label>Suche (Nummer/Name/Team)
+                            <input id="q" type="search" placeholder="z. B. 123, Name oder Team">
+                        </label>
+                        <label>Team
+                            <select id="team"><option value="">Alle</option></select>
+                        </label>
+                        <label>Position
+                            <select id="pos"><option value="">Alle</option></select>
+                        </label>
+                        <label>Subset
+                            <select id="subset"><option value="">Alle</option></select>
+                        </label>
+                        <label>Zeilen pro Seite
+                            <select id="pageSize">
+                                <option>25</option>
+                                <option selected>50</option>
+                                <option>100</option>
+                                <option>Alle</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="filters-actions">
+                        <button id="reload" type="button">Daten neu laden</button>
+                    </div>
+                </section>
+                <section class="panel stats-panel">
+                    <h2>Statistik</h2>
+                    <div class="stats">
+                        <div class="stat" id="stat-total">Gesamt: –</div>
+                        <div class="stat" id="stat-amount">Summe Amount: –</div>
+                    </div>
+                </section>
+            </aside>
+            <div class="table-main">
+                <div class="table-wrap panel">
+                    <table id="tbl">
+                        <thead><tr id="thead"></tr></thead>
+                        <tbody id="tbody"></tbody>
+                    </table>
+                </div>
 
-    <div class="stats" style="margin:.5rem 0 0">
-      <div class="stat" id="stat-total">Gesamt: –</div>
-      <div class="stat" id="stat-amount">Summe Amount: –</div>
-    </div>
-
-    <div class="table-wrap">
-      <table id="tbl">
-        <thead><tr id="thead"></tr></thead>
-        <tbody id="tbody"></tbody>
-      </table>
-    </div>
-
-    <div class="row" style="justify-content:space-between; margin-top:.5rem">
-      <p id="count" class="muted" style="margin:0"></p>
-      <div class="row">
-        <button id="prev">← Zurück</button>
-        <span id="pageInfo" class="muted">Seite 1/1</span>
-        <button id="next">Weiter →</button>
+                <div class="panel pager">
+                    <p id="count" class="muted"></p>
+                    <div class="row">
+                        <button id="prev">← Zurück</button>
+                        <span id="pageInfo" class="muted">Seite 1/1</span>
+                        <button id="next">Weiter →</button>
+                    </div>
+                </div>
+            </div>
       </div>
-    </div>
-  </section>
-
-  <section id="view-charts" class="content" hidden>
-    <div class="grid-2">
-      <section>
-        <h2>Cards pro Team</h2>
-        <canvas id="chartTeam" height="140"></canvas>
-      </section>
-      <section>
-        <h2>Cards pro Position</h2>
-        <canvas id="chartPos" height="140"></canvas>
-      </section>
-      <section>
-        <h2>Cards pro Subset</h2>
-        <canvas id="chartSubset" height="140"></canvas>
-      </section>
-      <section>
-        <h2>Summe Amount pro Team</h2>
-        <canvas id="chartAmountTeam" height="140"></canvas>
-      </section>
-    </div>
-  </section>
+    </section>
+    <section id="view-charts" class="content" hidden>
+        <div class="charts-grid">
+            <section class="panel">
+                <h2>Cards pro Team</h2>
+                <canvas id="chartTeam" height="140"></canvas>
+            </section>
+            <section class="panel">
+                <h2>Cards pro Position</h2>
+                <canvas id="chartPos" height="140"></canvas>
+            </section>
+            <section class="panel">
+                <h2>Cards pro Subset</h2>
+                <canvas id="chartSubset" height="140"></canvas>
+            </section>
+            <section class="panel">
+                <h2>Summe Amount pro Team</h2>
+                <canvas id="chartAmountTeam" height="140"></canvas>
+            </section>
+        </div>
+    </section>
+</main>
 
   <!-- Libs -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>

@@ -1,5 +1,3 @@
-//import { headers, filtered, currentPageSlice } from './data.js';
-//import * as data from './data.js';
 import {
   headers,
   filtered,
@@ -60,7 +58,7 @@ export function renderTable(){
     th.textContent = h;
     th.title = 'Klicken zum Sortieren';
     th.addEventListener('click', () => {
-      //if (data.sortKey === h) data.sortDir *= -1; else { data.sortKey = h; data.sortDir = 1; }
+        if (sortKey === h){ th.textContent += sortDir === 1 ? ' ▲' : ' ▼'; }
       toggleSort(h);
       renderTable();
     });
@@ -88,9 +86,6 @@ export function renderTable(){
   // Footer/Info
   const currentPage = getPage();
   els.count.textContent = `${slice.length} angezeigt · ${filtered.length} gefiltert · ${total} gesamt`;
-  //els.pageInfo.textContent = `Seite ${data.page}/${pages}`;
-  //els.prev.disabled = data.page <= 1;
-  //els.next.disabled = data.page >= pages;
   els.pageInfo.textContent = `Seite ${currentPage}/${pages}`;
   els.prev.disabled = currentPage <= 1;
   els.next.disabled = currentPage >= pages;
@@ -103,8 +98,6 @@ export function bindTableEvents(onReload){
     els.q.value = ''; els.team.value=''; els.pos.value=''; els.subset.value='';
     onReload();
   });
-  //els.prev.addEventListener('click', () => { data.page = Math.max(1, data.page-1); renderTable(); });
-  //els.next.addEventListener('click', () => { data.page = data.page+1; renderTable(); });
   els.prev.addEventListener('click', () => { setPage(Math.max(1, getPage()-1)); renderTable(); });
   els.next.addEventListener('click', () => { setPage(getPage()+1); renderTable(); });
   return { els, rebuildFilters };

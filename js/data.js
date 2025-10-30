@@ -9,39 +9,44 @@ export let sortKey = null, sortDir = 1; // 1=asc, -1=desc
 export let page = 1, pageSize = 50;
 
 export function setPageSize(size){
-  pageSize = size;
+    pageSize = size;
 }
 
 export function setPage(newPage){
-  page = newPage;
+    page = newPage;
 }
 
 export function toggleSort(key){
-  if (sortKey === key){
-    sortDir *= -1;
-  } else {
-    sortKey = key;
-    sortDir = 1;
-  }
+    if (sortKey === key){
+        sortDir *= -1;
+    } else {
+        sortKey = key;
+        sortDir = 1;
+    }
 }
 
 export function getSort(){
-  return { sortKey, sortDir };
+    return { sortKey, sortDir };
 }
 
 export function getPage(){
-  return page;
+    return page;
 }
 
 export async function loadSheetData(){
   const arr = await parseCSV(CSV_URL);
   headers = arr[0];
   const idxAmount = headers.indexOf('Amount');
-  rows = arr.slice(1).map(r => {
+    const searchFields = ['Card Number','Last Name','Team','Position','Subset'];
+    rows = arr.slice(1).map(r => {
     const o = {};
     headers.forEach((h,i)=> o[h] = (r[i] ?? '').toString());
     o._amount = idxAmount >= 0 ? toIntMaybe(r[idxAmount]) : NaN; // interne Ganzzahl
-    return o;
+        o._search = searchFields
+            .map(field => norm(o[field] ?? ''))
+            .filter(Boolean)
+            .join(' ');
+        return o;
   });
   filtered = [...rows];
 }
@@ -49,10 +54,8 @@ export async function loadSheetData(){
 export function applyFilters({q, team, pos, subset}){
   const qTerms = norm(q).split(/\s+/).filter(Boolean);
   filtered = rows.filter(r => {
-    const last = norm(r['Last Name']);
-    const num  = norm(r['Card Number']);
-    const qhit = !qTerms.length || qTerms.every(t => last.includes(t) || num.includes(t));
-    const thit = !team || r['Team'] === team;
+      const qhit = !qTerms.length || qTerms.every(t => r._search.includes(t));
+      const thit = !team || r['Team'] === team;
     const phit = !pos || r['Position'] === pos;
     const shit = !subset || r['Subset'] === subset;
     return qhit && thit && phit && shit;
