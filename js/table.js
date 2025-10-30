@@ -13,24 +13,11 @@ const els = {
   count: document.getElementById('count'),
   statTotal: document.getElementById('stat-total'),
   statAmount: document.getElementById('stat-amount'),
-  status: document.getElementById('status'),
   prev: document.getElementById('prev'),
   next: document.getElementById('next'),
   pageInfo: document.getElementById('pageInfo'),
   pageSize: document.getElementById('pageSize'),
 };
-
-const STATUS_CLASSES = ['status-info', 'status-error'];
-
-export function setStatus(message = '', type = 'info'){
-  if (!els.status) return;
-  els.status.textContent = message;
-  els.status.hidden = !message;
-  STATUS_CLASSES.forEach(cls => els.status.classList.remove(cls));
-  if (message){
-    els.status.classList.add(type === 'error' ? 'status-error' : 'status-info');
-  }
-}
 
 function setOptions(id, values){
   const sel = els[id];
