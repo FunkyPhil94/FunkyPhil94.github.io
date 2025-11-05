@@ -1,0 +1,91 @@
+<!doctype html>
+<title>Modulare Site – Tabelle & Diagramme</title>
+<link rel="stylesheet" href="css/styles.css" />
+<script src="https://www.gstatic.com/charts/loader.js"></script>
+</head>
+<body>
+<header>
+    <div class="brand">Meine modulare Seite</div>
+    <nav>
+        <a href="#/tabelle" id="nav-table">Tabelle</a>
+        <a href="#/diagramme" id="nav-charts">Diagramme</a>
+    </nav>
+</header>
+
+
+<main>
+    <section id="view-table" class="panel hidden">
+        <h2>Google‑Tabelle</h2>
+        <p class="muted note">
+            Eingebettet als <em>veröffentlichte</em> (read‑only) Ansicht. Zum Bearbeiten: Button nutzen.
+        </p>
+        <div class="controls">
+            <a class="btn" id="editLink" target="_blank" rel="noopener">In Google Sheets bearbeiten</a>
+            <button class="btn" id="refreshEmbed">Einbettung neu laden</button>
+        </div>
+        <iframe id="sheetEmbed" title="Eingebettete Google‑Tabelle"></iframe>
+        <p class="note">Wenn nichts erscheint: In Google Sheets <strong>Datei → Im Web veröffentlichen…</strong></p>
+    </section>
+
+
+    <section id="view-charts" class="panel hidden">
+        <h2>Diagramme aus der Google‑Tabelle</h2>
+        <p class="muted note">Daten werden per Google Visualization API (GViz) geladen.</p>
+        <div class="controls">
+            <label for="chartType">Diagramm:</label>
+            <select id="chartType">
+                <option value="line">Linie</option>
+                <option value="bar">Balken</option>
+            </select>
+            <label for="query">Abfrage (SQL‑ähnlich):</label>
+            <input id="query" type="text" size="36" placeholder="z.B. select A, B where B is not null" />
+            <button class="btn" id="runQuery">Aktualisieren</button>
+            <label for="h" title="Höhe in Pixel">H:</label>
+            <input id="h" type="number" value="520" min="220" step="20" style="width:90px" />
+            <button class="btn" id="redraw">Neu zeichnen</button>
+        </div>
+        <div id="chart" style="width:100%; height:520px; background:#0f1733; border-radius:12px; padding:6px;"></div>
+    </section>
+</main>
+
+
+<script type="module">
+    import { SHEET_KEY, GID, EDIT_URL, EMBED_URL } from './js/config.js';
+    import { initRouter, show } from './js/router.js';
+    import { initTableEmbed } from './js/sheets.js';
+    import { initChartsOnce } from './js/charts.js';
+
+
+    // Navigation‑Links referenzieren (für Active‑Zustand)
+    const nav = {
+        table: document.getElementById('nav-table'),
+        charts: document.getElementById('nav-charts')
+    };
+
+
+    // Views
+    const views = {
+        '#/tabelle': document.getElementById('view-table'),
+        '#/diagramme': document.getElementById('view-charts')
+    };
+
+
+    // Router initialisieren
+    initRouter({
+        views,
+        onShow(hash){
+// Active‑Link toggeln
+            nav.table.classList.toggle('active', hash === '#/tabelle');
+            nav.charts.classList.toggle('active', hash === '#/diagramme');
+// Lazy init je View
+            if (hash === '#/tabelle') initTableEmbed({ EDIT_URL, EMBED_URL });
+            if (hash === '#/diagramme') initChartsOnce({ SHEET_KEY, GID });
+        }
+    });
+
+
+    // Erste Ansicht anzeigen
+    show(location.hash || '#/tabelle');
+</script>
+</body>
+</html>
