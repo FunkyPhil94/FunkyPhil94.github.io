@@ -70,7 +70,7 @@
       <button class="btn btn-ghost" id="logoutBtn" type="button" style="display:none">Logout</button>
     </div>
   </div>
-  <div id="loginMsg" style="margin-top:.7rem;font-size:.8rem;color:var(--muted)"></div>
+  <div id="loginMsg" class="login-status"></div>
 </div>
     <div class="stat-grid" id="statGrid" style="margin-bottom:2rem"></div>
 
@@ -130,17 +130,66 @@ function initLoginBox() {
   const lb  = document.getElementById("loginBtn");
   const lob = document.getElementById("logoutBtn");
 
+  const showMessage = (text, type="success", autoHide=true) => {
+    msg.textContent = text;
+    msg.className = `login-status show ${type}`;
+
+    if (autoHide) {
+      setTimeout(() => {
+        msg.classList.remove("show");
+      }, 3000);
+    }
+  };
+
   const refresh = () => {
     const ok = isAuthed();
+
     lb.style.display  = ok ? "none" : "";
     pw.style.display  = ok ? "none" : "";
     lob.style.display = ok ? "" : "none";
-    msg.textContent   = ok ? "Unlocked ✓" : "";
-    buildNav("index.html"); // update nav logout
+
+    buildNav("index.html");
     applyAuthUI();
-    // also rerender dashboard so buttons/templates can react
     renderDash();
+
+    if (ok) {
+      showMessage("✓ Access granted. Admin features unlocked.", "success", false);
+    }
   };
+
+  refresh();
+
+  lb.addEventListener("click", async () => {
+    msg.classList.remove("show");
+    msg.textContent = "";
+
+    if (!pw.value.trim()) {
+      showMessage("Please enter a password.", "error");
+      return;
+    }
+
+    lb.disabled = true;
+    lb.textContent = "Checking…";
+
+    const ok = await loginWithPassword(pw.value);
+
+    lb.disabled = false;
+    lb.textContent = "Unlock";
+
+    if (!ok) {
+      showMessage("✕ Incorrect password.", "error");
+      pw.value = "";
+      return;
+    }
+
+    pw.value = "";
+    refresh();
+  });
+
+  lob.addEventListener("click", () => {
+    logout();
+  });
+}
 
   refresh();
 
