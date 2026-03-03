@@ -21,12 +21,13 @@
     .warn-btn.add:hover { background:rgba(224,82,82,.3); }
     .warn-btn.sub { background:rgba(76,175,125,.15); color:var(--green); }
     .warn-btn.sub:hover { background:rgba(76,175,125,.3); }
-    /* R1–R5 rank colours */
-    .rank-r5 { color:#f0cc72; }   /* gold   – highest */
-    .rank-r4 { color:#7eb8f7; }   /* blue   */
-    .rank-r3 { color:#a78bfa; }   /* purple */
-    .rank-r2 { color:#6ee7b7; }   /* teal   */
-    .rank-r1 { color:#6b7280; }   /* grey   – lowest */
+
+    .rank-r5 { color:#f0cc72; }
+    .rank-r4 { color:#7eb8f7; }
+    .rank-r3 { color:#a78bfa; }
+    .rank-r2 { color:#6ee7b7; }
+    .rank-r1 { color:#6b7280; }
+
     .search-bar {
       background:var(--surface); border:1px solid var(--border); border-radius:3px;
       color:var(--text); font-family:'Inter',sans-serif; font-size:.88rem;
@@ -47,7 +48,8 @@
         <div class="page-title">Member Roster</div>
         <div class="page-divider"></div>
       </div>
-      <button class="btn btn-gold" onclick="openModal('memberModal')">+ Add Member</button>
+      <!-- only visible when logged in -->
+      <button class="btn btn-gold" data-requires-auth="true" onclick="openMemberModal()">+ Add Member</button>
     </div>
 
     <div class="stat-grid" id="rosterStats" style="margin-bottom:1.8rem"></div>
@@ -72,7 +74,6 @@
             <tr>
               <th>Name</th>
               <th>Rank</th>
-              <th>Joined</th>
               <th title="Mythic Plunder warnings">⚔ Mythic</th>
               <th title="Castle Crashers GE warnings">🏰 Castle</th>
               <th>Notes</th>
@@ -90,6 +91,7 @@
     <div class="modal" style="max-width:480px">
       <h3 id="memberModalTitle">Add Member</h3>
       <input type="hidden" id="editMemberId"/>
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
         <div class="form-group">
           <label>Player Name</label>
@@ -105,11 +107,8 @@
             <option value="r1" selected>R1 – Recruit</option>
           </select>
         </div>
-        <div class="form-group">
-          <label>Date Joined</label>
-          <input type="date" id="mJoined"/>
-        </div>
       </div>
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
         <div class="form-group">
           <label>⚔ Mythic Warnings</label>
@@ -120,10 +119,12 @@
           <input type="number" id="mWarnCastle" min="0" value="0"/>
         </div>
       </div>
+
       <div class="form-group">
         <label>Notes</label>
         <textarea id="mNotes" rows="3" placeholder="Optional notes…"></textarea>
       </div>
+
       <div class="modal-actions">
         <button class="btn btn-ghost" onclick="closeModal('memberModal');resetMemberForm()">Cancel</button>
         <button class="btn btn-gold"  onclick="saveMember()">Save</button>
@@ -134,11 +135,11 @@
   <script src="script.js"></script>
   <script>
     buildNav("roster.html");
+    applyAuthUI();
 
     const RANK_LABEL = { r5:"R5 – Leader", r4:"R4 – Vice", r3:"R3 – Elite", r2:"R2 – Member", r1:"R1 – Recruit" };
     const RANK_CLASS = { r5:"rank-r5", r4:"rank-r4", r3:"rank-r3", r2:"rank-r2", r1:"rank-r1" };
 
-    // Migrate old rank keys if needed
     function normaliseRank(r) {
       if (!r) return "r1";
       if (r==="leader")  return "r5";
@@ -153,15 +154,19 @@
     function warnClass(n) { return n===0 ? "warn-0" : n===1 ? "warn-1" : "warn-2p"; }
 
     function warnCell(memberId, cat, count) {
+      const canEdit = isAuthed();
       return `<div class="warning-cell">
         <span class="warn-pip ${warnClass(count)}"></span>
         <span style="min-width:1.1rem;text-align:center;font-weight:600;font-size:.85rem">${count}</span>
-        <button class="warn-btn add" title="Add warning"    onclick="adjustWarn(${memberId},'${cat}',1)">+</button>
-        <button class="warn-btn sub" title="Remove warning" onclick="adjustWarn(${memberId},'${cat}',-1)">−</button>
+        ${canEdit ? `
+          <button class="warn-btn add" title="Add warning"    onclick="adjustWarn(${memberId},'${cat}',1)">+</button>
+          <button class="warn-btn sub" title="Remove warning" onclick="adjustWarn(${memberId},'${cat}',-1)">−</button>
+        ` : ``}
       </div>`;
     }
 
     function adjustWarn(id, cat, delta) {
+      if (!requireAuthOrAlert()) return;
       const members = DB.get("members");
       const m = members.find(x => x.id===id);
       if (!m) return;
@@ -171,88 +176,115 @@
     }
 
     function render() {
+      const canEdit = isAuthed();
       const search = document.getElementById("searchInput").value.toLowerCase();
       let members  = DB.get("members").map(m => ({ ...m, rank: normaliseRank(m.rank) }));
 
-      if (search)                members = members.filter(m => m.name.toLowerCase().includes(search));
-      if (rankFilter==="warned") members = members.filter(m => m.warnings.mythic>0 || m.warnings.castle>0);
+      if (search)                members = members.filter(m => (m.name||"").toLowerCase().includes(search));
+      if (rankFilter==="warned") members = members.filter(m => (m.warnings?.mythic||0)>0 || (m.warnings?.castle||0)>0);
       else if (rankFilter)       members = members.filter(m => m.rank===rankFilter);
 
-      // Sort: R5 first → R1 last
       const rankOrder = { r5:0, r4:1, r3:2, r2:3, r1:4 };
       members.sort((a,b) => (rankOrder[a.rank]??5) - (rankOrder[b.rank]??5));
 
-      const all         = DB.get("members");
-      const warnedCount = all.filter(m => m.warnings.mythic>0 || m.warnings.castle>0).length;
+      const all = DB.get("members");
+      const warnedCount = all.filter(m => (m.warnings?.mythic||0)>0 || (m.warnings?.castle||0)>0).length;
 
       document.getElementById("rosterStats").innerHTML = `
         <div class="stat-card"><div class="s-label">Total Members</div><div class="s-value">${all.length}</div></div>
-        <div class="stat-card"><div class="s-label">R4 / R5</div><div class="s-value">${all.filter(m=>normaliseRank(m.rank)==='r5'||normaliseRank(m.rank)==='r4').length}</div></div>
+        <div class="stat-card"><div class="s-label">R4 / R5</div><div class="s-value">${all.filter(m=>['r5','r4'].includes(normaliseRank(m.rank))).length}</div></div>
         <div class="stat-card"><div class="s-label">With Warnings</div><div class="s-value" style="color:var(--red)">${warnedCount}</div></div>
       `;
 
       document.getElementById("rosterBody").innerHTML = members.length
         ? members.map(m => {
-            const rc         = RANK_CLASS[m.rank] || "rank-r1";
-            const rl         = RANK_LABEL[m.rank] || m.rank.toUpperCase();
-            const totalWarn  = (m.warnings.mythic||0) + (m.warnings.castle||0);
+            const rc = RANK_CLASS[m.rank] || "rank-r1";
+            const rl = RANK_LABEL[m.rank] || (m.rank||"").toUpperCase();
+            const totalWarn = (m.warnings?.mythic||0) + (m.warnings?.castle||0);
+
             return `<tr>
-              <td>${m.name}${totalWarn>0?` <span style="color:var(--red);font-size:.75rem">⚠</span>`:""}  </td>
+              <td>${m.name || "Unknown"}${totalWarn>0?` <span style="color:var(--red);font-size:.75rem">⚠</span>`:""}</td>
               <td><span class="${rc}" style="font-size:.78rem;font-weight:700;letter-spacing:.06em">${rl}</span></td>
-              <td style="color:var(--muted);font-size:.82rem">${m.joined||"–"}</td>
-              <td>${warnCell(m.id,"mythic",m.warnings.mythic||0)}</td>
-              <td>${warnCell(m.id,"castle",m.warnings.castle||0)}</td>
+              <td>${warnCell(m.id,"mythic",m.warnings?.mythic||0)}</td>
+              <td>${warnCell(m.id,"castle",m.warnings?.castle||0)}</td>
               <td style="font-size:.78rem;color:var(--muted);max-width:160px">${m.notes||"–"}</td>
-              <td><div style="display:flex;gap:.4rem">
-                <button class="btn btn-ghost"  style="padding:.3rem .6rem;font-size:.7rem" onclick="editMember(${m.id})">Edit</button>
-                <button class="btn btn-danger" style="padding:.3rem .6rem;font-size:.7rem" onclick="deleteMember(${m.id})">✕</button>
-              </div></td>
+              <td>
+                ${canEdit ? `
+                  <div style="display:flex;gap:.4rem">
+                    <button class="btn btn-ghost"  style="padding:.3rem .6rem;font-size:.7rem" onclick="editMember(${m.id})">Edit</button>
+                    <button class="btn btn-danger" style="padding:.3rem .6rem;font-size:.7rem" onclick="deleteMember(${m.id})">✕</button>
+                  </div>
+                ` : ``}
+              </td>
             </tr>`;
           }).join("")
-        : `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:2rem">No members found.</td></tr>`;
+        : `<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:2rem">No members found.</td></tr>`;
+    }
+
+    function openMemberModal() {
+      if (!requireAuthOrAlert()) return;
+      openModal("memberModal");
     }
 
     function saveMember() {
+      if (!requireAuthOrAlert()) return;
+
       const members = DB.get("members");
       const id      = document.getElementById("editMemberId").value;
-      const entry   = {
-        id:       id ? Number(id) : nextId(members),
-        name:     document.getElementById("mName").value.trim()  || "Unknown",
-        rank:     document.getElementById("mRank").value,
-        joined:   document.getElementById("mJoined").value       || today(),
+
+      const entry = {
+        id:   id ? Number(id) : nextId(members),
+        name: document.getElementById("mName").value.trim() || "Unknown",
+        rank: document.getElementById("mRank").value,
         warnings: {
-          mythic: Number(document.getElementById("mWarnMythic").value)||0,
-          castle: Number(document.getElementById("mWarnCastle").value)||0,
+          mythic: Number(document.getElementById("mWarnMythic").value) || 0,
+          castle: Number(document.getElementById("mWarnCastle").value) || 0,
         },
         notes: document.getElementById("mNotes").value.trim(),
       };
-      if (id) { const i = members.findIndex(m => m.id===Number(id)); members[i]=entry; }
-      else    { members.push(entry); }
+
+      if (id) {
+        const i = members.findIndex(m => m.id===Number(id));
+        members[i] = entry;
+      } else {
+        members.push(entry);
+      }
+
       DB.set("members", members);
-      closeModal("memberModal"); resetMemberForm(); render();
+      closeModal("memberModal");
+      resetMemberForm();
+      render();
+      showToast("Member saved.", "success");
     }
 
     function editMember(id) {
+      if (!requireAuthOrAlert()) return;
+
       const m = DB.get("members").find(x => x.id===id);
-      document.getElementById("editMemberId").value  = m.id;
-      document.getElementById("mName").value         = m.name;
-      document.getElementById("mRank").value         = normaliseRank(m.rank);
-      document.getElementById("mJoined").value       = m.joined;
-      document.getElementById("mWarnMythic").value   = m.warnings.mythic||0;
-      document.getElementById("mWarnCastle").value   = m.warnings.castle||0;
-      document.getElementById("mNotes").value        = m.notes||"";
+      if (!m) return;
+
+      document.getElementById("editMemberId").value = m.id;
+      document.getElementById("mName").value        = m.name || "";
+      document.getElementById("mRank").value        = normaliseRank(m.rank);
+      document.getElementById("mWarnMythic").value  = m.warnings?.mythic || 0;
+      document.getElementById("mWarnCastle").value  = m.warnings?.castle || 0;
+      document.getElementById("mNotes").value       = m.notes || "";
+
       document.getElementById("memberModalTitle").textContent = "Edit Member";
       openModal("memberModal");
     }
 
     function deleteMember(id) {
+      if (!requireAuthOrAlert()) return;
       if (!confirm("Remove this member from the roster?")) return;
+
       DB.set("members", DB.get("members").filter(m => m.id!==id));
       render();
+      showToast("Member deleted.", "success");
     }
 
     function resetMemberForm() {
-      ["editMemberId","mName","mJoined","mNotes"].forEach(i => document.getElementById(i).value="");
+      ["editMemberId","mName","mNotes"].forEach(i => document.getElementById(i).value="");
       document.getElementById("mRank").value = "r1";
       document.getElementById("mWarnMythic").value = 0;
       document.getElementById("mWarnCastle").value = 0;
