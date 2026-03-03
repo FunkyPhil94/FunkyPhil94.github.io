@@ -160,39 +160,42 @@
 lb.addEventListener("click", async () => {
   const val = (pw.value || "").trim();
   if (!val) {
-    showMessage("Bitte Passwort eingeben.", "error");
+    msg.textContent = "⚠ Bitte Passwort eingeben.";
+    msg.className = "login-status show error";
     return;
   }
 
   lb.disabled = true;
   lb.textContent = "Prüfe…";
+  msg.className = "login-status"; // verstecken während Prüfung
 
   let ok = false;
-  try {
-    ok = await loginWithPassword(val);
-  } catch(err) {
-    console.error("Login-Fehler:", err);
-  }
+  try { ok = await loginWithPassword(val); }
+  catch(e) { console.error(e); }
 
   lb.disabled = false;
   lb.textContent = "Unlock";
 
   if (!ok) {
-    showMessage("✕ Falsches Passwort.", "error");
+    msg.textContent = "✕ Falsches Passwort.";
+    msg.className = "login-status show error";
     pw.value = "";
     pw.focus();
     return;
   }
 
+  // Erfolgreich — zuerst Meldung zeigen, DANN UI umbauen
+  msg.textContent = "✓ Eingeloggt! Admin-Funktionen freigeschaltet.";
+  msg.className = "login-status show success";
+
   pw.value = "";
-  // UI manuell aktualisieren statt refresh() aufzurufen
   lb.style.display  = "none";
   pw.style.display  = "none";
   lob.style.display = "";
   buildNav("index.html");
   applyAuthUI();
   renderDash();
-  showMessage("✓ Eingeloggt! Admin-Funktionen freigeschaltet.", "success", false);
+  // refresh() NICHT aufrufen — das würde showMessage überschreiben
 });
 
       // Enter to login
