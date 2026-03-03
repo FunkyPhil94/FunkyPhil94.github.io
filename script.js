@@ -199,6 +199,41 @@ function fmt(n)      { return Number(n).toLocaleString(); }
 function today()     { return new Date().toISOString().split("T")[0]; }
 function nextId(arr) { return arr.length ? Math.max(...arr.map(x => x.id)) + 1 : 1; }
 
+// ============================================================
+//  GLOBAL TOAST – Aufruf: showToast("Text", "success"|"error"|"info")
+// ============================================================
+(function initToast() {
+  const container = document.createElement("div");
+  container.id = "toastContainer";
+  document.body.appendChild(container);
+})();
+
+function showToast(message, type = "info", durationMs = 3500) {
+  const icons = { success: "✓", error: "✕", info: "ℹ" };
+  const container = document.getElementById("toastContainer");
+
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `
+    <span class="toast-icon">${icons[type] || "ℹ"}</span>
+    <span class="toast-msg">${message}</span>
+    <span class="toast-close" onclick="this.parentElement.remove()">✕</span>
+  `;
+
+  container.appendChild(toast);
+
+  // Animation starten (kleines Timeout damit der Browser den initialen Zustand rendert)
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => toast.classList.add("show"));
+  });
+
+  // Automatisch ausblenden
+  setTimeout(() => {
+    toast.classList.add("hide");
+    setTimeout(() => toast.remove(), 300);
+  }, durationMs);
+}
+
 function closeModal(id) { document.getElementById(id).classList.remove("open"); }
 function openModal(id)  { document.getElementById(id).classList.add("open"); }
 
