@@ -134,89 +134,96 @@
 
   <script src="script.js"></script>
   <script>
-    const pw=document.getElementById("pwInput");
-    const lb=document.getElementById("loginBtn");
-    const lob=document.getElementById("logoutBtn");
-    function updateLoginUI(){
-      const a=isAuthed();
-      lb.style.display=a?"none":"";
-      pw.style.display=a?"none":"";
-      lob.style.display=a?"":"none";
-      buildNav("index.html");applyAuthUI();renderDash();
-    }
-    lb.addEventListener("click",()=>{
-      const v=(pw.value||"").trim();
-      if(!v){showToast("Bitte Passwort eingeben.","error");return;}
-      const ok=loginWithPassword(v);
-      pw.value="";
-      if(!ok){showToast("Falsches Passwort.","error");pw.focus();return;}
-      updateLoginUI();
-      showToast("Eingeloggt! Admin freigeschaltet.","success",4000);
-    });
-    pw.addEventListener("keydown",(e)=>{if(e.key==="Enter")lb.click();});
-    lob.addEventListener("click",()=>logout());
-    updateLoginUI();
     const PRIORITY_BADGE = {
       urgent: '<span class="badge badge-red">Urgent</span>',
       high:   '<span class="badge badge-gold">High</span>',
       normal: '<span class="badge badge-muted">Normal</span>',
     };
-
+  
+    const pw  = document.getElementById("pwInput");
+    const lb  = document.getElementById("loginBtn");
+    const lob = document.getElementById("logoutBtn");
+  
+    function updateLoginUI() {
+      const a = isAuthed();
+      lb.style.display  = a ? "none" : "";
+      pw.style.display  = a ? "none" : "";
+      lob.style.display = a ? "" : "none";
+      buildNav("index.html");
+      applyAuthUI();
+      renderDash();
+    }
+  
+    lb.addEventListener("click", () => {
+      const v = (pw.value || "").trim();
+      if (!v) { showToast("Bitte Passwort eingeben.", "error"); return; }
+  
+      const ok = loginWithPassword(v);
+      pw.value = "";
+  
+      if (!ok) { showToast("Falsches Passwort.", "error"); pw.focus(); return; }
+  
+      updateLoginUI();
+      showToast("Eingeloggt! Admin freigeschaltet.", "success", 4000);
+    });
+  
+    pw.addEventListener("keydown", (e) => { if (e.key === "Enter") lb.click(); });
+    lob.addEventListener("click", () => logout());
+  
     function renderDash() {
       const canEdit = isAuthed();
-
+  
       const members  = DB.get("members");
       const pins     = DB.get("pins");
       const guides   = DB.get("guides");
-      const warnings = members.reduce((a,m) => a+(m.warnings.mythic||0)+(m.warnings.castle||0), 0);
-
+      const warnings = members.reduce((a,m) => a+(m.warnings?.mythic||0)+(m.warnings?.castle||0), 0);
+  
       document.getElementById("statGrid").innerHTML = `
         <div class="stat-card"><div class="s-label">Members</div><div class="s-value">${members.length}</div></div>
         <div class="stat-card"><div class="s-label">Announcements</div><div class="s-value">${pins.length}</div></div>
         <div class="stat-card"><div class="s-label">Guides</div><div class="s-value">${guides.length}</div></div>
         <div class="stat-card"><div class="s-label">Total Warnings</div><div class="s-value" style="color:var(--red)">${warnings}</div></div>
       `;
-
-        const sorted = pins.slice().sort((a,b) => b.date.localeCompare(a.date));
-        const latest3 = sorted.slice(0, 3);
-
+  
+      const sorted  = pins.slice().sort((a,b) => (b.date||"").localeCompare(a.date||""));
+      const latest3 = sorted.slice(0, 3);
+  
       if (!latest3.length) {
-  document.getElementById("noPins").style.display = "block";
-  document.getElementById("featuredPin").innerHTML = "";
-  document.getElementById("recentHeading").style.display = "none";
-  document.getElementById("recentPins").innerHTML = "";
-  return;
-}
-document.getElementById("noPins").style.display = "none";
-
-// Kein Featured mehr — alles über die "Recent" Liste
-document.getElementById("featuredPin").innerHTML = "";
-
-document.getElementById("recentHeading").style.display = "block";
-document.getElementById("recentHeading").textContent = "Latest 3";
-
-document.getElementById("recentPins").innerHTML = latest3.map(p => `
-  <div class="pin-list-item">
-    <div style="margin-top:.15rem;flex-shrink:0">${PRIORITY_BADGE[p.priority]||PRIORITY_BADGE.normal}</div>
-    <div style="flex:1">
-      <div class="pli-title">${p.title}</div>
-      <div class="pli-meta">${p.author} · ${p.date}</div>
-    </div>
-
-    ${canEdit ? `
-      <div style="display:flex;gap:.4rem;flex-shrink:0">
-        <button class="btn btn-ghost"  style="padding:.28rem .6rem;font-size:.68rem" onclick="editPin(${p.id})">Edit</button>
-        <button class="btn btn-danger" style="padding:.28rem .6rem;font-size:.68rem" onclick="deletePin(${p.id})">✕</button>
-      </div>` : ``}
-  </div>
-`).join("");
+        document.getElementById("noPins").style.display = "block";
+        document.getElementById("featuredPin").innerHTML = "";
+        document.getElementById("recentHeading").style.display = "none";
+        document.getElementById("recentPins").innerHTML = "";
+        return;
+      }
+  
+      document.getElementById("noPins").style.display = "none";
+      document.getElementById("featuredPin").innerHTML = "";
+      document.getElementById("recentHeading").style.display = "block";
+      document.getElementById("recentHeading").textContent = "Latest 3";
+  
+      document.getElementById("recentPins").innerHTML = latest3.map(p => `
+        <div class="pin-list-item">
+          <div style="margin-top:.15rem;flex-shrink:0">${PRIORITY_BADGE[p.priority]||PRIORITY_BADGE.normal}</div>
+          <div style="flex:1">
+            <div class="pli-title">${p.title}</div>
+            <div class="pli-meta">${p.author} · ${p.date}</div>
+          </div>
+  
+          ${canEdit ? `
+            <div style="display:flex;gap:.4rem;flex-shrink:0">
+              <button class="btn btn-ghost"  style="padding:.28rem .6rem;font-size:.68rem" onclick="editPin(${p.id})">Edit</button>
+              <button class="btn btn-danger" style="padding:.28rem .6rem;font-size:.68rem" onclick="deletePin(${p.id})">✕</button>
+            </div>` : ``}
+        </div>
+      `).join("");
     }
-
+  
     function savePin() {
       if (!requireAuthOrAlert()) return;
-
+  
       const pins = DB.get("pins");
       const id   = document.getElementById("editPinId").value;
+  
       const entry = {
         id:       id ? Number(id) : nextId(pins),
         title:    document.getElementById("pinTitle").value.trim()  || "Untitled",
@@ -225,26 +232,26 @@ document.getElementById("recentPins").innerHTML = latest3.map(p => `
         author:   document.getElementById("pinAuthor").value.trim() || "Unknown",
         date:     today(),
       };
-
+  
       if (id) {
         const i = pins.findIndex(p => p.id === Number(id));
-        pins[i] = entry;
+        if (i >= 0) pins[i] = entry;
       } else {
         pins.push(entry);
       }
-
+  
       DB.set("pins", pins);
       closeModal("pinModal");
       resetPinForm();
       renderDash();
     }
-
+  
     function editPin(id) {
       if (!requireAuthOrAlert()) return;
-
+  
       const p = DB.get("pins").find(x => x.id === id);
       if (!p) return;
-
+  
       document.getElementById("editPinId").value   = p.id;
       document.getElementById("pinTitle").value    = p.title;
       document.getElementById("pinBody").value     = p.body;
@@ -253,29 +260,27 @@ document.getElementById("recentPins").innerHTML = latest3.map(p => `
       document.getElementById("pinModalTitle").textContent = "Edit Announcement";
       openModal("pinModal");
     }
-
+  
     function deletePin(id) {
       if (!requireAuthOrAlert()) return;
-
+  
       if (!confirm("Delete this announcement?")) return;
       DB.set("pins", DB.get("pins").filter(p => p.id !== id));
       renderDash();
     }
-
+  
     function resetPinForm() {
       ["editPinId","pinTitle","pinBody","pinAuthor"].forEach(i => document.getElementById(i).value = "");
       document.getElementById("pinPriority").value = "normal";
       document.getElementById("pinModalTitle").textContent = "New Announcement";
     }
-
+  
     document.getElementById("pinModal").addEventListener("click", e => {
-      if (e.target.id === "pinModal") {
-        closeModal("pinModal");
-        resetPinForm();
-      }
+      if (e.target.id === "pinModal") { closeModal("pinModal"); resetPinForm(); }
     });
-
-    renderDash();
+  
+    // Initial UI
+    updateLoginUI();
   </script>
 </body>
 </html>
