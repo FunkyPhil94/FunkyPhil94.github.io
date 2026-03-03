@@ -6,6 +6,12 @@ const AUTH = {
   TTL_MS:   43200000,
   KEY:      "nato_auth",
 };
+
+const SUPABASE_URL = "https://ztvimtaecxxtltpnxxrg.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0dmltdGFlY3h4dGx0cG54eHJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NjE4MzEsImV4cCI6MjA4ODEzNzgzMX0.W9c_Sy6dcNHwjr3hYSjBmh5vDyY1KBQbeYsw4wG5gGw";
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 function nowMs(){ return Date.now(); }
 function isAuthed(){
   try{
