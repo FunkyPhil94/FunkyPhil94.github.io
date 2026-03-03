@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NATO [GBR] – Influence Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    .week-selector { display:flex; align-items:center; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap; }
+    .week-selector label { font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+    .week-selector input[type=week] {
+      background:var(--surface); border:1px solid var(--border); border-radius:3px;
+      color:var(--text); font-family:'Inter',sans-serif; font-size:.88rem;
+      padding:.5rem .85rem; outline:none; transition:border-color .2s;
+    }
+    .week-selector input[type=week]:focus { border-color:var(--gold); }
+    .progress-bar { background:rgba(255,255,255,.06); border-radius:2px; height:6px; width:120px; overflow:hidden; display:inline-block; vertical-align:middle; }
+    .progress-fill { height:100%; background:var(--gold); border-radius:2px; transition:width .3s; }
+    .progress-fill.low  { background:var(--red); }
+    .progress-fill.mid  { background:var(--blue); }
+  </style>
+</head>
+<body>
+  <nav id="mainNav"><a class="nav-logo" href="index.html">NATO [GBR]</a><ul></ul></nav>
+
+  <div class="page fade-up">
+    <div class="page-header" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+      <div>
+        <div class="page-label">Member Progress</div>
+        <div class="page-title">Influence Tracker</div>
+        <div class="page-divider"></div>
+      </div>
+      <button class="btn btn-gold" onclick="openModal('infModal')">+ Add Entry</button>
+    </div>
+
+    <div class="week-selector">
+      <label>Filter by week</label>
+      <input type="week" id="weekFilter" onchange="render()"/>
+      <button class="btn btn-ghost" style="padding:.4rem .9rem;font-size:.75rem" onclick="clearFilter()">Show All</button>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="stat-grid" id="summaryCards" style="margin-bottom:2rem"></div>
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="table-wrap">
+        <table id="infTable">
+          <thead>
+            <tr>
+              <th>Player</th>
+              <th>Week</th>
+              <th>Influence</th>
+              <th>Dungeons</th>
+              <th>Events</th>
+              <th>Progress</th>
+              <th style="width:100px"></th>
+            </tr>
+          </thead>
+          <tbody id="infBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-overlay" id="infModal">
+    <div class="modal">
+      <h3 id="infModalTitle">Add Entry</h3>
+      <input type="hidden" id="editInfId"/>
+      <div class="form-group">
+        <label>Player Name</label>
+        <input type="text" id="infName" placeholder="e.g. DarkBlade"/>
+      </div>
+      <div class="form-group">
+        <label>Week</label>
+        <input type="week" id="infWeek"/>
+      </div>
+      <div class="form-group">
+        <label>Influence Gained</label>
+        <input type="number" id="infInfluence" placeholder="e.g. 320000" min="0"/>
+      </div>
+      <div class="form-group">
+        <label>Dungeons Completed</label>
+        <input type="number" id="infDungeons" placeholder="e.g. 10" min="0"/>
+      </div>
+      <div class="form-group">
+        <label>Events Attended</label>
+        <input type="number" id="infEvents" placeholder="e.g. 4" min="0"/>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('infModal')">Cancel</button>
+        <button class="btn btn-gold"  onclick="saveEntry()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+<script>
+    buildNav("influence.html");
+    // Set default week filter to current week
+    const todayDate = new Date();
+    const y = todayDate.getFullYear();
+    const w = String(getISOWeek(todayDate)).padStart(2,"0");
+    document.getElementById("weekFilter").value = `${y}-W${w}`;
+    document.getElementById("infWeek").value    = `${y}-W${w}`;
+
+    function getISOWeek(d) {
+      const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+      date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+      const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+      return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+    }
+
+    function clearFilter() { document.getElementById("weekFilter").value = ""; render(); }
+
+    function render() {
+      const filter = document.getElementById("weekFilter").value;
+      let entries  = DB.get("influence");
+      if (filter) entries = entries.filter(e => e.week === filter);
+
+      // Summary
+      const totalInf = entries.reduce((a,e) => a + Number(e.influence), 0);
+      const avgInf   = entries.length ? Math.round(totalInf / entries.length) : 0;
+      const maxInf   = entries.length ? Math.max(...entries.map(e => Number(e.influence))) : 0;
+      document.getElementById("summaryCards").innerHTML = `
+        <div class="stat-card"><div class="s-label">Entries</div><div class="s-value">${entries.length}</div></div>
+        <div class="stat-card"><div class="s-label">Total Influence</div><div class="s-value">${fmt(totalInf)}</div></div>
+        <div class="stat-card"><div class="s-label">Avg Influence</div><div class="s-value">${fmt(avgInf)}</div></div>
+        <div class="stat-card"><div class="s-label">Top Score</div><div class="s-value" style="color:var(--gold)">${fmt(maxInf)}</div></div>
+      `;
+
+      // Sort descending by influence
+      entries.sort((a,b) => Number(b.influence) - Number(a.influence));
+
+      document.getElementById("infBody").innerHTML = entries.length
+        ? entries.map(e => {
+            const pct   = maxInf ? Math.round((Number(e.influence) / maxInf) * 100) : 0;
+            const cls   = pct >= 70 ? "" : pct >= 40 ? "mid" : "low";
+            return `<tr>
+              <td>${e.name}</td>
+              <td style="color:var(--muted);font-size:.82rem">${e.week}</td>
+              <td><strong>${fmt(e.influence)}</strong></td>
+              <td>${e.dungeons}</td>
+              <td>${e.events}</td>
+              <td>
+                <div class="progress-bar"><div class="progress-fill ${cls}" style="width:${pct}%"></div></div>
+                <span style="font-size:.72rem;color:var(--muted);margin-left:.5rem">${pct}%</span>
+              </td>
+              <td>
+                <div style="display:flex;gap:.4rem">
+                  <button class="btn btn-ghost"  style="padding:.3rem .6rem;font-size:.7rem" onclick="editEntry(${e.id})">Edit</button>
+                  <button class="btn btn-danger" style="padding:.3rem .6rem;font-size:.7rem" onclick="deleteEntry(${e.id})">✕</button>
+                </div>
+              </td>
+            </tr>`;
+          }).join("")
+        : `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:2rem">No entries for this week.</td></tr>`;
+    }
+
+    function saveEntry() {
+      const all = DB.get("influence");
+      const id  = document.getElementById("editInfId").value;
+      const entry = {
+        id:        id ? Number(id) : nextId(all),
+        name:      document.getElementById("infName").value.trim()      || "Unknown",
+        week:      document.getElementById("infWeek").value             || `${y}-W${w}`,
+        influence: Number(document.getElementById("infInfluence").value) || 0,
+        dungeons:  Number(document.getElementById("infDungeons").value)  || 0,
+        events:    Number(document.getElementById("infEvents").value)    || 0,
+      };
+      if (id) { const i = all.findIndex(e => e.id === Number(id)); all[i] = entry; }
+      else    { all.push(entry); }
+      DB.set("influence", all);
+      closeModal("infModal");
+      resetForm();
+      render();
+    }
+
+    function editEntry(id) {
+      const e = DB.get("influence").find(x => x.id === id);
+      document.getElementById("editInfId").value    = e.id;
+      document.getElementById("infName").value      = e.name;
+      document.getElementById("infWeek").value      = e.week;
+      document.getElementById("infInfluence").value = e.influence;
+      document.getElementById("infDungeons").value  = e.dungeons;
+      document.getElementById("infEvents").value    = e.events;
+      document.getElementById("infModalTitle").textContent = "Edit Entry";
+      openModal("infModal");
+    }
+
+    function deleteEntry(id) {
+      if (!confirm("Delete this entry?")) return;
+      DB.set("influence", DB.get("influence").filter(e => e.id !== id));
+      render();
+    }
+
+    function resetForm() {
+      ["editInfId","infName","infInfluence","infDungeons","infEvents"].forEach(i => document.getElementById(i).value = "");
+      document.getElementById("infWeek").value = `${y}-W${w}`;
+      document.getElementById("infModalTitle").textContent = "Add Entry";
+    }
+
+    document.getElementById("infModal").addEventListener("click", e => { if (e.target.id === "infModal") { closeModal("infModal"); resetForm(); } });
+
+    render();
+</script>
+</body>
+</html>

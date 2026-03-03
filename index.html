@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NATO [GBR] – Portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    .pin-featured {
+      border: 1px solid rgba(201,168,76,0.35);
+      background: linear-gradient(135deg, rgba(201,168,76,0.06) 0%, var(--surface) 60%);
+      border-radius: 5px;
+      padding: 1.6rem;
+      margin-bottom: 1rem;
+    }
+    .pin-featured .pin-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.35rem; font-weight: 700; letter-spacing: 0.03em;
+      margin-bottom: 0.5rem;
+    }
+    .pin-featured .pin-body { font-size: 0.9rem; color: var(--muted); line-height: 1.7; white-space: pre-wrap; }
+    .pin-featured .pin-meta { margin-top: 1rem; font-size: 0.72rem; color: var(--muted); letter-spacing: 0.06em; }
+    .pin-list-item {
+      display: flex; align-items: flex-start; gap: 1rem;
+      padding: 0.9rem 1.2rem;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+      transition: border-color 0.2s;
+    }
+    .pin-list-item:hover { border-color: rgba(201,168,76,0.3); }
+    .pli-title { font-size: 0.9rem; font-weight: 500; color: var(--text); }
+    .pli-meta  { font-size: 0.72rem; color: var(--muted); margin-top: 0.2rem; letter-spacing: 0.05em; }
+    .section-heading {
+      font-family: 'Rajdhani', sans-serif; font-size: 0.72rem; font-weight: 700;
+      letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted);
+      margin: 1.8rem 0 0.8rem;
+    }
+    .quicklinks { display: grid; grid-template-columns: repeat(auto-fill,minmax(200px,1fr)); gap: 0.75rem; }
+    .quicklink {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+      padding: 1rem 1.2rem; text-decoration: none;
+      display: flex; align-items: center; gap: 0.8rem;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .quicklink:hover { border-color: rgba(201,168,76,0.35); background: rgba(201,168,76,0.04); }
+    .ql-icon  { font-size: 1.3rem; }
+    .ql-label { font-family: 'Rajdhani',sans-serif; font-size:1rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text); }
+  </style>
+</head>
+<body>
+  <nav id="mainNav"><a class="nav-logo" href="index.html">NATO [GBR]</a><ul></ul></nav>
+
+  <div class="page fade-up">
+    <div class="stat-grid" id="statGrid" style="margin-bottom:2rem"></div>
+
+    <!-- Announcement board -->
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem">
+      <div>
+        <div class="page-label">Latest</div>
+        <div class="page-title">Announcements</div>
+        <div class="page-divider"></div>
+      </div>
+      <button class="btn btn-gold" style="padding:.5rem 1.1rem;font-size:.78rem" onclick="openModal('pinModal')">+ New Post</button>
+    </div>
+
+    <div id="featuredPin"></div>
+    <div class="section-heading" id="recentHeading" style="display:none">Recent</div>
+    <div id="recentPins" style="display:flex;flex-direction:column;gap:.5rem"></div>
+    <div id="noPins" style="display:none;color:var(--muted);font-size:.9rem;padding:1rem 0">No announcements yet.</div>
+
+    <!-- Quick nav -->
+    <div class="section-heading">Sections</div>
+    <div class="quicklinks">
+      <a href="guides.html"    class="quicklink"><span class="ql-icon">📖</span><span class="ql-label">Guides</span></a>
+      <a href="influence.html" class="quicklink"><span class="ql-icon">📊</span><span class="ql-label">Influence Tracker</span></a>
+      <a href="roster.html"   class="quicklink"><span class="ql-icon">🛡</span><span class="ql-label">Member Roster</span></a>
+    </div>
+  </div>
+
+  <!-- Pin Modal -->
+  <div class="modal-overlay" id="pinModal">
+    <div class="modal">
+      <h3 id="pinModalTitle">New Announcement</h3>
+      <input type="hidden" id="editPinId"/>
+      <div class="form-group"><label>Title</label><input type="text" id="pinTitle" placeholder="Announcement title…"/></div>
+      <div class="form-group"><label>Body</label><textarea id="pinBody" rows="5" placeholder="Write your announcement here…"></textarea></div>
+      <div class="form-group">
+        <label>Priority</label>
+        <select id="pinPriority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select>
+      </div>
+      <div class="form-group"><label>Author</label><input type="text" id="pinAuthor" placeholder="Your name"/></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('pinModal');resetPinForm()">Cancel</button>
+        <button class="btn btn-gold"  onclick="savePin()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    buildNav("index.html");
+
+    const PRIORITY_BADGE = {
+      urgent: '<span class="badge badge-red">Urgent</span>',
+      high:   '<span class="badge badge-gold">High</span>',
+      normal: '<span class="badge badge-muted">Normal</span>',
+    };
+
+    function renderDash() {
+      const members  = DB.get("members");
+      const pins     = DB.get("pins");
+      const guides   = DB.get("guides");
+      const warnings = members.reduce((a,m) => a+(m.warnings.mythic||0)+(m.warnings.castle||0), 0);
+
+      document.getElementById("statGrid").innerHTML = `
+        <div class="stat-card"><div class="s-label">Members</div><div class="s-value">${members.length}</div></div>
+        <div class="stat-card"><div class="s-label">Announcements</div><div class="s-value">${pins.length}</div></div>
+        <div class="stat-card"><div class="s-label">Guides</div><div class="s-value">${guides.length}</div></div>
+        <div class="stat-card"><div class="s-label">Total Warnings</div><div class="s-value" style="color:var(--red)">${warnings}</div></div>
+      `;
+
+      const sorted = pins.slice().sort((a,b) => b.date.localeCompare(a.date));
+      const latest = sorted[0];
+      const recent = sorted.slice(1, 6);
+
+      if (!latest) {
+        document.getElementById("noPins").style.display = "block";
+        document.getElementById("featuredPin").innerHTML = "";
+        document.getElementById("recentHeading").style.display = "none";
+        document.getElementById("recentPins").innerHTML = "";
+        return;
+      }
+      document.getElementById("noPins").style.display = "none";
+
+      document.getElementById("featuredPin").innerHTML = `
+        <div class="pin-featured">
+          <div style="display:flex;align-items:center;gap:.7rem;margin-bottom:.7rem;flex-wrap:wrap">
+            ${PRIORITY_BADGE[latest.priority]||PRIORITY_BADGE.normal}
+            <span class="pin-title" style="flex:1">${latest.title}</span>
+            <div style="display:flex;gap:.4rem">
+              <button class="btn btn-ghost"  style="padding:.3rem .7rem;font-size:.7rem" onclick="editPin(${latest.id})">Edit</button>
+              <button class="btn btn-danger" style="padding:.3rem .7rem;font-size:.7rem" onclick="deletePin(${latest.id})">Delete</button>
+            </div>
+          </div>
+          <div class="pin-body">${latest.body}</div>
+          <div class="pin-meta">Posted by <strong style="color:var(--text)">${latest.author}</strong> · ${latest.date}</div>
+        </div>`;
+
+      if (recent.length) {
+        document.getElementById("recentHeading").style.display = "block";
+        document.getElementById("recentPins").innerHTML = recent.map(p => `
+          <div class="pin-list-item">
+            <div style="margin-top:.15rem;flex-shrink:0">${PRIORITY_BADGE[p.priority]||PRIORITY_BADGE.normal}</div>
+            <div style="flex:1">
+              <div class="pli-title">${p.title}</div>
+              <div class="pli-meta">${p.author} · ${p.date}</div>
+            </div>
+            <div style="display:flex;gap:.4rem;flex-shrink:0">
+              <button class="btn btn-ghost"  style="padding:.28rem .6rem;font-size:.68rem" onclick="editPin(${p.id})">Edit</button>
+              <button class="btn btn-danger" style="padding:.28rem .6rem;font-size:.68rem" onclick="deletePin(${p.id})">✕</button>
+            </div>
+          </div>`).join("");
+      } else {
+        document.getElementById("recentHeading").style.display = "none";
+        document.getElementById("recentPins").innerHTML = "";
+      }
+    }
+
+    function savePin() {
+      const pins = DB.get("pins");
+      const id   = document.getElementById("editPinId").value;
+      const entry = {
+        id:       id ? Number(id) : nextId(pins),
+        title:    document.getElementById("pinTitle").value.trim()  || "Untitled",
+        body:     document.getElementById("pinBody").value.trim()   || "",
+        priority: document.getElementById("pinPriority").value,
+        author:   document.getElementById("pinAuthor").value.trim() || "Unknown",
+        date:     today(),
+      };
+      if (id) { const i = pins.findIndex(p => p.id===Number(id)); pins[i]=entry; }
+      else    { pins.push(entry); }
+      DB.set("pins", pins);
+      closeModal("pinModal"); resetPinForm(); renderDash();
+    }
+
+    function editPin(id) {
+      const p = DB.get("pins").find(x => x.id===id);
+      document.getElementById("editPinId").value   = p.id;
+      document.getElementById("pinTitle").value    = p.title;
+      document.getElementById("pinBody").value     = p.body;
+      document.getElementById("pinPriority").value = p.priority;
+      document.getElementById("pinAuthor").value   = p.author;
+      document.getElementById("pinModalTitle").textContent = "Edit Announcement";
+      openModal("pinModal");
+    }
+
+    function deletePin(id) {
+      if (!confirm("Delete this announcement?")) return;
+      DB.set("pins", DB.get("pins").filter(p => p.id!==id));
+      renderDash();
+    }
+
+    function resetPinForm() {
+      ["editPinId","pinTitle","pinBody","pinAuthor"].forEach(i => document.getElementById(i).value="");
+      document.getElementById("pinPriority").value = "normal";
+      document.getElementById("pinModalTitle").textContent = "New Announcement";
+    }
+
+    document.getElementById("pinModal").addEventListener("click", e => {
+      if (e.target.id==="pinModal") { closeModal("pinModal"); resetPinForm(); }
+    });
+
+    renderDash();
+  </script>
+</body>
+</html>
