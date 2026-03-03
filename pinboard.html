@@ -75,46 +75,46 @@
   openModal("pinModal");
 }
     function render() {
-      const canEdit = isAuthed();
-      const pins = DB.get("pins").slice().reverse();
-      const container = document.getElementById("pinContainer");
-
-      container.innerHTML = pins.map(p => `
+    const canEdit = isAuthed();
+    const pins = DB.get("pins").slice().reverse();
+    const container = document.getElementById("pinList");
+  
+    container.innerHTML = pins.length
+      ? pins.map(p => `
         <div class="card" style="margin-bottom:1rem">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
             <div style="flex:1">
               <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.4rem">
-                <span class="badge badge-muted">${p.priority || "Normal"}</span>
+                ${PRIORITY_BADGE[p.priority] || PRIORITY_BADGE.normal}
                 <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:1.1rem">
                   ${p.title}
                 </div>
               </div>
+  
               <div class="pin-body" style="white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;">
                 ${p.body}
-              </div>    
+              </div>
+  
               <div style="margin-top:.8rem;font-size:.75rem;color:var(--muted)">
                 Posted by ${p.author} · ${p.date}
               </div>
             </div>
+  
             ${canEdit ? `
               <div style="display:flex;gap:.5rem">
                 <button class="btn btn-ghost"
                         style="padding:.35rem .8rem;font-size:.72rem"
-                        onclick="editPin(${p.id})">
-                  Edit
-                </button>
+                        onclick="editPin(${p.id})">Edit</button>
                 <button class="btn btn-danger"
                         style="padding:.35rem .8rem;font-size:.72rem"
-                        onclick="deletePin(${p.id})">
-                  Delete
-                </button>
+                        onclick="deletePin(${p.id})">Delete</button>
               </div>
             ` : ``}
           </div>
         </div>
-      `).join("");
-        : `<div style="color:var(--muted);font-size:.9rem">No announcements yet.</div>`;
-    }
+      `).join("")
+      : `<div style="color:var(--muted);font-size:.9rem">No announcements yet.</div>`;
+  }
 
     function savePin() {
       if (!requireAuthOrAlert()) return;
