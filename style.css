@@ -252,80 +252,6 @@ tbody tr:hover { background: rgba(255,255,255,0.03); }
 tbody td { padding: 0.8rem 1rem; color: var(--text); vertical-align: middle; }
 tbody td:first-child { font-family: 'Rajdhani', sans-serif; font-size: 1rem; font-weight: 600; letter-spacing: 0.03em; }
 
-/* ── LOGIN SCREEN ── */
-.login-screen {
-  position: fixed;
-  inset: 0;
-  z-index: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg);
-}
-.login-box {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 2.8rem 2.4rem;
-  width: 100%;
-  max-width: 380px;
-  text-align: center;
-}
-.login-box .login-logo {
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 1.6rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  color: var(--gold);
-  text-transform: uppercase;
-  margin-bottom: 0.3rem;
-}
-.login-box .login-sub {
-  font-size: 0.78rem;
-  color: var(--muted);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  margin-bottom: 2rem;
-}
-.login-box input {
-  width: 100%;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  color: var(--text);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.95rem;
-  padding: 0.75rem 1rem;
-  outline: none;
-  text-align: center;
-  letter-spacing: 0.2em;
-  margin-bottom: 1rem;
-  transition: border-color 0.2s;
-}
-.login-box input:focus { border-color: var(--gold); }
-.login-box .login-btn {
-  width: 100%;
-  padding: 0.75rem;
-  background: var(--gold);
-  color: #0a0c10;
-  border: none;
-  border-radius: 3px;
-  font-family: 'Inter', sans-serif;
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.login-box .login-btn:hover { background: var(--gold-light); }
-.login-error {
-  font-size: 0.78rem;
-  color: var(--red);
-  margin-top: 0.75rem;
-  min-height: 1.2em;
-}
-
 /* ── DASHBOARD STAT CARDS ── */
 .stat-grid {
   display: grid;
@@ -339,8 +265,53 @@ tbody td:first-child { font-family: 'Rajdhani', sans-serif; font-size: 1rem; fon
   border-radius: 5px;
   padding: 1.2rem 1.4rem;
 }
-.stat-card .s-label { font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
-.stat-card .s-value { font-family: 'Rajdhani', sans-serif; font-size: 2rem; font-weight: 700; color: var(--gold-light); line-height: 1; }
+.stat-card .s-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+.stat-card .s-value {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--gold-light);
+  line-height: 1;
+}
+
+/* ── LOGIN STATUS (Dashboard Card) ── */
+.login-status {
+  margin-top: .8rem;
+  font-size: .82rem;
+  padding: .6rem .9rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  min-height: 2.2em; /* prevents layout jump */
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: all .25s ease;
+}
+.login-status.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+.login-status.success {
+  border-color: rgba(46, 204, 113, 0.5);
+  background: rgba(46, 204, 113, 0.08);
+  color: var(--green);
+}
+.login-status.error {
+  border-color: rgba(231, 76, 60, 0.5);
+  background: rgba(231, 76, 60, 0.08);
+  color: var(--red);
+}
+.login-status.info {
+  border-color: rgba(201,168,76,0.45);
+  background: rgba(201,168,76,0.08);
+  color: var(--gold-light);
+}
 
 /* ── ANIMATIONS ── */
 @keyframes fadeUp {
@@ -353,36 +324,4 @@ tbody td:first-child { font-family: 'Rajdhani', sans-serif; font-size: 1rem; fon
 @media (max-width: 640px) {
   nav ul { display: none; }
   .page  { padding-top: 80px; }
-}
-
-/* =========================================
-   LOGIN STATUS
-========================================= */
-.login-status {
-  margin-top: .8rem;
-  font-size: .82rem;
-  padding: .6rem .9rem;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  background: var(--surface2);
-  opacity: 0;
-  transform: translateY(-4px);
-  transition: all .25s ease;
-}
-
-.login-status.show {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.login-status.success {
-  border-color: rgba(46, 204, 113, 0.5);
-  background: rgba(46, 204, 113, 0.08);
-  color: var(--green);
-}
-
-.login-status.error {
-  border-color: rgba(231, 76, 60, 0.5);
-  background: rgba(231, 76, 60, 0.08);
-  color: var(--red);
 }
