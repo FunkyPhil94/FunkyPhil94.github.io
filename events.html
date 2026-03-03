@@ -46,7 +46,6 @@
     .upload-area .ua-icon { font-size:1.5rem; margin-bottom:.3rem; }
     .upload-area .ua-label { font-size:.8rem; color:var(--muted); }
     .upload-preview { margin-top:.6rem; display:flex; align-items:center; gap:.6rem; }
-    .upload-preview img { width:48px; height:48px; object-fit:cover; border-radius:3px; border:1px solid var(--border); }
     .upload-preview .up-name { font-size:.78rem; color:var(--text); overflow-wrap:anywhere; word-break:break-word; }
     .upload-preview .up-remove { font-size:.72rem; color:var(--red); cursor:pointer; margin-left:auto; }
 
@@ -66,7 +65,7 @@
         <div class="page-title">Events</div>
         <div class="page-divider"></div>
       </div>
-      <button class="btn btn-gold" data-requires-auth="true" onclick="openEventModal()">+ New Event</button>
+      <button class="btn btn-gold" data-requires-auth="true" onclick="openItemModal()">+ New Event</button>
     </div>
 
     <div class="guide-filters" id="filterBar"></div>
@@ -90,9 +89,9 @@
   </div>
 
   <!-- Edit / New Modal -->
-  <div class="modal-overlay" id="eventModal">
+  <div class="modal-overlay" id="itemModal">
     <div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto">
-      <h3 id="eventModalTitle">New Event</h3>
+      <h3 id="itemModalTitle">New Event</h3>
       <input type="hidden" id="editId"/>
 
       <div class="form-group"><label>Title</label><input type="text" id="itemTitle" placeholder="Event title…"/></div>
@@ -109,11 +108,11 @@
       <div class="form-group"><label>Content</label><textarea id="itemBody" rows="5" placeholder="Write your event info here…"></textarea></div>
 
       <div class="form-group">
-        <label>Attachment (Image or PDF)</label>
+        <label>Attachments (max 3) – Image or PDF</label>
         <div class="upload-area" id="uploadArea">
-          <input type="file" id="fileInput" accept="image/*,.pdf" />
+          <input type="file" id="fileInput" accept="image/*,.pdf" multiple />
           <div class="ua-icon">📎</div>
-          <div class="ua-label">Click or drag an image / PDF here</div>
+          <div class="ua-label">Click or drag up to 3 files here</div>
         </div>
         <div class="upload-preview" id="uploadPreview" style="display:none"></div>
       </div>
@@ -124,7 +123,7 @@
       </div>
 
       <div class="modal-actions">
-        <button class="btn btn-ghost" onclick="closeModal('eventModal');resetForm()">Cancel</button>
+        <button class="btn btn-ghost" onclick="closeModal('itemModal');resetForm()">Cancel</button>
         <button class="btn btn-gold"  onclick="saveItem()">Save</button>
       </div>
     </div>
@@ -139,57 +138,85 @@
 
     let activeFilter = "All";
     let currentItems = [];
-    let pendingFile = null;          // File object
-    let existingAttachment = null;   // {attachment_path, attachment_type, attachment_name}
+
+    // multi attachments state
+    let pendingFiles = [];           // File[]
+    let existingAttachments = [];    // metas[] from script.js (attachment_path/type/name)
 
     buildNav("events.html");
     applyAuthUI();
 
-    // Populate author dropdown from script.js AUTHORS constant
+    // Authors dropdown
     (function initAuthors(){
       const sel = document.getElementById("itemAuthor");
       sel.innerHTML = AUTHORS.map(a => `<option value="${a}">${a}</option>`).join("");
     })();
 
-    // File input handlers
+    // File input + DnD
     const fileInput = document.getElementById("fileInput");
-    fileInput.addEventListener("change", () => handleFile(fileInput.files[0]));
+    fileInput.addEventListener("change", () => handleFiles(fileInput.files));
 
     const ua = document.getElementById("uploadArea");
     ua.addEventListener("dragover",  e => { e.preventDefault(); ua.classList.add("dragover"); });
     ua.addEventListener("dragleave", () => ua.classList.remove("dragover"));
     ua.addEventListener("drop", e => {
       e.preventDefault(); ua.classList.remove("dragover");
-      const file = e.dataTransfer.files[0];
-      if (file) handleFile(file);
+      handleFiles(e.dataTransfer.files);
     });
 
-    function handleFile(file) {
-      if (!file) return;
-      pendingFile = file;
-      existingAttachment = null; // replacing existing
-      showPreviewFile(file);
+    function handleFiles(fileList) {
+      const files = Array.from(fileList || []);
+      if (!files.length) return;
+
+      // replace existing attachments with new selection (max 3)
+      pendingFiles = files.slice(0, MAX_ATTACHMENTS);
+      existingAttachments = [];
+      renderPreview();
+
+      if (files.length > MAX_ATTACHMENTS) {
+        showToast(`Max ${MAX_ATTACHMENTS} Dateien. Nur die ersten ${MAX_ATTACHMENTS} wurden übernommen.`, "info", 4500);
+      }
     }
 
-    function showPreviewFile(fileOrMeta) {
-      const preview = document.getElementById("uploadPreview");
-      preview.style.display = "flex";
-
-      const name = fileOrMeta.name || fileOrMeta.attachment_name || "attachment";
-      const type = fileOrMeta.type || fileOrMeta.attachment_type || "";
-      const isImage = type.startsWith("image/");
-
-      preview.innerHTML = isImage
-        ? `<span style="font-size:1.4rem">🖼️</span><span class="up-name">${name}</span><span class="up-remove" onclick="clearFile()">Remove</span>`
-        : `<span style="font-size:1.4rem">📄</span><span class="up-name">${name}</span><span class="up-remove" onclick="clearFile()">Remove</span>`;
-    }
-
-    function clearFile() {
-      pendingFile = null;
-      existingAttachment = null;
+    function clearFiles() {
+      pendingFiles = [];
+      existingAttachments = [];
       document.getElementById("uploadPreview").style.display = "none";
       document.getElementById("uploadPreview").innerHTML = "";
       document.getElementById("fileInput").value = "";
+    }
+
+    function renderPreview() {
+      const preview = document.getElementById("uploadPreview");
+      const metas = pendingFiles.length
+        ? pendingFiles.map(f => ({ attachment_name: f.name, attachment_type: f.type }))
+        : existingAttachments.map(a => ({ attachment_name: a.attachment_name, attachment_type: a.attachment_type }));
+
+      if (!metas.length) {
+        preview.style.display = "none";
+        preview.innerHTML = "";
+        return;
+      }
+
+      preview.style.display = "flex";
+      preview.style.flexDirection = "column";
+      preview.style.alignItems = "stretch";
+      preview.innerHTML = `
+        <div style="display:flex;align-items:flex-start;gap:.6rem">
+          <div style="flex:1;display:flex;flex-direction:column;gap:.35rem">
+            ${metas.map(m => {
+              const isImg = (m.attachment_type || "").startsWith("image/");
+              return `
+                <div style="display:flex;align-items:center;gap:.5rem">
+                  <span style="font-size:1.2rem">${isImg ? "🖼️" : "📄"}</span>
+                  <span class="up-name" style="flex:1">${m.attachment_name || "attachment"}</span>
+                </div>`;
+            }).join("")}
+          </div>
+          <span class="up-remove" onclick="clearFiles()">Remove</span>
+        </div>
+        <div style="margin-top:.35rem;font-size:.72rem;color:var(--muted)">Max ${MAX_ATTACHMENTS} files.</div>
+      `;
     }
 
     function escapeQuotes(s) { return String(s).replace(/'/g, "\\'"); }
@@ -214,18 +241,6 @@
       renderGrid();
     }
 
-    function attachmentThumb(row) {
-      if (!row.attachment_path) return "";
-      const url = publicUrlForPath(row.attachment_path);
-      if (!url) return "";
-
-      const isImage = (row.attachment_type || "").startsWith("image/");
-      if (isImage) return `<img src="${url}" class="guide-thumb" alt="attachment"/>`;
-
-      const name = row.attachment_name || "Download";
-      return `<a href="${url}" target="_blank" class="guide-pdf-link">📄 ${name}</a>`;
-    }
-
     function renderGrid() {
       const canEdit = isAuthed();
       const items = currentItems.filter(x => activeFilter === "All" || x.category === activeFilter);
@@ -234,7 +249,7 @@
         ? items.map(it => `
           <div class="card guide-card">
             <span class="badge badge-muted">${it.category}</span>
-            ${attachmentThumb(it)}
+            ${attachmentsHtml(it)}
             <h3>${it.title}</h3>
             <p>${it.body}</p>
             <div class="guide-meta">By <strong style="color:var(--text)">${it.author}</strong> · ${it.date}</div>
@@ -259,30 +274,15 @@
       document.getElementById("viewMeta").textContent     = `By ${it.author} · ${it.date}`;
       document.getElementById("viewBody").textContent     = it.body;
 
-      const attEl = document.getElementById("viewAttachment");
-      if (it.attachment_path) {
-        const url = publicUrlForPath(it.attachment_path);
-        const isImage = (it.attachment_type || "").startsWith("image/");
-        if (url && isImage) {
-          attEl.innerHTML = `<img src="${url}" style="max-width:100%;border-radius:4px;border:1px solid var(--border)" alt="attachment"/>`;
-        } else if (url) {
-          const name = it.attachment_name || "Download";
-          attEl.innerHTML = `<a href="${url}" target="_blank" class="guide-pdf-link">📄 ${name}</a>`;
-        } else {
-          attEl.innerHTML = "";
-        }
-      } else {
-        attEl.innerHTML = "";
-      }
-
+      document.getElementById("viewAttachment").innerHTML = attachmentsViewHtml(it);
       openModal("viewModal");
     }
 
     // ── Create/Edit modal
-    function openEventModal() {
+    function openItemModal() {
       if (!requireAuthOrAlert()) return;
       resetForm();
-      openModal("eventModal");
+      openModal("itemModal");
     }
 
     async function editItem(id) {
@@ -297,22 +297,13 @@
       document.getElementById("itemBody").value = it.body || "";
       document.getElementById("itemAuthor").value = it.author || AUTHORS[0];
 
-      document.getElementById("eventModalTitle").textContent = "Edit Event";
+      document.getElementById("itemModalTitle").textContent = "Edit Event";
 
-      pendingFile = null;
-      if (it.attachment_path) {
-        existingAttachment = {
-          attachment_path: it.attachment_path,
-          attachment_type: it.attachment_type,
-          attachment_name: it.attachment_name
-        };
-        showPreviewFile(existingAttachment);
-      } else {
-        existingAttachment = null;
-        clearFile();
-      }
+      pendingFiles = [];
+      existingAttachments = attachmentsFromRow(it);
+      renderPreview();
 
-      openModal("eventModal");
+      openModal("itemModal");
     }
 
     async function deleteItem(id) {
@@ -321,12 +312,14 @@
 
       const it = currentItems.find(x => x.id === id);
 
-      // delete DB row
       const ok = await dbDelete(TABLE, id);
       if (!ok) return;
 
-      // best-effort delete attachment in storage
-      if (it?.attachment_path) await deleteAttachmentByPath(it.attachment_path);
+      // best-effort delete attachments
+      const metas = it ? attachmentsFromRow(it) : [];
+      for (const m of metas) {
+        if (m.attachment_path) await deleteAttachmentByPath(m.attachment_path);
+      }
 
       await loadAndRender();
       showToast("Deleted.", "success");
@@ -337,16 +330,15 @@
 
       const id = document.getElementById("editId").value;
 
-      // Attachment logic:
-      // - if pendingFile: upload -> set attachment_* to new
-      // - else if existingAttachment: keep it
-      // - else: null
-      let att = null;
-      if (pendingFile) {
-        att = await uploadAttachment(TABLE, pendingFile);
-        if (!att) return; // upload failed
-      } else if (existingAttachment) {
-        att = existingAttachment;
+      // attachments:
+      // - if pendingFiles: upload new metas (max 3)
+      // - else: keep existing metas
+      let metas = [];
+      if (pendingFiles.length) {
+        metas = await uploadAttachments(TABLE, pendingFiles, MAX_ATTACHMENTS);
+        if (!metas.length) return;
+      } else {
+        metas = existingAttachments;
       }
 
       const entry = {
@@ -355,10 +347,7 @@
         body: document.getElementById("itemBody").value.trim() || "",
         author: document.getElementById("itemAuthor").value,
         date: new Date().toISOString().split("T")[0],
-
-        attachment_path: att ? att.attachment_path : null,
-        attachment_type: att ? att.attachment_type : null,
-        attachment_name: att ? att.attachment_name : null,
+        ...attachmentsToRow(metas),
       };
 
       if (id) entry.id = Number(id);
@@ -366,7 +355,7 @@
       const res = await dbUpsert(TABLE, entry);
       if (!res.ok) return;
 
-      closeModal("eventModal");
+      closeModal("itemModal");
       resetForm();
       await loadAndRender();
       showToast("Saved.", "success");
@@ -379,19 +368,17 @@
       document.getElementById("itemBody").value = "";
       document.getElementById("itemAuthor").value = AUTHORS[0];
 
-      document.getElementById("eventModalTitle").textContent = "New Event";
+      document.getElementById("itemModalTitle").textContent = "New Event";
 
-      pendingFile = null;
-      existingAttachment = null;
-      clearFile();
+      clearFiles();
     }
 
     // close modals by clicking backdrop
-    ["eventModal", "viewModal"].forEach(id =>
+    ["itemModal", "viewModal"].forEach(id =>
       document.getElementById(id).addEventListener("click", e => {
         if (e.target.id === id) {
           closeModal(id);
-          if (id === "eventModal") resetForm();
+          if (id === "itemModal") resetForm();
         }
       })
     );
