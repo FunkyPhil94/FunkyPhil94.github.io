@@ -61,6 +61,14 @@ function requireAuthOrAlert() {
 }
 
 // ============================================================
+//  CONSTANTS
+// ============================================================
+const AUTHORS = ["Pingwing", "Finnegan", "MonkeyGod", "GettoBird", "Kait_See", "Squirtle"];
+
+// Attachments bucket (Supabase Storage)
+const STORAGE_BUCKET = "attachments";
+
+// ============================================================
 //  TOAST  -  showToast("Text", "success"|"error"|"info", ms)
 // ============================================================
 function showToast(message, type, durationMs) {
@@ -122,7 +130,6 @@ const SUPABASE_URL = "https://ztvimtaecxxtltpnxxrg.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0dmltdGFlY3h4dGx0cG54eHJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NjE4MzEsImV4cCI6MjA4ODEzNzgzMX0.W9c_Sy6dcNHwjr3hYSjBmh5vDyY1KBQbeYsw4wG5gGw";
 
-// Robust: nicht crashen, wenn supabase nicht geladen ist
 let sb = null;
 try {
   if (typeof supabase !== "undefined" && supabase?.createClient) {
@@ -133,6 +140,12 @@ try {
 } catch (e) {
   console.warn("[script.js] Supabase init failed:", e);
   sb = null;
+}
+
+function requireSupabase() {
+  if (sb) return true;
+  showToast("Supabase nicht geladen (CDN Script fehlt).", "error", 5000);
+  return false;
 }
 
 // ============================================================
@@ -154,7 +167,6 @@ const CONFIG = {
   ],
 };
 
-// call buildNav("pagefile.html") on each page
 function buildNav(currentPage) {
   const nav = document.getElementById("mainNav");
   if (!nav) return;
@@ -174,7 +186,7 @@ function buildNav(currentPage) {
     return `<li><a href="${p.href}"${active}>${p.label}</a></li>`;
   }).join("");
 
-  // Optional Logout button (wenn du ihn behalten willst)
+  // Optional Logout button
   let btn = nav.querySelector(".nav-logout");
   if (!btn) {
     btn = document.createElement("button");
@@ -188,39 +200,147 @@ function buildNav(currentPage) {
 }
 
 // ============================================================
-//  LOCAL DB (nur noch fuer influence/roster, falls du das noch nutzt)
+//  DB HELPERS (Punkt 4)
+//  Pages only define: const TABLE = "events" (etc.)
 // ============================================================
-const DB = {
-  get(key) {
-    try { return JSON.parse(localStorage.getItem("nato_" + key)) || []; }
-    catch { return []; }
-  },
-  set(key, value) {
-    localStorage.setItem("nato_" + key, JSON.stringify(value));
-  },
-};
 
-// Seed default members (OHNE class/class)
-if (!localStorage.getItem("nato_members")) {
-  DB.set("members", [
-    { id: 1, name: "CommanderX",   rank: "officer", power: "4,800,000", joined: "2024-01-10", warnings: { mythic: 0, castle: 0 }, notes: "" },
-    { id: 2, name: "SilverArrow",  rank: "officer", power: "3,200,000", joined: "2024-02-14", warnings: { mythic: 1, castle: 0 }, notes: "1st warning issued 2024-06" },
-    { id: 3, name: "IronFrost",    rank: "officer", power: "2,900,000", joined: "2024-03-05", warnings: { mythic: 0, castle: 0 }, notes: "" },
-    { id: 4, name: "DarkBlade",    rank: "member",  power: "2,100,000", joined: "2024-04-20", warnings: { mythic: 0, castle: 1 }, notes: "" },
-    { id: 5, name: "StormBreaker", rank: "member",  power: "1,850,000", joined: "2024-05-11", warnings: { mythic: 2, castle: 0 }, notes: "On probation" },
-    { id: 6, name: "LunaWitch",    rank: "member",  power: "1,600,000", joined: "2024-06-03", warnings: { mythic: 0, castle: 0 }, notes: "" },
-  ]);
+/**
+ * List rows from a table.
+ * @param {string} table
+ * @param {object} options
+ * @param {string} options.orderBy - column name
+ * @param {boolean} options.ascending
+ * @param {number|null} options.limit
+ * @param {object|null} options.filters - {col: value}
+ */
+async function dbList(table, options = {}) {
+  if (!requireSupabase()) return [];
+
+  const orderBy = options.orderBy || "date";
+  const ascending = options.ascending ?? false;
+  const limit = options.limit ?? null;
+  const filters = options.filters || null;
+
+  let q = sb.from(table).select("*").order(orderBy, { ascending });
+
+  if (filters) {
+    for (const [col, val] of Object.entries(filters)) {
+      if (val === undefined || val === null) continue;
+      q = q.eq(col, val);
+    }
+  }
+  if (limit) q = q.limit(limit);
+
+  const { data, error } = await q;
+  if (error) {
+    console.error("[dbList]", table, error);
+    showToast("DB Fehler beim Laden.", "error");
+    return [];
+  }
+  return data || [];
 }
 
-if (!localStorage.getItem("nato_influence")) {
-  DB.set("influence", [
-    { id: 1, name: "CommanderX",   week: "2025-W01", influence: 420000, dungeons: 12, events: 5 },
-    { id: 2, name: "SilverArrow",  week: "2025-W01", influence: 310000, dungeons: 9,  events: 4 },
-    { id: 3, name: "IronFrost",    week: "2025-W01", influence: 290000, dungeons: 11, events: 3 },
-    { id: 4, name: "DarkBlade",    week: "2025-W01", influence: 210000, dungeons: 7,  events: 2 },
-    { id: 5, name: "StormBreaker", week: "2025-W01", influence: 180000, dungeons: 6,  events: 4 },
-    { id: 6, name: "LunaWitch",    week: "2025-W01", influence: 160000, dungeons: 8,  events: 3 },
-  ]);
+/** Get one row by id */
+async function dbGet(table, id) {
+  if (!requireSupabase()) return null;
+  const { data, error } = await sb.from(table).select("*").eq("id", id).maybeSingle();
+  if (error) {
+    console.error("[dbGet]", table, error);
+    showToast("DB Fehler beim Laden.", "error");
+    return null;
+  }
+  return data || null;
+}
+
+/**
+ * Upsert row (insert if no id, update if id).
+ * Expects your table has "id" as PK.
+ */
+async function dbUpsert(table, row) {
+  if (!requireSupabase()) return { ok: false, data: null };
+
+  const { data, error } = await sb.from(table).upsert(row).select().maybeSingle();
+  if (error) {
+    console.error("[dbUpsert]", table, error);
+    showToast("DB Fehler beim Speichern.", "error");
+    return { ok: false, data: null };
+  }
+  return { ok: true, data };
+}
+
+async function dbDelete(table, id) {
+  if (!requireSupabase()) return false;
+  const { error } = await sb.from(table).delete().eq("id", id);
+  if (error) {
+    console.error("[dbDelete]", table, error);
+    showToast("DB Fehler beim Löschen.", "error");
+    return false;
+  }
+  return true;
+}
+
+// ============================================================
+//  STORAGE HELPERS (Attachments)
+//  Best practice: store file in Storage, save only path/meta in DB.
+// ============================================================
+
+function safeFileExt(name = "") {
+  const i = name.lastIndexOf(".");
+  if (i === -1) return "";
+  return name.slice(i + 1).toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/**
+ * Uploads a File to Storage bucket, under a folder per table.
+ * @param {string} table - e.g. "guides" | "events" | ...
+ * @param {File} file
+ * @returns {object|null} { attachment_path, attachment_type, attachment_name }
+ */
+async function uploadAttachment(table, file) {
+  if (!requireSupabase()) return null;
+  if (!file) return null;
+
+  const ext = safeFileExt(file.name);
+  const ts = Date.now();
+  const cleanName = (file.name || "file").replace(/[^\w.\-]+/g, "_");
+  const path = `${table}/${ts}-${cleanName}${ext && !cleanName.endsWith("." + ext) ? "" : ""}`;
+
+  // upload
+  const { error } = await sb.storage
+    .from(STORAGE_BUCKET)
+    .upload(path, file, { upsert: true, contentType: file.type });
+
+  if (error) {
+    console.error("[uploadAttachment]", error);
+    showToast("Upload fehlgeschlagen.", "error");
+    return null;
+  }
+
+  return {
+    attachment_path: path,
+    attachment_type: file.type || null,
+    attachment_name: file.name || null,
+  };
+}
+
+/** Returns a public URL (bucket must be public) */
+function publicUrlForPath(path) {
+  if (!sb || !path) return null;
+  const { data } = sb.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+  return data?.publicUrl || null;
+}
+
+async function deleteAttachmentByPath(path) {
+  if (!requireSupabase()) return false;
+  if (!path) return true;
+
+  const { error } = await sb.storage.from(STORAGE_BUCKET).remove([path]);
+  if (error) {
+    console.warn("[deleteAttachmentByPath]", error);
+    // not fatal
+    return false;
+  }
+  return true;
 }
 
 // ============================================================
@@ -231,7 +351,7 @@ function today() { return new Date().toISOString().split("T")[0]; }
 function nextId(arr) { return arr.length ? Math.max(...arr.map(x => x.id)) + 1 : 1; }
 
 function closeModal(id) { document.getElementById(id)?.classList.remove("open"); }
-function openModal(id)  { document.getElementById(id)?.classList.add("open"); }
+function openModal(id) { document.getElementById(id)?.classList.add("open"); }
 
 // ============================================================
 //  PROTECT RESTRICTED PAGES (Influence/Roster only for authed)
