@@ -89,30 +89,29 @@
     </div>
   </div>
 
-  <!-- Edit / New Event Modal -->
+  <!-- Edit / New Modal -->
   <div class="modal-overlay" id="eventModal">
     <div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto">
       <h3 id="eventModalTitle">New Event</h3>
-      <input type="hidden" id="editEventId"/>
-      <input type="hidden" id="existingAttachment"/>
+      <input type="hidden" id="editId"/>
 
-      <div class="form-group"><label>Title</label><input type="text" id="eventTitle" placeholder="Event title…"/></div>
+      <div class="form-group"><label>Title</label><input type="text" id="itemTitle" placeholder="Event title…"/></div>
 
       <div class="form-group">
         <label>Category</label>
-        <select id="eventCategory">
+        <select id="itemCategory">
           <option>Mythic Plunder</option>
           <option>Castle Crashers GE</option>
           <option>General</option>
         </select>
       </div>
 
-      <div class="form-group"><label>Content</label><textarea id="eventBody" rows="5" placeholder="Write your event info here…"></textarea></div>
+      <div class="form-group"><label>Content</label><textarea id="itemBody" rows="5" placeholder="Write your event info here…"></textarea></div>
 
       <div class="form-group">
         <label>Attachment (Image or PDF)</label>
         <div class="upload-area" id="uploadArea">
-          <input type="file" id="fileInput" accept="image/*,.pdf" onchange="handleFile(this.files[0])"/>
+          <input type="file" id="fileInput" accept="image/*,.pdf" />
           <div class="ua-icon">📎</div>
           <div class="ua-label">Click or drag an image / PDF here</div>
         </div>
@@ -121,74 +120,40 @@
 
       <div class="form-group">
         <label>Author</label>
-        <select id="eventAuthor">
-          <option value="Pingwing">Pingwing</option>
-          <option value="Finnegan">Finnegan</option>
-          <option value="MonkeyGod">MonkeyGod</option>
-          <option value="GettoBird">GettoBird</option>
-          <option value="Kait_See">Kait_See</option>
-          <option value="Squirtle">Squirtle</option>
-        </select>
+        <select id="itemAuthor"></select>
       </div>
 
       <div class="modal-actions">
-        <button class="btn btn-ghost" onclick="closeModal('eventModal');resetEventForm()">Cancel</button>
-        <button class="btn btn-gold"  onclick="saveEvent()">Save</button>
+        <button class="btn btn-ghost" onclick="closeModal('eventModal');resetForm()">Cancel</button>
+        <button class="btn btn-gold"  onclick="saveItem()">Save</button>
       </div>
     </div>
   </div>
 
-  <!-- Supabase client -->
+  <!-- Supabase client MUST be before script.js -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="script.js"></script>
 
   <script>
-    // ============================================================
-    //  SETTINGS
-    // ============================================================
-    const SECTION = "events";              // IMPORTANT: filters content_items.section
+    const TABLE = "events";
+
     let activeFilter = "All";
-    let pendingFile  = null;              // { dataUrl, type, name }
-    let currentItems = [];                // last loaded items from Supabase
+    let currentItems = [];
+    let pendingFile = null;          // File object
+    let existingAttachment = null;   // {attachment_path, attachment_type, attachment_name}
 
     buildNav("events.html");
     applyAuthUI();
 
-    const CAT_BADGE = {
-      "Mythic Plunder":     '<span class="badge badge-gold">Mythic Plunder</span>',
-      "Castle Crashers GE": '<span class="badge badge-blue">Castle Crashers GE</span>',
-      "General":            '<span class="badge badge-muted">General</span>',
-    };
+    // Populate author dropdown from script.js AUTHORS constant
+    (function initAuthors(){
+      const sel = document.getElementById("itemAuthor");
+      sel.innerHTML = AUTHORS.map(a => `<option value="${a}">${a}</option>`).join("");
+    })();
 
-    // ============================================================
-    //  FILE HANDLING (stores attachment JSON in Supabase row)
-    // ============================================================
-    function handleFile(file) {
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = e => {
-        pendingFile = { dataUrl: e.target.result, type: file.type, name: file.name };
-        showPreview(pendingFile);
-      };
-      reader.readAsDataURL(file);
-    }
-
-    function showPreview(f) {
-      const preview = document.getElementById("uploadPreview");
-      const isImage = f.type?.startsWith("image/");
-      preview.style.display = "flex";
-      preview.innerHTML = isImage
-        ? `<img src="${f.dataUrl}" alt="preview"/><span class="up-name">${f.name}</span><span class="up-remove" onclick="clearFile()">Remove</span>`
-        : `<span style="font-size:1.4rem">📄</span><span class="up-name">${f.name}</span><span class="up-remove" onclick="clearFile()">Remove</span>`;
-    }
-
-    function clearFile() {
-      pendingFile = null;
-      document.getElementById("existingAttachment").value = "";
-      document.getElementById("uploadPreview").style.display = "none";
-      document.getElementById("uploadPreview").innerHTML = "";
-      document.getElementById("fileInput").value = "";
-    }
+    // File input handlers
+    const fileInput = document.getElementById("fileInput");
+    fileInput.addEventListener("change", () => handleFile(fileInput.files[0]));
 
     const ua = document.getElementById("uploadArea");
     ua.addEventListener("dragover",  e => { e.preventDefault(); ua.classList.add("dragover"); });
@@ -199,33 +164,45 @@
       if (file) handleFile(file);
     });
 
-    // ============================================================
-    //  SUPABASE HELPERS
-    // ============================================================
-    async function fetchItems() {
-      const { data, error } = await sb
-        .from("content_items")
-        .select("*")
-        .eq("section", SECTION)
-        .order("date", { ascending: false });
-
-      if (error) {
-        console.error(error);
-        return [];
-      }
-      return data || [];
+    function handleFile(file) {
+      if (!file) return;
+      pendingFile = file;
+      existingAttachment = null; // replacing existing
+      showPreviewFile(file);
     }
 
-    // ============================================================
-    //  FILTERS
-    // ============================================================
-    function getCategoriesFromItems(items) {
+    function showPreviewFile(fileOrMeta) {
+      const preview = document.getElementById("uploadPreview");
+      preview.style.display = "flex";
+
+      const name = fileOrMeta.name || fileOrMeta.attachment_name || "attachment";
+      const type = fileOrMeta.type || fileOrMeta.attachment_type || "";
+      const isImage = type.startsWith("image/");
+
+      preview.innerHTML = isImage
+        ? `<span style="font-size:1.4rem">🖼️</span><span class="up-name">${name}</span><span class="up-remove" onclick="clearFile()">Remove</span>`
+        : `<span style="font-size:1.4rem">📄</span><span class="up-name">${name}</span><span class="up-remove" onclick="clearFile()">Remove</span>`;
+    }
+
+    function clearFile() {
+      pendingFile = null;
+      existingAttachment = null;
+      document.getElementById("uploadPreview").style.display = "none";
+      document.getElementById("uploadPreview").innerHTML = "";
+      document.getElementById("fileInput").value = "";
+    }
+
+    function escapeQuotes(s) { return String(s).replace(/'/g, "\\'"); }
+
+    function categoriesFromItems(items) {
       const cats = items.map(x => x.category).filter(Boolean);
       return ["All", ...new Set(cats)];
     }
 
-    function renderFilters(items) {
-      const categories = getCategoriesFromItems(items);
+    function renderFilters() {
+      const categories = categoriesFromItems(currentItems);
+      if (!categories.includes(activeFilter)) activeFilter = "All";
+
       document.getElementById("filterBar").innerHTML = categories.map(c =>
         `<button class="filter-btn ${c===activeFilter?'active':''}" onclick="setFilter('${escapeQuotes(c)}')">${c}</button>`
       ).join("");
@@ -233,52 +210,47 @@
 
     function setFilter(cat) {
       activeFilter = cat;
-      renderFilters(currentItems);
-      renderItems();
+      renderFilters();
+      renderGrid();
     }
 
-    function escapeQuotes(s) {
-      return String(s).replace(/'/g, "\\'");
+    function attachmentThumb(row) {
+      if (!row.attachment_path) return "";
+      const url = publicUrlForPath(row.attachment_path);
+      if (!url) return "";
+
+      const isImage = (row.attachment_type || "").startsWith("image/");
+      if (isImage) return `<img src="${url}" class="guide-thumb" alt="attachment"/>`;
+
+      const name = row.attachment_name || "Download";
+      return `<a href="${url}" target="_blank" class="guide-pdf-link">📄 ${name}</a>`;
     }
 
-    // ============================================================
-    //  LIST
-    // ============================================================
-    function attachmentThumb(att) {
-      if (!att) return "";
-      if (att.type?.startsWith("image/"))
-        return `<img src="${att.dataUrl}" class="guide-thumb" alt="attachment"/>`;
-      return `<a href="${att.dataUrl}" download="${att.name}" class="guide-pdf-link">📄 ${att.name}</a>`;
-    }
-
-    function renderItems() {
+    function renderGrid() {
       const canEdit = isAuthed();
-      const items = currentItems.filter(x => activeFilter==="All" || x.category===activeFilter);
+      const items = currentItems.filter(x => activeFilter === "All" || x.category === activeFilter);
 
       document.getElementById("itemsGrid").innerHTML = items.length
         ? items.map(it => `
           <div class="card guide-card">
-            ${CAT_BADGE[it.category] || `<span class="badge badge-muted">${it.category}</span>`}
-            ${it.attachment ? attachmentThumb(it.attachment) : ""}
+            <span class="badge badge-muted">${it.category}</span>
+            ${attachmentThumb(it)}
             <h3>${it.title}</h3>
             <p>${it.body}</p>
             <div class="guide-meta">By <strong style="color:var(--text)">${it.author}</strong> · ${it.date}</div>
             <div class="guide-actions">
-              <button class="btn btn-gold" style="padding:.35rem .8rem;font-size:.72rem" onclick="viewEvent(${it.id})">Read</button>
-
+              <button class="btn btn-gold" style="padding:.35rem .8rem;font-size:.72rem" onclick="viewItem(${it.id})">Read</button>
               ${canEdit ? `
-                <button class="btn btn-ghost"  style="padding:.35rem .8rem;font-size:.72rem" onclick="editEvent(${it.id})">Edit</button>
-                <button class="btn btn-danger" style="padding:.35rem .8rem;font-size:.72rem" onclick="deleteEvent(${it.id})">Delete</button>
+                <button class="btn btn-ghost"  style="padding:.35rem .8rem;font-size:.72rem" onclick="editItem(${it.id})">Edit</button>
+                <button class="btn btn-danger" style="padding:.35rem .8rem;font-size:.72rem" onclick="deleteItem(${it.id})">Delete</button>
               ` : ``}
             </div>
           </div>`).join("")
         : `<div style="color:var(--muted);font-size:.9rem">No events found.</div>`;
     }
 
-    // ============================================================
-    //  VIEW
-    // ============================================================
-    function viewEvent(id) {
+    // ── View
+    function viewItem(id) {
       const it = currentItems.find(x => x.id === id);
       if (!it) return;
 
@@ -288,11 +260,16 @@
       document.getElementById("viewBody").textContent     = it.body;
 
       const attEl = document.getElementById("viewAttachment");
-      if (it.attachment) {
-        if (it.attachment.type?.startsWith("image/")) {
-          attEl.innerHTML = `<img src="${it.attachment.dataUrl}" style="max-width:100%;border-radius:4px;border:1px solid var(--border)" alt="attachment"/>`;
+      if (it.attachment_path) {
+        const url = publicUrlForPath(it.attachment_path);
+        const isImage = (it.attachment_type || "").startsWith("image/");
+        if (url && isImage) {
+          attEl.innerHTML = `<img src="${url}" style="max-width:100%;border-radius:4px;border:1px solid var(--border)" alt="attachment"/>`;
+        } else if (url) {
+          const name = it.attachment_name || "Download";
+          attEl.innerHTML = `<a href="${url}" target="_blank" class="guide-pdf-link">📄 ${name}</a>`;
         } else {
-          attEl.innerHTML = `<a href="${it.attachment.dataUrl}" download="${it.attachment.name}" class="guide-pdf-link">📄 Download ${it.attachment.name}</a>`;
+          attEl.innerHTML = "";
         }
       } else {
         attEl.innerHTML = "";
@@ -301,123 +278,129 @@
       openModal("viewModal");
     }
 
-    // ============================================================
-    //  EDIT / NEW
-    // ============================================================
+    // ── Create/Edit modal
     function openEventModal() {
       if (!requireAuthOrAlert()) return;
+      resetForm();
       openModal("eventModal");
     }
 
-    function editEvent(id) {
+    async function editItem(id) {
       if (!requireAuthOrAlert()) return;
 
       const it = currentItems.find(x => x.id === id);
       if (!it) return;
 
-      document.getElementById("editEventId").value = it.id;
-      document.getElementById("eventTitle").value = it.title;
-      document.getElementById("eventCategory").value = it.category;
-      document.getElementById("eventBody").value = it.body;
-      document.getElementById("eventAuthor").value = it.author;
+      document.getElementById("editId").value = it.id;
+      document.getElementById("itemTitle").value = it.title || "";
+      document.getElementById("itemCategory").value = it.category || "General";
+      document.getElementById("itemBody").value = it.body || "";
+      document.getElementById("itemAuthor").value = it.author || AUTHORS[0];
 
       document.getElementById("eventModalTitle").textContent = "Edit Event";
 
-      // Restore existing attachment
-      if (it.attachment) {
-        document.getElementById("existingAttachment").value = "1";
-        pendingFile = it.attachment;
-        showPreview(it.attachment);
+      pendingFile = null;
+      if (it.attachment_path) {
+        existingAttachment = {
+          attachment_path: it.attachment_path,
+          attachment_type: it.attachment_type,
+          attachment_name: it.attachment_name
+        };
+        showPreviewFile(existingAttachment);
       } else {
+        existingAttachment = null;
         clearFile();
       }
 
       openModal("eventModal");
     }
 
-    async function deleteEvent(id) {
+    async function deleteItem(id) {
       if (!requireAuthOrAlert()) return;
       if (!confirm("Delete this event?")) return;
 
-      const { error } = await sb.from("content_items").delete().eq("id", id);
-      if (error) {
-        console.error(error);
-        alert("Error deleting event.");
-        return;
-      }
+      const it = currentItems.find(x => x.id === id);
+
+      // delete DB row
+      const ok = await dbDelete(TABLE, id);
+      if (!ok) return;
+
+      // best-effort delete attachment in storage
+      if (it?.attachment_path) await deleteAttachmentByPath(it.attachment_path);
 
       await loadAndRender();
+      showToast("Deleted.", "success");
     }
 
-    // ============================================================
-    //  SAVE
-    // ============================================================
-    async function saveEvent() {
+    async function saveItem() {
       if (!requireAuthOrAlert()) return;
 
-      const id = document.getElementById("editEventId").value;
+      const id = document.getElementById("editId").value;
 
-      // Determine attachment: new file > existing > none
-      let attachment = null;
+      // Attachment logic:
+      // - if pendingFile: upload -> set attachment_* to new
+      // - else if existingAttachment: keep it
+      // - else: null
+      let att = null;
       if (pendingFile) {
-        attachment = pendingFile;
-      } else if (id && document.getElementById("existingAttachment").value) {
-        const existing = currentItems.find(x => x.id === Number(id));
-        attachment = existing?.attachment || null;
+        att = await uploadAttachment(TABLE, pendingFile);
+        if (!att) return; // upload failed
+      } else if (existingAttachment) {
+        att = existingAttachment;
       }
 
       const entry = {
-        section:  SECTION,
-        title:    document.getElementById("eventTitle").value.trim() || "Untitled",
-        category: document.getElementById("eventCategory").value,
-        body:     document.getElementById("eventBody").value.trim() || "",
-        author:   document.getElementById("eventAuthor").value,
-        date:     new Date().toISOString().split("T")[0],
-        attachment,
+        title: document.getElementById("itemTitle").value.trim() || "Untitled",
+        category: document.getElementById("itemCategory").value,
+        body: document.getElementById("itemBody").value.trim() || "",
+        author: document.getElementById("itemAuthor").value,
+        date: new Date().toISOString().split("T")[0],
+
+        attachment_path: att ? att.attachment_path : null,
+        attachment_type: att ? att.attachment_type : null,
+        attachment_name: att ? att.attachment_name : null,
       };
 
       if (id) entry.id = Number(id);
 
-      const { error } = await sb.from("content_items").upsert(entry);
-      if (error) {
-        console.error(error);
-        alert("Error saving event.");
-        return;
-      }
+      const res = await dbUpsert(TABLE, entry);
+      if (!res.ok) return;
 
       closeModal("eventModal");
-      resetEventForm();
+      resetForm();
       await loadAndRender();
+      showToast("Saved.", "success");
     }
 
-    function resetEventForm() {
-      document.getElementById("editEventId").value = "";
-      document.getElementById("eventTitle").value = "";
-      document.getElementById("eventBody").value = "";
-      document.getElementById("eventAuthor").value = "Pingwing";
-      document.getElementById("eventCategory").value = "Mythic Plunder";
+    function resetForm() {
+      document.getElementById("editId").value = "";
+      document.getElementById("itemTitle").value = "";
+      document.getElementById("itemCategory").value = "General";
+      document.getElementById("itemBody").value = "";
+      document.getElementById("itemAuthor").value = AUTHORS[0];
+
       document.getElementById("eventModalTitle").textContent = "New Event";
+
+      pendingFile = null;
+      existingAttachment = null;
       clearFile();
     }
 
-    // Close modals on background click
+    // close modals by clicking backdrop
     ["eventModal", "viewModal"].forEach(id =>
       document.getElementById(id).addEventListener("click", e => {
         if (e.target.id === id) {
           closeModal(id);
-          if (id === "eventModal") resetEventForm();
+          if (id === "eventModal") resetForm();
         }
       })
     );
 
-    // ============================================================
-    //  LOAD INITIAL
-    // ============================================================
     async function loadAndRender() {
-      currentItems = await fetchItems();
-      renderFilters(currentItems);
-      renderItems();
-      applyAuthUI(); // keep UI consistent
+      currentItems = await dbList(TABLE, { orderBy: "date", ascending: false });
+      renderFilters();
+      renderGrid();
+      applyAuthUI();
     }
 
     loadAndRender();
