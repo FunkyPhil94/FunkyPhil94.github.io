@@ -6,6 +6,7 @@
   <title>NATO [GBR] – Guides</title>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="style.css"/>
+
   <style>
     .guide-filters { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1.5rem; }
     .filter-btn {
@@ -21,17 +22,6 @@
     .guide-card p  { font-size:.84rem; color:var(--muted); line-height:1.6; flex:1; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
     .guide-meta    { font-size:.7rem; color:var(--muted); letter-spacing:.06em; }
     .guide-actions { display:flex; gap:.5rem; margin-top:.4rem; flex-wrap:wrap; }
-    .guide-thumb {
-      width:100%; max-height:160px; object-fit:cover; border-radius:3px;
-      border:1px solid var(--border); margin-bottom:.2rem;
-    }
-    .guide-pdf-link {
-      display:inline-flex; align-items:center; gap:.4rem;
-      font-size:.78rem; color:var(--blue); text-decoration:none;
-      border:1px solid rgba(61,127,255,.25); border-radius:3px;
-      padding:.3rem .7rem; transition:background .2s;
-    }
-    .guide-pdf-link:hover { background:rgba(61,127,255,.1); }
 
     /* Upload area */
     .upload-area {
@@ -45,15 +35,15 @@
     .upload-area .ua-icon { font-size:1.5rem; margin-bottom:.3rem; }
     .upload-area .ua-label { font-size:.8rem; color:var(--muted); }
     .upload-preview { margin-top:.6rem; display:flex; align-items:center; gap:.6rem; }
-    .upload-preview img { width:48px; height:48px; object-fit:cover; border-radius:3px; border:1px solid var(--border); }
-    .upload-preview .up-name { font-size:.78rem; color:var(--text); }
+    .upload-preview .up-name { font-size:.78rem; color:var(--text); overflow-wrap:anywhere; word-break:break-word; }
     .upload-preview .up-remove { font-size:.72rem; color:var(--red); cursor:pointer; margin-left:auto; }
 
     /* View modal content */
-    #viewBody { font-size:.9rem; line-height:1.75; color:var(--muted); white-space:pre-wrap; }
+    #viewBody { font-size:.9rem; line-height:1.75; color:var(--muted); white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; }
     #viewAttachment { margin-top:1.2rem; }
   </style>
 </head>
+
 <body>
   <nav id="mainNav"><a class="nav-logo" href="index.html">NATO [GBR]</a><ul></ul></nav>
 
@@ -64,11 +54,11 @@
         <div class="page-title">Guides</div>
         <div class="page-divider"></div>
       </div>
-      <button class="btn btn-gold" data-requires-auth="true" onclick="openModal('guideModal')">+ New Guide</button>
+      <button class="btn btn-gold" data-requires-auth="true" onclick="openItemModal()">+ New Guide</button>
     </div>
 
     <div class="guide-filters" id="filterBar"></div>
-    <div class="guides-grid"  id="guidesGrid"></div>
+    <div class="guides-grid"  id="itemsGrid"></div>
   </div>
 
   <!-- View Modal -->
@@ -87,235 +77,297 @@
     </div>
   </div>
 
-  <!-- Edit / New Guide Modal -->
-  <div class="modal-overlay" id="guideModal">
+  <!-- Edit / New Modal -->
+  <div class="modal-overlay" id="itemModal">
     <div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto">
-      <h3 id="guideModalTitle">New Guide</h3>
-      <input type="hidden" id="editGuideId"/>
-      <input type="hidden" id="existingAttachment"/>
-      <div class="form-group"><label>Title</label><input type="text" id="guideTitle" placeholder="Guide title…"/></div>
+      <h3 id="itemModalTitle">New Guide</h3>
+      <input type="hidden" id="editId"/>
+
+      <div class="form-group"><label>Title</label><input type="text" id="itemTitle" placeholder="Guide title…"/></div>
+
       <div class="form-group">
         <label>Category</label>
-        <select id="guideCategory">
+        <select id="itemCategory">
           <option>Mythic Plunder</option>
           <option>Castle Crashers GE</option>
           <option>General</option>
         </select>
       </div>
-      <div class="form-group"><label>Content</label><textarea id="guideBody" rows="5" placeholder="Write your guide here…"></textarea></div>
+
+      <div class="form-group"><label>Content</label><textarea id="itemBody" rows="5" placeholder="Write your guide here…"></textarea></div>
+
       <div class="form-group">
-        <label>Attachment (Image or PDF)</label>
+        <label>Attachments (max 3) – Image or PDF</label>
         <div class="upload-area" id="uploadArea">
-          <input type="file" id="fileInput" accept="image/*,.pdf" onchange="handleFile(this.files[0])"/>
+          <input type="file" id="fileInput" accept="image/*,.pdf" multiple />
           <div class="ua-icon">📎</div>
-          <div class="ua-label">Click or drag an image / PDF here</div>
+          <div class="ua-label">Click or drag up to 3 files here</div>
         </div>
         <div class="upload-preview" id="uploadPreview" style="display:none"></div>
       </div>
-     <div class="form-group">
+
+      <div class="form-group">
         <label>Author</label>
-        <select id="guideAuthor">
-          <option value="Pingwing">Pingwing</option>
-          <option value="Finnegan">Finnegan</option>
-          <option value="MonkeyGod">MonkeyGod</option>
-          <option value="GettoBird">GettoBird</option>
-          <option value="Kait_See">Kait_See</option>
-          <option value="Squirtle">Squirtle</option>
-        </select>
+        <select id="itemAuthor"></select>
       </div>
+
       <div class="modal-actions">
-        <button class="btn btn-ghost" onclick="closeModal('guideModal');resetGuideForm()">Cancel</button>
-        <button class="btn btn-gold"  onclick="saveGuide()">Save</button>
+        <button class="btn btn-ghost" onclick="closeModal('itemModal');resetForm()">Cancel</button>
+        <button class="btn btn-gold"  onclick="saveItem()">Save</button>
       </div>
     </div>
   </div>
 
+  <!-- Supabase client MUST be before script.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="script.js"></script>
-  <script>
-    buildNav("guides.html");
 
-    const CAT_BADGE = {
-      "Mythic Plunder":     '<span class="badge badge-gold">Mythic Plunder</span>',
-      "Castle Crashers GE": '<span class="badge badge-blue">Castle Crashers GE</span>',
-      "General":            '<span class="badge badge-muted">General</span>',
-    };
+  <script>
+    const TABLE = "guides";
 
     let activeFilter = "All";
-    let pendingFile  = null; // { dataUrl, type, name }
+    let currentItems = [];
 
-    // ── File handling ──────────────────────────────────────
-    function handleFile(file) {
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = e => {
-        pendingFile = { dataUrl: e.target.result, type: file.type, name: file.name };
-        showPreview(pendingFile);
-      };
-      reader.readAsDataURL(file);
-    }
+    let pendingFiles = [];        // File[]
+    let existingAttachments = []; // metas[]
 
-    function showPreview(f) {
-      const preview = document.getElementById("uploadPreview");
-      const isImage = f.type.startsWith("image/");
-      preview.style.display = "flex";
-      preview.innerHTML = isImage
-        ? `<img src="${f.dataUrl}" alt="preview"/><span class="up-name">${f.name}</span><span class="up-remove" onclick="clearFile()">Remove</span>`
-        : `<span style="font-size:1.4rem">📄</span><span class="up-name">${f.name}</span><span class="up-remove" onclick="clearFile()">Remove</span>`;
-    }
+    buildNav("guides.html");
+    applyAuthUI();
 
-    function clearFile() {
-      pendingFile = null;
-      document.getElementById("existingAttachment").value = "";
-      document.getElementById("uploadPreview").style.display = "none";
-      document.getElementById("uploadPreview").innerHTML = "";
-      document.getElementById("fileInput").value = "";
-    }
+    (function initAuthors(){
+      const sel = document.getElementById("itemAuthor");
+      sel.innerHTML = AUTHORS.map(a => `<option value="${a}">${a}</option>`).join("");
+    })();
 
-    // Drag-over styling
+    const fileInput = document.getElementById("fileInput");
+    fileInput.addEventListener("change", () => handleFiles(fileInput.files));
+
     const ua = document.getElementById("uploadArea");
     ua.addEventListener("dragover",  e => { e.preventDefault(); ua.classList.add("dragover"); });
     ua.addEventListener("dragleave", () => ua.classList.remove("dragover"));
     ua.addEventListener("drop", e => {
       e.preventDefault(); ua.classList.remove("dragover");
-      const file = e.dataTransfer.files[0];
-      if (file) handleFile(file);
+      handleFiles(e.dataTransfer.files);
     });
 
-    // ── Filters ────────────────────────────────────────────
-    function getCategories() { return ["All", ...new Set(DB.get("guides").map(g => g.category))]; }
+    function handleFiles(fileList) {
+      const files = Array.from(fileList || []);
+      if (!files.length) return;
+
+      pendingFiles = files.slice(0, MAX_ATTACHMENTS);
+      existingAttachments = [];
+      renderPreview();
+
+      if (files.length > MAX_ATTACHMENTS) {
+        showToast(`Max ${MAX_ATTACHMENTS} Dateien. Nur die ersten ${MAX_ATTACHMENTS} wurden übernommen.`, "info", 4500);
+      }
+    }
+
+    function clearFiles() {
+      pendingFiles = [];
+      existingAttachments = [];
+      document.getElementById("uploadPreview").style.display = "none";
+      document.getElementById("uploadPreview").innerHTML = "";
+      document.getElementById("fileInput").value = "";
+    }
+
+    function renderPreview() {
+      const preview = document.getElementById("uploadPreview");
+      const metas = pendingFiles.length
+        ? pendingFiles.map(f => ({ attachment_name: f.name, attachment_type: f.type }))
+        : existingAttachments.map(a => ({ attachment_name: a.attachment_name, attachment_type: a.attachment_type }));
+
+      if (!metas.length) {
+        preview.style.display = "none";
+        preview.innerHTML = "";
+        return;
+      }
+
+      preview.style.display = "flex";
+      preview.style.flexDirection = "column";
+      preview.style.alignItems = "stretch";
+      preview.innerHTML = `
+        <div style="display:flex;align-items:flex-start;gap:.6rem">
+          <div style="flex:1;display:flex;flex-direction:column;gap:.35rem">
+            ${metas.map(m => {
+              const isImg = (m.attachment_type || "").startsWith("image/");
+              return `
+                <div style="display:flex;align-items:center;gap:.5rem">
+                  <span style="font-size:1.2rem">${isImg ? "🖼️" : "📄"}</span>
+                  <span class="up-name" style="flex:1">${m.attachment_name || "attachment"}</span>
+                </div>`;
+            }).join("")}
+          </div>
+          <span class="up-remove" onclick="clearFiles()">Remove</span>
+        </div>
+        <div style="margin-top:.35rem;font-size:.72rem;color:var(--muted)">Max ${MAX_ATTACHMENTS} files.</div>
+      `;
+    }
+
+    function escapeQuotes(s) { return String(s).replace(/'/g, "\\'"); }
+
+    function categoriesFromItems(items) {
+      const cats = items.map(x => x.category).filter(Boolean);
+      return ["All", ...new Set(cats)];
+    }
 
     function renderFilters() {
-      document.getElementById("filterBar").innerHTML = getCategories().map(c =>
-        `<button class="filter-btn ${c===activeFilter?'active':''}" onclick="setFilter('${c}')">${c}</button>`
+      const categories = categoriesFromItems(currentItems);
+      if (!categories.includes(activeFilter)) activeFilter = "All";
+
+      document.getElementById("filterBar").innerHTML = categories.map(c =>
+        `<button class="filter-btn ${c===activeFilter?'active':''}" onclick="setFilter('${escapeQuotes(c)}')">${c}</button>`
       ).join("");
     }
 
-    function setFilter(cat) { activeFilter = cat; renderFilters(); renderGuides(); }
-
-    // ── Guide list ─────────────────────────────────────────
-    function attachmentThumb(att) {
-      if (!att) return "";
-      if (att.type.startsWith("image/"))
-        return `<img src="${att.dataUrl}" class="guide-thumb" alt="attachment"/>`;
-      return `<a href="${att.dataUrl}" download="${att.name}" class="guide-pdf-link">📄 ${att.name}</a>`;
+    function setFilter(cat) {
+      activeFilter = cat;
+      renderFilters();
+      renderGrid();
     }
 
-    function renderGuides() {
+    function renderGrid() {
       const canEdit = isAuthed();
-      const guides = DB.get("guides").filter(g => activeFilter==="All" || g.category===activeFilter);
-      document.getElementById("guidesGrid").innerHTML = guides.length
-        ? guides.map(g => `
+      const items = currentItems.filter(x => activeFilter === "All" || x.category === activeFilter);
+
+      document.getElementById("itemsGrid").innerHTML = items.length
+        ? items.map(it => `
           <div class="card guide-card">
-            ${CAT_BADGE[g.category]||`<span class="badge badge-muted">${g.category}</span>`}
-            ${g.attachment ? attachmentThumb(g.attachment) : ""}
-            <h3>${g.title}</h3>
-            <p>${g.body}</p>
-            <div class="guide-meta">By <strong style="color:var(--text)">${g.author}</strong> · ${g.date}</div>
+            <span class="badge badge-muted">${it.category}</span>
+            ${attachmentsHtml(it)}
+            <h3>${it.title}</h3>
+            <p>${it.body}</p>
+            <div class="guide-meta">By <strong style="color:var(--text)">${it.author}</strong> · ${it.date}</div>
             <div class="guide-actions">
-              <button class="btn btn-gold" style="padding:.35rem .8rem;font-size:.72rem" onclick="viewGuide(${g.id})">Read</button>
-            
+              <button class="btn btn-gold" style="padding:.35rem .8rem;font-size:.72rem" onclick="viewItem(${it.id})">Read</button>
               ${canEdit ? `
-                <button class="btn btn-ghost"  style="padding:.35rem .8rem;font-size:.72rem" onclick="editGuide(${g.id})">Edit</button>
-                <button class="btn btn-danger" style="padding:.35rem .8rem;font-size:.72rem" onclick="deleteGuide(${g.id})">Delete</button>
+                <button class="btn btn-ghost"  style="padding:.35rem .8rem;font-size:.72rem" onclick="editItem(${it.id})">Edit</button>
+                <button class="btn btn-danger" style="padding:.35rem .8rem;font-size:.72rem" onclick="deleteItem(${it.id})">Delete</button>
               ` : ``}
             </div>
           </div>`).join("")
         : `<div style="color:var(--muted);font-size:.9rem">No guides found.</div>`;
     }
 
-    // ── View ───────────────────────────────────────────────
-    function viewGuide(id) {
-      const g = DB.get("guides").find(x => x.id===id);
-      document.getElementById("viewCategory").textContent = g.category;
-      document.getElementById("viewTitle").textContent    = g.title;
-      document.getElementById("viewMeta").textContent     = `By ${g.author} · ${g.date}`;
-      document.getElementById("viewBody").textContent     = g.body;
+    function viewItem(id) {
+      const it = currentItems.find(x => x.id === id);
+      if (!it) return;
 
-      const attEl = document.getElementById("viewAttachment");
-      if (g.attachment) {
-        if (g.attachment.type.startsWith("image/")) {
-          attEl.innerHTML = `<img src="${g.attachment.dataUrl}" style="max-width:100%;border-radius:4px;border:1px solid var(--border)" alt="attachment"/>`;
-        } else {
-          attEl.innerHTML = `<a href="${g.attachment.dataUrl}" download="${g.attachment.name}" class="guide-pdf-link">📄 Download ${g.attachment.name}</a>`;
-        }
-      } else {
-        attEl.innerHTML = "";
-      }
+      document.getElementById("viewCategory").textContent = it.category;
+      document.getElementById("viewTitle").textContent    = it.title;
+      document.getElementById("viewMeta").textContent     = `By ${it.author} · ${it.date}`;
+      document.getElementById("viewBody").textContent     = it.body;
+
+      document.getElementById("viewAttachment").innerHTML = attachmentsViewHtml(it);
       openModal("viewModal");
     }
 
-    // ── Edit ───────────────────────────────────────────────
-    function editGuide(id) {
+    function openItemModal() {
       if (!requireAuthOrAlert()) return;
-      const g = DB.get("guides").find(x => x.id===id);
-      document.getElementById("editGuideId").value   = g.id;
-      document.getElementById("guideTitle").value    = g.title;
-      document.getElementById("guideCategory").value = g.category;
-      document.getElementById("guideBody").value     = g.body;
-      document.getElementById("guideAuthor").value   = g.author;
-      document.getElementById("guideModalTitle").textContent = "Edit Guide";
-      // Restore existing attachment
-      if (g.attachment) {
-        document.getElementById("existingAttachment").value = "1";
-        pendingFile = g.attachment;
-        showPreview(g.attachment);
-      }
-      openModal("guideModal");
+      resetForm();
+      openModal("itemModal");
     }
 
-    // ── Delete ─────────────────────────────────────────────
-    function deleteGuide(id) {
+    async function editItem(id) {
+      if (!requireAuthOrAlert()) return;
+
+      const it = currentItems.find(x => x.id === id);
+      if (!it) return;
+
+      document.getElementById("editId").value = it.id;
+      document.getElementById("itemTitle").value = it.title || "";
+      document.getElementById("itemCategory").value = it.category || "General";
+      document.getElementById("itemBody").value = it.body || "";
+      document.getElementById("itemAuthor").value = it.author || AUTHORS[0];
+
+      document.getElementById("itemModalTitle").textContent = "Edit Guide";
+
+      pendingFiles = [];
+      existingAttachments = attachmentsFromRow(it);
+      renderPreview();
+
+      openModal("itemModal");
+    }
+
+    async function deleteItem(id) {
       if (!requireAuthOrAlert()) return;
       if (!confirm("Delete this guide?")) return;
-      DB.set("guides", DB.get("guides").filter(g => g.id!==id));
-      renderFilters(); renderGuides();
+
+      const it = currentItems.find(x => x.id === id);
+
+      const ok = await dbDelete(TABLE, id);
+      if (!ok) return;
+
+      const metas = it ? attachmentsFromRow(it) : [];
+      for (const m of metas) {
+        if (m.attachment_path) await deleteAttachmentByPath(m.attachment_path);
+      }
+
+      await loadAndRender();
+      showToast("Deleted.", "success");
     }
 
-    // ── Save ───────────────────────────────────────────────
-    function saveGuide() {
+    async function saveItem() {
       if (!requireAuthOrAlert()) return;
-      const guides = DB.get("guides");
-      const id     = document.getElementById("editGuideId").value;
 
-      // Determine attachment: new file > existing > none
-      let attachment = null;
-      if (pendingFile) {
-        attachment = pendingFile;
-      } else if (id && document.getElementById("existingAttachment").value) {
-        attachment = (guides.find(g => g.id===Number(id)) || {}).attachment || null;
+      const id = document.getElementById("editId").value;
+
+      let metas = [];
+      if (pendingFiles.length) {
+        metas = await uploadAttachments(TABLE, pendingFiles, MAX_ATTACHMENTS);
+        if (!metas.length) return;
+      } else {
+        metas = existingAttachments;
       }
 
       const entry = {
-        id:          id ? Number(id) : nextId(guides),
-        title:       document.getElementById("guideTitle").value.trim()    || "Untitled",
-        category:    document.getElementById("guideCategory").value,
-        body:        document.getElementById("guideBody").value.trim()     || "",
-        author:      document.getElementById("guideAuthor").value,
-        date:        today(),
-        attachment,
+        title: document.getElementById("itemTitle").value.trim() || "Untitled",
+        category: document.getElementById("itemCategory").value,
+        body: document.getElementById("itemBody").value.trim() || "",
+        author: document.getElementById("itemAuthor").value,
+        date: new Date().toISOString().split("T")[0],
+        ...attachmentsToRow(metas),
       };
-      if (id) { const i = guides.findIndex(g => g.id===Number(id)); guides[i]=entry; }
-      else    { guides.push(entry); }
-      DB.set("guides", guides);
-      closeModal("guideModal"); resetGuideForm();
-      renderFilters(); renderGuides();
+
+      if (id) entry.id = Number(id);
+
+      const res = await dbUpsert(TABLE, entry);
+      if (!res.ok) return;
+
+      closeModal("itemModal");
+      resetForm();
+      await loadAndRender();
+      showToast("Saved.", "success");
     }
 
-    function resetGuideForm() {
-      ["editGuideId","guideTitle","guideBody","guideAuthor"].forEach(i => document.getElementById(i).value="");
-      document.getElementById("guideCategory").value = "Mythic Plunder";
-      document.getElementById("guideModalTitle").textContent = "New Guide";
-      clearFile();
+    function resetForm() {
+      document.getElementById("editId").value = "";
+      document.getElementById("itemTitle").value = "";
+      document.getElementById("itemCategory").value = "Mythic Plunder";
+      document.getElementById("itemBody").value = "";
+      document.getElementById("itemAuthor").value = AUTHORS[0];
+
+      document.getElementById("itemModalTitle").textContent = "New Guide";
+      clearFiles();
     }
 
-    ["guideModal","viewModal"].forEach(id =>
+    ["itemModal", "viewModal"].forEach(id =>
       document.getElementById(id).addEventListener("click", e => {
-        if (e.target.id===id) { closeModal(id); if (id==="guideModal") resetGuideForm(); }
+        if (e.target.id === id) {
+          closeModal(id);
+          if (id === "itemModal") resetForm();
+        }
       })
     );
 
-    renderFilters();
-    renderGuides();
+    async function loadAndRender() {
+      currentItems = await dbList(TABLE, { orderBy: "date", ascending: false });
+      renderFilters();
+      renderGrid();
+      applyAuthUI();
+    }
+
+    loadAndRender();
   </script>
 </body>
 </html>
