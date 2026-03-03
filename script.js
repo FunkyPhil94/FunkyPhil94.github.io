@@ -104,7 +104,7 @@ function openModal(id)  { document.getElementById(id).classList.add("open"); }
 const AUTH = {
   // SHA-256 hash (hex) of your password.
   // We'll generate it once in the browser console (see step 2 below).
-  PASSWORD_HASH_HEX: "2e99758548972a8e8822ad47fa1017ff72f06f3ff6a016851f45c398732bc50c",
+  PASSWORD_HASH_HEX: "tester",
 
   // How long login stays valid (ms). Default: 12 hours.
   TTL_MS: 12 * 60 * 60 * 1000,
