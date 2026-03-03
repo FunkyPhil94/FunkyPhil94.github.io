@@ -305,3 +305,14 @@ tbody td:first-child { font-family: 'Rajdhani', sans-serif; font-size: 1rem; fon
   nav ul { display: none; }
   .page  { padding-top: 80px; }
 }
+
+/* Force wrapping even for very long strings (no spaces) */
+.pin-body,
+.pin-featured .pin-body,
+.pin-list-item,
+.pin-list-item .pli-title,
+.pin-list-item .pli-meta,
+.card p {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
