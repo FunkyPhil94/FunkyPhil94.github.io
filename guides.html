@@ -112,7 +112,17 @@
         </div>
         <div class="upload-preview" id="uploadPreview" style="display:none"></div>
       </div>
-      <div class="form-group"><label>Author</label><input type="text" id="guideAuthor" placeholder="Your name"/></div>
+     <div class="form-group">
+        <label>Author</label>
+        <select id="guideAuthor">
+          <option value="Pingwing">Pingwing</option>
+          <option value="Finnegan">Finnegan</option>
+          <option value="MonkeyGod">MonkeyGod</option>
+          <option value="GettoBird">GettoBird</option>
+          <option value="Kait_See">Kait_See</option>
+          <option value="Squirtle">Squirtle</option>
+        </select>
+      </div>
       <div class="modal-actions">
         <button class="btn btn-ghost" onclick="closeModal('guideModal');resetGuideForm()">Cancel</button>
         <button class="btn btn-gold"  onclick="saveGuide()">Save</button>
@@ -273,7 +283,7 @@
         title:       document.getElementById("guideTitle").value.trim()    || "Untitled",
         category:    document.getElementById("guideCategory").value,
         body:        document.getElementById("guideBody").value.trim()     || "",
-        author:      document.getElementById("guideAuthor").value.trim()   || "Unknown",
+        author:      document.getElementById("guideAuthor").value,
         date:        today(),
         attachment,
       };
