@@ -107,15 +107,28 @@ function buildNav(currentPage) {
   const logoEl = nav.querySelector(".nav-logo");
   if (logoEl) logoEl.textContent = CONFIG.guildName;
 
+  const authed = isAuthed();
+
   const ul = nav.querySelector("ul");
   if (ul) {
-    ul.innerHTML = CONFIG.pages.map(p => {
-      const active = currentPage === p.href ? ' class="active"' : '';
-      return `<li><a href="${p.href}"${active}>${p.label}</a></li>`;
-    }).join("");
+    ul.innerHTML = CONFIG.pages
+      .filter(p => {
+        // Hide these pages if not logged in
+        if (!authed && (
+          p.href === "influence.html" ||
+          p.href === "roster.html"
+        )) return false;
+
+        return true;
+      })
+      .map(p => {
+        const active = currentPage === p.href ? ' class="active"' : '';
+        return `<li><a href="${p.href}"${active}>${p.label}</a></li>`;
+      })
+      .join("");
   }
 
-  // add / update logout button
+  // Logout button
   let btn = nav.querySelector(".nav-logout");
   if (!btn) {
     btn = document.createElement("button");
@@ -125,7 +138,7 @@ function buildNav(currentPage) {
     btn.onclick = logout;
     nav.appendChild(btn);
   }
-  btn.style.display = isAuthed() ? "" : "none";
+  btn.style.display = authed ? "" : "none";
 }
 
 // ============================================================
@@ -188,3 +201,12 @@ function nextId(arr) { return arr.length ? Math.max(...arr.map(x => x.id)) + 1 :
 
 function closeModal(id) { document.getElementById(id).classList.remove("open"); }
 function openModal(id)  { document.getElementById(id).classList.add("open"); }
+
+(function protectRestrictedPages() {
+  const restricted = ["influence.html", "roster.html"];
+  const current = location.pathname.split("/").pop();
+
+  if (restricted.includes(current) && !isAuthed()) {
+    location.href = "index.html";
+  }
+})();
