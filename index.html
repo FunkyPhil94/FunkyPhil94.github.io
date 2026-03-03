@@ -6,6 +6,7 @@
   <title>NATO [GBR] – Portal</title>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="style.css"/>
+
   <style>
     .pin-featured {
       border: 1px solid rgba(201,168,76,0.35);
@@ -21,6 +22,7 @@
     }
     .pin-featured .pin-body { font-size: 0.9rem; color: var(--muted); line-height: 1.7; white-space: pre-wrap; }
     .pin-featured .pin-meta { margin-top: 1rem; font-size: 0.72rem; color: var(--muted); letter-spacing: 0.06em; }
+
     .pin-list-item {
       display: flex; align-items: flex-start; gap: 1rem;
       padding: 0.9rem 1.2rem;
@@ -30,11 +32,13 @@
     .pin-list-item:hover { border-color: rgba(201,168,76,0.3); }
     .pli-title { font-size: 0.9rem; font-weight: 500; color: var(--text); }
     .pli-meta  { font-size: 0.72rem; color: var(--muted); margin-top: 0.2rem; letter-spacing: 0.05em; }
+
     .section-heading {
       font-family: 'Rajdhani', sans-serif; font-size: 0.72rem; font-weight: 700;
       letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted);
       margin: 1.8rem 0 0.8rem;
     }
+
     .quicklinks { display: grid; grid-template-columns: repeat(auto-fill,minmax(200px,1fr)); gap: 0.75rem; }
     .quicklink {
       background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
@@ -47,6 +51,7 @@
     .ql-label { font-family: 'Rajdhani',sans-serif; font-size:1rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text); }
   </style>
 </head>
+
 <body>
   <nav id="mainNav"><a class="nav-logo" href="index.html">NATO [GBR]</a><ul></ul></nav>
 
@@ -72,6 +77,7 @@
           <button class="btn btn-ghost" id="logoutBtn" type="button" style="display:none">Logout</button>
         </div>
       </div>
+
       <div id="loginMsg" class="login-status"></div>
     </div>
 
@@ -84,6 +90,7 @@
         <div class="page-title">Announcements</div>
         <div class="page-divider"></div>
       </div>
+
       <button class="btn btn-gold" style="padding:.5rem 1.1rem;font-size:.78rem"
               data-requires-auth="true"
               onclick="openModal('pinModal')">+ New Post</button>
@@ -97,9 +104,19 @@
     <!-- Quick nav -->
     <div class="section-heading">Sections</div>
     <div class="quicklinks">
-      <a href="guides.html"    class="quicklink"><span class="ql-icon">📖</span><span class="ql-label">Guides</span></a>
-      <a href="influence.html" class="quicklink"><span class="ql-icon">📊</span><span class="ql-label">Influence Tracker</span></a>
-      <a href="roster.html"    class="quicklink"><span class="ql-icon">🛡</span><span class="ql-label">Member Roster</span></a>
+      <a href="guides.html" class="quicklink">
+        <span class="ql-icon">📖</span><span class="ql-label">Guides</span>
+      </a>
+
+      <!-- Hidden when not authed -->
+      <a href="influence.html" class="quicklink" data-requires-auth="true">
+        <span class="ql-icon">📊</span><span class="ql-label">Influence Tracker</span>
+      </a>
+
+      <!-- Hidden when not authed -->
+      <a href="roster.html" class="quicklink" data-requires-auth="true">
+        <span class="ql-icon">🛡</span><span class="ql-label">Member Roster</span>
+      </a>
     </div>
   </div>
 
@@ -108,8 +125,10 @@
     <div class="modal">
       <h3 id="pinModalTitle">New Announcement</h3>
       <input type="hidden" id="editPinId"/>
+
       <div class="form-group"><label>Title</label><input type="text" id="pinTitle" placeholder="Announcement title…"/></div>
       <div class="form-group"><label>Body</label><textarea id="pinBody" rows="5" placeholder="Write your announcement here…"></textarea></div>
+
       <div class="form-group">
         <label>Priority</label>
         <select id="pinPriority">
@@ -118,7 +137,9 @@
           <option value="urgent">Urgent</option>
         </select>
       </div>
+
       <div class="form-group"><label>Author</label><input type="text" id="pinAuthor" placeholder="Your name"/></div>
+
       <div class="modal-actions">
         <button class="btn btn-ghost" onclick="closeModal('pinModal');resetPinForm()">Cancel</button>
         <button class="btn btn-gold"  onclick="savePin()">Save</button>
@@ -130,45 +151,73 @@
   <script>
     buildNav("index.html");
     applyAuthUI();
-    renderDash();
-    // Login-Sichtbarkeit initial setzen
-    if (isAuthed()) {
-      document.getElementById("loginBtn").style.display  = "none";
-      document.getElementById("pwInput").style.display   = "none";
-      document.getElementById("logoutBtn").style.display = "";
+    initLoginBox();
+
+    function initLoginBox() {
+      const msg = document.getElementById("loginMsg");
+      const lb  = document.getElementById("loginBtn");
+      const pw  = document.getElementById("pwInput");
+      const lob = document.getElementById("logoutBtn");
+
+      const showMessage = (text, type="success", autoHide=true) => {
+        msg.textContent = text;
+        msg.className = `login-status show ${type}`;
+        if (autoHide) setTimeout(() => msg.classList.remove("show"), 3000);
+      };
+
+      const refresh = () => {
+        const ok = isAuthed();
+
+        lb.style.display  = ok ? "none" : "";
+        pw.style.display  = ok ? "none" : "";
+        lob.style.display = ok ? "" : "none";
+
+        buildNav("index.html");
+        applyAuthUI();
+        renderDash();
+
+        if (ok) showMessage("✓ Access granted. Admin features unlocked.", "success", false);
+        else    showMessage("", "success", true); // clears
+      };
+
+      refresh();
+
+      lb.addEventListener("click", async () => {
+        msg.classList.remove("show");
+        msg.textContent = "";
+
+        const val = (pw.value || "").trim();
+        if (!val) {
+          showMessage("Please enter a password.", "error", true);
+          return;
+        }
+
+        lb.disabled = true;
+        lb.textContent = "Checking…";
+
+        const ok = await loginWithPassword(val);
+
+        lb.disabled = false;
+        lb.textContent = "Unlock";
+
+        if (!ok) {
+          showMessage("✕ Incorrect password.", "error", true);
+          pw.value = "";
+          pw.focus();
+          return;
+        }
+
+        pw.value = "";
+        refresh();
+      });
+
+      // Extra: Enter triggers login
+      pw.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") lb.click();
+      });
+
+      lob.addEventListener("click", () => logout());
     }
-
-lb.addEventListener("click", () => {
-  const val = (pw.value || "").trim();
-  if (!val) {
-    showToast("Bitte Passwort eingeben.", "error");
-    return;
-  }
-
-  const ok = loginWithPassword(val);   // kein await mehr noetig!
-  pw.value = "";
-
-  if (!ok) {
-    showToast("Falsches Passwort.", "error");
-    pw.focus();
-    return;
-  }
-
-  // Erfolgreich eingeloggt
-  lb.style.display  = "none";
-  pw.style.display  = "none";
-  lob.style.display = "";
-  buildNav("index.html");
-  applyAuthUI();
-  renderDash();
-  showToast("Eingeloggt! Admin-Funktionen freigeschaltet.", "success", 4000);
-});
-
-pw.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") lb.click();
-});
-
-lob.addEventListener("click", () => logout());
 
     const PRIORITY_BADGE = {
       urgent: '<span class="badge badge-red">Urgent</span>',
@@ -182,7 +231,7 @@ lob.addEventListener("click", () => logout());
       const members  = DB.get("members");
       const pins     = DB.get("pins");
       const guides   = DB.get("guides");
-      const warnings = members.reduce((a,m) => a+(m.warnings.mythic||0)+(m.warnings.castle||0), 0);
+      const warnings = members.reduce((a,m) => a+(m.warnings?.mythic||0)+(m.warnings?.castle||0), 0);
 
       document.getElementById("statGrid").innerHTML = `
         <div class="stat-card"><div class="s-label">Members</div><div class="s-value">${members.length}</div></div>
@@ -245,6 +294,7 @@ lob.addEventListener("click", () => logout());
 
       const pins = DB.get("pins");
       const id   = document.getElementById("editPinId").value;
+
       const entry = {
         id:       id ? Number(id) : nextId(pins),
         title:    document.getElementById("pinTitle").value.trim()  || "Untitled",
@@ -256,7 +306,7 @@ lob.addEventListener("click", () => logout());
 
       if (id) {
         const i = pins.findIndex(p => p.id === Number(id));
-        pins[i] = entry;
+        if (i >= 0) pins[i] = entry;
       } else {
         pins.push(entry);
       }
@@ -303,6 +353,7 @@ lob.addEventListener("click", () => logout());
       }
     });
 
+    // Initial render
     renderDash();
   </script>
 </body>
