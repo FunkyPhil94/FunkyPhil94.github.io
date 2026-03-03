@@ -17,8 +17,7 @@
         <div class="page-title">Pinboard</div>
         <div class="page-divider"></div>
       </div>
-      <button class="btn btn-gold" onclick="openModal('pinModal')">+ New Post</button>
-    </div>
+        <button class="btn btn-gold" data-requires-auth="true" onclick="openPinModal()">+ New Post</button>    </div>
 
     <div id="pinList" style="display:flex;flex-direction:column;gap:1rem"></div>
   </div>
@@ -71,7 +70,12 @@
       normal: '<span class="badge badge-muted">Normal</span>',
     };
 
+  function openPinModal() {
+  if (!requireAuthOrAlert()) return;
+  openModal("pinModal");
+}
     function render() {
+      const canEdit = isAuthed();
       const pins = DB.get("pins").slice().reverse();
       document.getElementById("pinList").innerHTML = pins.length
         ? pins.map(p => `
@@ -95,6 +99,7 @@
     }
 
     function savePin() {
+      if (!requireAuthOrAlert()) return;
       const pins  = DB.get("pins");
       const id    = document.getElementById("editPinId").value;
       const entry = {
@@ -118,6 +123,7 @@
     }
 
     function editPin(id) {
+      if (!requireAuthOrAlert()) return;
       const p = DB.get("pins").find(x => x.id === id);
       document.getElementById("editPinId").value       = p.id;
       document.getElementById("pinTitle").value        = p.title;
@@ -129,6 +135,7 @@
     }
 
     function deletePin(id) {
+      if (!requireAuthOrAlert()) return;
       if (!confirm("Delete this announcement?")) return;
       DB.set("pins", DB.get("pins").filter(p => p.id !== id));
       render();
