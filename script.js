@@ -42,16 +42,28 @@ function logout() {
   location.reload();
 }
 
-async function sha256Hex(str) {
-  const enc = new TextEncoder().encode(str);
-  const buf = await crypto.subtle.digest("SHA-256", enc);
-  const arr = Array.from(new Uint8Array(buf));
-  return arr.map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
 async function loginWithPassword(pw) {
-  const hash = await sha256Hex(pw);
-  if (hash === AUTH.PASSWORD_HASH_HEX) {
+  // Auf https:// (GitHub Pages): SHA-256 Hash-Vergleich
+  if (window.crypto && window.crypto.subtle) {
+    try {
+      const enc = new TextEncoder().encode(pw);
+      const buf = await window.crypto.subtle.digest("SHA-256", enc);
+      const hash = Array.from(new Uint8Array(buf))
+                        .map(b => b.toString(16).padStart(2,"0")).join("");
+      if (hash === AUTH.PASSWORD_HASH_HEX) {
+        setAuthed();
+        return true;
+      }
+      return false;
+    } catch(e) {
+      console.warn("crypto.subtle fehlgeschlagen, versuche Fallback:", e);
+    }
+  }
+
+  // Fallback für file:// (lokales Testen ohne HTTPS)
+  // HINWEIS: Nur für Entwicklung – auf GitHub Pages wird immer der Hash-Pfad genommen.
+  const FALLBACK_PW = "tester"; // <-- dein Klartext-Passwort für lokales Testen
+  if (pw === FALLBACK_PW) {
     setAuthed();
     return true;
   }
