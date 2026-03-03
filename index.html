@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NATO [GBR] – Portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+  <!-- LOGIN SCREEN -->
+  <div class="login-screen" id="loginScreen">
+    <div class="login-box fade-up">
+      <div class="login-logo">NATO [GBR]</div>
+      <div class="login-sub">Officer Portal · Authorised Access Only</div>
+      <input type="password" id="pwInput" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()"/>
+      <button class="login-btn" onclick="doLogin()">Enter</button>
+      <div class="login-error" id="loginError"></div>
+    </div>
+  </div>
+
+  <!-- MAIN (hidden until logged in) -->
+  <div id="mainApp" style="display:none">
+    <nav id="mainNav">
+      <a class="nav-logo" href="index.html">NATO [GBR]</a>
+      <ul></ul>
+    </nav>
+
+    <div class="page fade-up">
+      <div class="page-header">
+        <div class="page-label">Officer Portal</div>
+        <div class="page-title">Dashboard</div>
+        <div class="page-divider"></div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stat-grid" id="statGrid"></div>
+
+      <!-- Quick links -->
+      <div style="display:grid; grid-template-columns: repeat(auto-fill,minmax(220px,1fr)); gap:1rem">
+        <a href="pinboard.html"  class="card" style="text-decoration:none; display:block; cursor:pointer">
+          <div style="font-size:1.6rem;margin-bottom:.6rem">📌</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:1.15rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase">Pinboard</div>
+          <div style="font-size:.82rem;color:var(--muted);margin-top:.3rem">Announcements & updates</div>
+        </a>
+        <a href="guides.html"   class="card" style="text-decoration:none; display:block; cursor:pointer">
+          <div style="font-size:1.6rem;margin-bottom:.6rem">📖</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:1.15rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase">Guides</div>
+          <div style="font-size:.82rem;color:var(--muted);margin-top:.3rem">Strategy & how-to guides</div>
+        </a>
+        <a href="influence.html" class="card" style="text-decoration:none; display:block; cursor:pointer">
+          <div style="font-size:1.6rem;margin-bottom:.6rem">📊</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:1.15rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase">Influence Tracker</div>
+          <div style="font-size:.82rem;color:var(--muted);margin-top:.3rem">Track member progress</div>
+        </a>
+        <a href="roster.html"   class="card" style="text-decoration:none; display:block; cursor:pointer">
+          <div style="font-size:1.6rem;margin-bottom:.6rem">🛡</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:1.15rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase">Member Roster</div>
+          <div style="font-size:.82rem;color:var(--muted);margin-top:.3rem">Members & warning records</div>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    function doLogin() {
+      const pw = document.getElementById("pwInput").value;
+      if (login(pw)) {
+        showApp();
+      } else {
+        document.getElementById("loginError").textContent = "Incorrect password.";
+        document.getElementById("pwInput").value = "";
+      }
+    }
+
+    function showApp() {
+      document.getElementById("loginScreen").style.display = "none";
+      document.getElementById("mainApp").style.display = "block";
+      buildNav("index.html");
+      renderDash();
+    }
+
+    function renderDash() {
+      const members  = DB.get("members");
+      const pins     = DB.get("pins");
+      const guides   = DB.get("guides");
+      const warnings = members.reduce((a, m) => a + m.warnings.mythic + m.warnings.castle, 0);
+
+      document.getElementById("statGrid").innerHTML = `
+        <div class="stat-card"><div class="s-label">Members</div><div class="s-value">${members.length}</div></div>
+        <div class="stat-card"><div class="s-label">Pinboard Posts</div><div class="s-value">${pins.length}</div></div>
+        <div class="stat-card"><div class="s-label">Guides</div><div class="s-value">${guides.length}</div></div>
+        <div class="stat-card"><div class="s-label">Total Warnings</div><div class="s-value" style="color:var(--red)">${warnings}</div></div>
+      `;
+    }
+
+    if (isLoggedIn()) showApp();
+  </script>
+</body>
+</html>

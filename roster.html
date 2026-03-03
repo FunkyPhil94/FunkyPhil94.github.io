@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NATO [GBR] – Member Roster</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    .warning-cell { display:flex; align-items:center; gap:.5rem; }
+    .warn-pip     { width:10px; height:10px; border-radius:50%; display:inline-block; }
+    .warn-0  { background:rgba(76,175,125,.25); border:1px solid var(--green); }
+    .warn-1  { background:rgba(201,168,76,.3);  border:1px solid var(--gold); }
+    .warn-2p { background:rgba(224,82,82,.3);   border:1px solid var(--red); }
+    .warn-btn {
+      width:22px; height:22px; border-radius:50%; border:none; cursor:pointer;
+      font-size:.75rem; font-weight:700; display:inline-flex; align-items:center;
+      justify-content:center; transition:all .15s;
+    }
+    .warn-btn.add { background:rgba(224,82,82,.15); color:var(--red); }
+    .warn-btn.add:hover { background:rgba(224,82,82,.3); }
+    .warn-btn.sub { background:rgba(76,175,125,.15); color:var(--green); }
+    .warn-btn.sub:hover { background:rgba(76,175,125,.3); }
+    .rank-leader  { color:var(--gold); }
+    .rank-officer { color:var(--blue); }
+    .rank-member  { color:var(--muted); }
+    .search-bar {
+      background:var(--surface); border:1px solid var(--border); border-radius:3px;
+      color:var(--text); font-family:'Inter',sans-serif; font-size:.88rem;
+      padding:.55rem 1rem; outline:none; width:100%; max-width:320px;
+      transition:border-color .2s;
+    }
+    .search-bar:focus { border-color:var(--gold); }
+    .toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem; }
+  </style>
+</head>
+<body>
+  <nav id="mainNav"><a class="nav-logo" href="index.html">NATO [GBR]</a><ul></ul></nav>
+
+  <div class="page fade-up">
+    <div class="page-header" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem">
+      <div>
+        <div class="page-label">Guild Management</div>
+        <div class="page-title">Member Roster</div>
+        <div class="page-divider"></div>
+      </div>
+      <button class="btn btn-gold" onclick="openModal('memberModal')">+ Add Member</button>
+    </div>
+
+    <!-- Summary -->
+    <div class="stat-grid" id="rosterStats" style="margin-bottom:1.8rem"></div>
+
+    <div class="toolbar">
+      <input class="search-bar" type="text" id="searchInput" placeholder="Search by name…" oninput="render()"/>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn-ghost" style="padding:.4rem .85rem;font-size:.75rem" onclick="setRankFilter('')">All</button>
+        <button class="btn btn-ghost" style="padding:.4rem .85rem;font-size:.75rem" onclick="setRankFilter('officer')">Officers</button>
+        <button class="btn btn-ghost" style="padding:.4rem .85rem;font-size:.75rem" onclick="setRankFilter('member')">Members</button>
+        <button class="btn btn-ghost" style="padding:.4rem .85rem;font-size:.75rem;color:var(--red);border-color:rgba(224,82,82,.3)" onclick="setRankFilter('warned')">⚠ Warned</button>
+      </div>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Rank</th>
+              <th>Class</th>
+              <th>Power</th>
+              <th>Joined</th>
+              <th title="Mythic Plunder warnings">⚔ Mythic</th>
+              <th title="Castle Crashers GE warnings">🏰 Castle</th>
+              <th>Notes</th>
+              <th style="width:80px"></th>
+            </tr>
+          </thead>
+          <tbody id="rosterBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add / Edit Member Modal -->
+  <div class="modal-overlay" id="memberModal">
+    <div class="modal" style="max-width:480px">
+      <h3 id="memberModalTitle">Add Member</h3>
+      <input type="hidden" id="editMemberId"/>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
+        <div class="form-group">
+          <label>Player Name</label>
+          <input type="text" id="mName" placeholder="e.g. DarkBlade"/>
+        </div>
+        <div class="form-group">
+          <label>Rank</label>
+          <select id="mRank">
+            <option value="member">Member</option>
+            <option value="officer">Officer</option>
+            <option value="leader">Leader</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Class / Hero</label>
+          <input type="text" id="mClass" placeholder="e.g. Warrior"/>
+        </div>
+        <div class="form-group">
+          <label>Combat Power</label>
+          <input type="text" id="mPower" placeholder="e.g. 1,800,000"/>
+        </div>
+        <div class="form-group">
+          <label>Date Joined</label>
+          <input type="date" id="mJoined"/>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
+        <div class="form-group">
+          <label>⚔ Mythic Warnings</label>
+          <input type="number" id="mWarnMythic" min="0" value="0"/>
+        </div>
+        <div class="form-group">
+          <label>🏰 Castle Warnings</label>
+          <input type="number" id="mWarnCastle" min="0" value="0"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="mNotes" rows="3" placeholder="Optional notes…"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('memberModal')">Cancel</button>
+        <button class="btn btn-gold"  onclick="saveMember()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    requireAuth();
+    buildNav("roster.html");
+
+    let rankFilter = "";
+
+    function setRankFilter(f) { rankFilter = f; render(); }
+
+    const RANK_LABEL = { leader: "Leader", officer: "Officer", member: "Member" };
+
+    function warnClass(n) { return n === 0 ? "warn-0" : n === 1 ? "warn-1" : "warn-2p"; }
+
+    function warnCell(memberId, cat, count) {
+      return `
+        <div class="warning-cell">
+          <span class="warn-pip ${warnClass(count)}"></span>
+          <span style="min-width:1rem;text-align:center;font-weight:600;font-size:.88rem">${count}</span>
+          <button class="warn-btn add" title="Add warning"    onclick="adjustWarn(${memberId},'${cat}',1)">+</button>
+          <button class="warn-btn sub" title="Remove warning" onclick="adjustWarn(${memberId},'${cat}',-1)">−</button>
+        </div>`;
+    }
+
+    function adjustWarn(id, cat, delta) {
+      const members = DB.get("members");
+      const m = members.find(x => x.id === id);
+      if (!m) return;
+      m.warnings[cat] = Math.max(0, (m.warnings[cat] || 0) + delta);
+      DB.set("members", members);
+      render();
+    }
+
+    function render() {
+      const search = document.getElementById("searchInput").value.toLowerCase();
+      let members  = DB.get("members");
+
+      if (search)               members = members.filter(m => m.name.toLowerCase().includes(search));
+      if (rankFilter === "warned")  members = members.filter(m => m.warnings.mythic > 0 || m.warnings.castle > 0);
+      else if (rankFilter)      members = members.filter(m => m.rank === rankFilter);
+
+      // Stats
+      const all      = DB.get("members");
+      const warnedCount = all.filter(m => m.warnings.mythic > 0 || m.warnings.castle > 0).length;
+      document.getElementById("rosterStats").innerHTML = `
+        <div class="stat-card"><div class="s-label">Total Members</div><div class="s-value">${all.length}</div></div>
+        <div class="stat-card"><div class="s-label">Officers</div><div class="s-value">${all.filter(m=>m.rank==='officer'||m.rank==='leader').length}</div></div>
+        <div class="stat-card"><div class="s-label">With Warnings</div><div class="s-value" style="color:var(--red)">${warnedCount}</div></div>
+      `;
+
+      document.getElementById("rosterBody").innerHTML = members.length
+        ? members.map(m => {
+            const rankCls = `rank-${m.rank}`;
+            const totalWarn = (m.warnings.mythic||0) + (m.warnings.castle||0);
+            return `<tr>
+              <td>${m.name}${totalWarn > 0 ? ` <span style="color:var(--red);font-size:.75rem">⚠</span>` : ""}</td>
+              <td><span class="${rankCls}" style="font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em">${RANK_LABEL[m.rank]||m.rank}</span></td>
+              <td style="color:var(--muted)">${m.class||"–"}</td>
+              <td style="font-size:.85rem">${m.power||"–"}</td>
+              <td style="color:var(--muted);font-size:.82rem">${m.joined||"–"}</td>
+              <td>${warnCell(m.id, "mythic",  m.warnings.mythic||0)}</td>
+              <td>${warnCell(m.id, "castle",  m.warnings.castle||0)}</td>
+              <td style="font-size:.78rem;color:var(--muted);max-width:160px">${m.notes||"–"}</td>
+              <td>
+                <div style="display:flex;gap:.4rem">
+                  <button class="btn btn-ghost" style="padding:.3rem .6rem;font-size:.7rem" onclick="editMember(${m.id})">Edit</button>
+                  <button class="btn btn-danger" style="padding:.3rem .6rem;font-size:.7rem" onclick="deleteMember(${m.id})">✕</button>
+                </div>
+              </td>
+            </tr>`;
+          }).join("")
+        : `<tr><td colspan="9" style="color:var(--muted);text-align:center;padding:2rem">No members found.</td></tr>`;
+    }
+
+    function saveMember() {
+      const members = DB.get("members");
+      const id      = document.getElementById("editMemberId").value;
+      const entry   = {
+        id:       id ? Number(id) : nextId(members),
+        name:     document.getElementById("mName").value.trim()    || "Unknown",
+        rank:     document.getElementById("mRank").value,
+        class:    document.getElementById("mClass").value.trim()   || "–",
+        power:    document.getElementById("mPower").value.trim()   || "–",
+        joined:   document.getElementById("mJoined").value        || today(),
+        warnings: {
+          mythic: Number(document.getElementById("mWarnMythic").value) || 0,
+          castle: Number(document.getElementById("mWarnCastle").value) || 0,
+        },
+        notes:    document.getElementById("mNotes").value.trim(),
+      };
+      if (id) { const i = members.findIndex(m => m.id === Number(id)); members[i] = entry; }
+      else    { members.push(entry); }
+      DB.set("members", members);
+      closeModal("memberModal");
+      resetMemberForm();
+      render();
+    }
+
+    function editMember(id) {
+      const m = DB.get("members").find(x => x.id === id);
+      document.getElementById("editMemberId").value  = m.id;
+      document.getElementById("mName").value         = m.name;
+      document.getElementById("mRank").value         = m.rank;
+      document.getElementById("mClass").value        = m.class;
+      document.getElementById("mPower").value        = m.power;
+      document.getElementById("mJoined").value       = m.joined;
+      document.getElementById("mWarnMythic").value   = m.warnings.mythic||0;
+      document.getElementById("mWarnCastle").value   = m.warnings.castle||0;
+      document.getElementById("mNotes").value        = m.notes||"";
+      document.getElementById("memberModalTitle").textContent = "Edit Member";
+      openModal("memberModal");
+    }
+
+    function deleteMember(id) {
+      if (!confirm("Remove this member from the roster?")) return;
+      DB.set("members", DB.get("members").filter(m => m.id !== id));
+      render();
+    }
+
+    function resetMemberForm() {
+      ["editMemberId","mName","mClass","mPower","mJoined","mNotes"].forEach(i => document.getElementById(i).value = "");
+      document.getElementById("mRank").value = "member";
+      document.getElementById("mWarnMythic").value = 0;
+      document.getElementById("mWarnCastle").value = 0;
+      document.getElementById("memberModalTitle").textContent = "Add Member";
+    }
+
+    document.getElementById("memberModal").addEventListener("click", e => { if (e.target.id === "memberModal") { closeModal("memberModal"); resetMemberForm(); } });
+
+    render();
+  </script>
+</body>
+</html>
