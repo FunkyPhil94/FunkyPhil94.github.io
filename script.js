@@ -26,6 +26,18 @@ function buildNav(currentPage) {
     const active = currentPage === p.href ? ' class="active"' : '';
     return `<li><a href="${p.href}"${active}>${p.label}</a></li>`;
   }).join("");
+
+  // add / update logout button
+  let btn = nav.querySelector(".nav-logout");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.className = "nav-logout";
+    btn.type = "button";
+    btn.textContent = "Logout";
+    btn.onclick = logout;
+    nav.appendChild(btn);
+  }
+  btn.style.display = isAuthed() ? "" : "none";
 }
 
 // ============================================================
@@ -84,3 +96,83 @@ function nextId(arr) { return arr.length ? Math.max(...arr.map(x => x.id)) + 1 :
 
 function closeModal(id) { document.getElementById(id).classList.remove("open"); }
 function openModal(id)  { document.getElementById(id).classList.add("open"); }
+
+// ============================================================
+//  AUTH (simple password gate for GitHub Pages / static sites)
+//  NOTE: Not secure against someone who inspects your source.
+// ============================================================
+const AUTH = {
+  // SHA-256 hash (hex) of your password.
+  // We'll generate it once in the browser console (see step 2 below).
+  PASSWORD_HASH_HEX: "2e99758548972a8e8822ad47fa1017ff72f06f3ff6a016851f45c398732bc50c",
+
+  // How long login stays valid (ms). Default: 12 hours.
+  TTL_MS: 12 * 60 * 60 * 1000,
+
+  // Storage keys
+  KEY: "nato_auth",
+};
+
+function nowMs() { return Date.now(); }
+
+function isAuthed() {
+  try {
+    const raw = localStorage.getItem(AUTH.KEY);
+    if (!raw) return false;
+    const obj = JSON.parse(raw);
+    return !!obj && obj.ok === true && typeof obj.until === "number" && obj.until > nowMs();
+  } catch {
+    return false;
+  }
+}
+
+function setAuthed() {
+  localStorage.setItem(AUTH.KEY, JSON.stringify({ ok: true, until: nowMs() + AUTH.TTL_MS }));
+}
+
+function logout() {
+  localStorage.removeItem(AUTH.KEY);
+  // Optional: refresh page so UI updates everywhere
+  location.reload();
+}
+
+async function sha256Hex(str) {
+  const enc = new TextEncoder().encode(str);
+  const buf = await crypto.subtle.digest("SHA-256", enc);
+  const arr = Array.from(new Uint8Array(buf));
+  return arr.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function loginWithPassword(pw) {
+  const hash = await sha256Hex(pw);
+  if (hash === AUTH.PASSWORD_HASH_HEX) {
+    setAuthed();
+    return true;
+  }
+  return false;
+}
+
+// Disable/hide UI elements that require auth
+function applyAuthUI() {
+  const authed = isAuthed();
+
+  // Elements that should be hidden if not authed
+  document.querySelectorAll("[data-requires-auth='true']").forEach(el => {
+    el.style.display = authed ? "" : "none";
+  });
+
+  // Elements that should be disabled if not authed
+  document.querySelectorAll("[data-disable-without-auth='true']").forEach(el => {
+    el.disabled = !authed;
+    el.style.opacity = authed ? "" : "0.45";
+    el.style.pointerEvents = authed ? "" : "none";
+    if (!authed) el.setAttribute("title", "Locked – login required");
+  });
+}
+
+// Optional helper: block actions in JS
+function requireAuthOrAlert() {
+  if (isAuthed()) return true;
+  alert("Locked. Please login on the Dashboard (index.html) to unlock this feature.");
+  return false;
+}
