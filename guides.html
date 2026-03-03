@@ -64,7 +64,7 @@
         <div class="page-title">Guides</div>
         <div class="page-divider"></div>
       </div>
-      <button class="btn btn-gold" onclick="openModal('guideModal')">+ New Guide</button>
+      <button class="btn btn-gold" data-requires-auth="true" onclick="openModal('guideModal')">+ New Guide</button>
     </div>
 
     <div class="guide-filters" id="filterBar"></div>
@@ -201,6 +201,7 @@
     }
 
     function renderGuides() {
+      const canEdit = isAuthed();
       const guides = DB.get("guides").filter(g => activeFilter==="All" || g.category===activeFilter);
       document.getElementById("guidesGrid").innerHTML = guides.length
         ? guides.map(g => `
@@ -211,9 +212,12 @@
             <p>${g.body}</p>
             <div class="guide-meta">By <strong style="color:var(--text)">${g.author}</strong> · ${g.date}</div>
             <div class="guide-actions">
-              <button class="btn btn-gold"   style="padding:.35rem .8rem;font-size:.72rem" onclick="viewGuide(${g.id})">Read</button>
-              <button class="btn btn-ghost"  style="padding:.35rem .8rem;font-size:.72rem" onclick="editGuide(${g.id})">Edit</button>
-              <button class="btn btn-danger" style="padding:.35rem .8rem;font-size:.72rem" onclick="deleteGuide(${g.id})">Delete</button>
+              <button class="btn btn-gold" style="padding:.35rem .8rem;font-size:.72rem" onclick="viewGuide(${g.id})">Read</button>
+            
+              ${canEdit ? `
+                <button class="btn btn-ghost"  style="padding:.35rem .8rem;font-size:.72rem" onclick="editGuide(${g.id})">Edit</button>
+                <button class="btn btn-danger" style="padding:.35rem .8rem;font-size:.72rem" onclick="deleteGuide(${g.id})">Delete</button>
+              ` : ``}
             </div>
           </div>`).join("")
         : `<div style="color:var(--muted);font-size:.9rem">No guides found.</div>`;
@@ -242,6 +246,7 @@
 
     // ── Edit ───────────────────────────────────────────────
     function editGuide(id) {
+      if (!requireAuthOrAlert()) return;
       const g = DB.get("guides").find(x => x.id===id);
       document.getElementById("editGuideId").value   = g.id;
       document.getElementById("guideTitle").value    = g.title;
@@ -260,6 +265,7 @@
 
     // ── Delete ─────────────────────────────────────────────
     function deleteGuide(id) {
+      if (!requireAuthOrAlert()) return;
       if (!confirm("Delete this guide?")) return;
       DB.set("guides", DB.get("guides").filter(g => g.id!==id));
       renderFilters(); renderGuides();
@@ -267,6 +273,7 @@
 
     // ── Save ───────────────────────────────────────────────
     function saveGuide() {
+      if (!requireAuthOrAlert()) return;
       const guides = DB.get("guides");
       const id     = document.getElementById("editGuideId").value;
 
