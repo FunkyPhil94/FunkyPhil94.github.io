@@ -22,17 +22,6 @@
     .guide-card p  { font-size:.84rem; color:var(--muted); line-height:1.6; flex:1; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
     .guide-meta    { font-size:.7rem; color:var(--muted); letter-spacing:.06em; }
     .guide-actions { display:flex; gap:.5rem; margin-top:.4rem; flex-wrap:wrap; }
-    .guide-thumb {
-      width:100%; max-height:160px; object-fit:cover; border-radius:3px;
-      border:1px solid var(--border); margin-bottom:.2rem;
-    }
-    .guide-pdf-link {
-      display:inline-flex; align-items:center; gap:.4rem;
-      font-size:.78rem; color:var(--blue); text-decoration:none;
-      border:1px solid rgba(61,127,255,.25); border-radius:3px;
-      padding:.3rem .7rem; transition:background .2s;
-    }
-    .guide-pdf-link:hover { background:rgba(61,127,255,.1); }
 
     /* Upload area */
     .upload-area {
@@ -46,7 +35,6 @@
     .upload-area .ua-icon { font-size:1.5rem; margin-bottom:.3rem; }
     .upload-area .ua-label { font-size:.8rem; color:var(--muted); }
     .upload-preview { margin-top:.6rem; display:flex; align-items:center; gap:.6rem; }
-    .upload-preview img { width:48px; height:48px; object-fit:cover; border-radius:3px; border:1px solid var(--border); }
     .upload-preview .up-name { font-size:.78rem; color:var(--text); overflow-wrap:anywhere; word-break:break-word; }
     .upload-preview .up-remove { font-size:.72rem; color:var(--red); cursor:pointer; margin-left:auto; }
 
@@ -66,7 +54,7 @@
         <div class="page-title">Heroes</div>
         <div class="page-divider"></div>
       </div>
-      <button class="btn btn-gold" data-requires-auth="true" onclick="openHeroModal()">+ New Hero</button>
+      <button class="btn btn-gold" data-requires-auth="true" onclick="openItemModal()">+ New Hero</button>
     </div>
 
     <div class="guide-filters" id="filterBar"></div>
@@ -89,130 +77,144 @@
     </div>
   </div>
 
-  <!-- Edit / New Hero Modal -->
-  <div class="modal-overlay" id="heroModal">
+  <!-- Edit / New Modal -->
+  <div class="modal-overlay" id="itemModal">
     <div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto">
-      <h3 id="heroModalTitle">New Hero</h3>
-      <input type="hidden" id="editHeroId"/>
-      <input type="hidden" id="existingAttachment"/>
+      <h3 id="itemModalTitle">New Hero</h3>
+      <input type="hidden" id="editId"/>
 
-      <div class="form-group"><label>Title</label><input type="text" id="heroTitle" placeholder="Hero title…"/></div>
+      <div class="form-group"><label>Title</label><input type="text" id="itemTitle" placeholder="Hero title…"/></div>
 
       <div class="form-group">
         <label>Category</label>
-        <select id="heroCategory">
+        <select id="itemCategory">
           <option>Mythic Plunder</option>
           <option>Castle Crashers GE</option>
           <option>General</option>
         </select>
       </div>
 
-      <div class="form-group"><label>Content</label><textarea id="heroBody" rows="5" placeholder="Write your hero info here…"></textarea></div>
+      <div class="form-group"><label>Content</label><textarea id="itemBody" rows="5" placeholder="Write your hero info here…"></textarea></div>
 
       <div class="form-group">
-        <label>Attachment (Image or PDF)</label>
+        <label>Attachments (max 3) – Image or PDF</label>
         <div class="upload-area" id="uploadArea">
-          <input type="file" id="fileInput" accept="image/*,.pdf" onchange="handleFile(this.files[0])"/>
+          <input type="file" id="fileInput" accept="image/*,.pdf" multiple />
           <div class="ua-icon">📎</div>
-          <div class="ua-label">Click or drag an image / PDF here</div>
+          <div class="ua-label">Click or drag up to 3 files here</div>
         </div>
         <div class="upload-preview" id="uploadPreview" style="display:none"></div>
       </div>
 
       <div class="form-group">
         <label>Author</label>
-        <select id="heroAuthor">
-          <option value="Pingwing">Pingwing</option>
-          <option value="Finnegan">Finnegan</option>
-          <option value="MonkeyGod">MonkeyGod</option>
-          <option value="GettoBird">GettoBird</option>
-          <option value="Kait_See">Kait_See</option>
-          <option value="Squirtle">Squirtle</option>
-        </select>
+        <select id="itemAuthor"></select>
       </div>
 
       <div class="modal-actions">
-        <button class="btn btn-ghost" onclick="closeModal('heroModal');resetHeroForm()">Cancel</button>
-        <button class="btn btn-gold"  onclick="saveHero()">Save</button>
+        <button class="btn btn-ghost" onclick="closeModal('itemModal');resetForm()">Cancel</button>
+        <button class="btn btn-gold"  onclick="saveItem()">Save</button>
       </div>
     </div>
   </div>
 
-  <!-- Supabase client -->
+  <!-- Supabase client MUST be before script.js -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="script.js"></script>
 
   <script>
-    const SECTION = "heroes";
+    const TABLE = "heroes";
+
     let activeFilter = "All";
-    let pendingFile  = null;
     let currentItems = [];
+
+    let pendingFiles = [];        // File[]
+    let existingAttachments = []; // metas[]
 
     buildNav("heroes.html");
     applyAuthUI();
 
-    const CAT_BADGE = {
-      "Mythic Plunder":     '<span class="badge badge-gold">Mythic Plunder</span>',
-      "Castle Crashers GE": '<span class="badge badge-blue">Castle Crashers GE</span>',
-      "General":            '<span class="badge badge-muted">General</span>',
-    };
+    (function initAuthors(){
+      const sel = document.getElementById("itemAuthor");
+      sel.innerHTML = AUTHORS.map(a => `<option value="${a}">${a}</option>`).join("");
+    })();
 
-    function handleFile(file) {
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = e => {
-        pendingFile = { dataUrl: e.target.result, type: file.type, name: file.name };
-        showPreview(pendingFile);
-      };
-      reader.readAsDataURL(file);
-    }
-
-    function showPreview(f) {
-      const preview = document.getElementById("uploadPreview");
-      const isImage = f.type?.startsWith("image/");
-      preview.style.display = "flex";
-      preview.innerHTML = isImage
-        ? `<img src="${f.dataUrl}" alt="preview"/><span class="up-name">${f.name}</span><span class="up-remove" onclick="clearFile()">Remove</span>`
-        : `<span style="font-size:1.4rem">📄</span><span class="up-name">${f.name}</span><span class="up-remove" onclick="clearFile()">Remove</span>`;
-    }
-
-    function clearFile() {
-      pendingFile = null;
-      document.getElementById("existingAttachment").value = "";
-      document.getElementById("uploadPreview").style.display = "none";
-      document.getElementById("uploadPreview").innerHTML = "";
-      document.getElementById("fileInput").value = "";
-    }
+    const fileInput = document.getElementById("fileInput");
+    fileInput.addEventListener("change", () => handleFiles(fileInput.files));
 
     const ua = document.getElementById("uploadArea");
     ua.addEventListener("dragover",  e => { e.preventDefault(); ua.classList.add("dragover"); });
     ua.addEventListener("dragleave", () => ua.classList.remove("dragover"));
     ua.addEventListener("drop", e => {
       e.preventDefault(); ua.classList.remove("dragover");
-      const file = e.dataTransfer.files[0];
-      if (file) handleFile(file);
+      handleFiles(e.dataTransfer.files);
     });
 
-    async function fetchItems() {
-      const { data, error } = await sb
-        .from("content_items")
-        .select("*")
-        .eq("section", SECTION)
-        .order("date", { ascending: false });
+    function handleFiles(fileList) {
+      const files = Array.from(fileList || []);
+      if (!files.length) return;
 
-      if (error) { console.error(error); return []; }
-      return data || [];
+      pendingFiles = files.slice(0, MAX_ATTACHMENTS);
+      existingAttachments = [];
+      renderPreview();
+
+      if (files.length > MAX_ATTACHMENTS) {
+        showToast(`Max ${MAX_ATTACHMENTS} Dateien. Nur die ersten ${MAX_ATTACHMENTS} wurden übernommen.`, "info", 4500);
+      }
+    }
+
+    function clearFiles() {
+      pendingFiles = [];
+      existingAttachments = [];
+      document.getElementById("uploadPreview").style.display = "none";
+      document.getElementById("uploadPreview").innerHTML = "";
+      document.getElementById("fileInput").value = "";
+    }
+
+    function renderPreview() {
+      const preview = document.getElementById("uploadPreview");
+      const metas = pendingFiles.length
+        ? pendingFiles.map(f => ({ attachment_name: f.name, attachment_type: f.type }))
+        : existingAttachments.map(a => ({ attachment_name: a.attachment_name, attachment_type: a.attachment_type }));
+
+      if (!metas.length) {
+        preview.style.display = "none";
+        preview.innerHTML = "";
+        return;
+      }
+
+      preview.style.display = "flex";
+      preview.style.flexDirection = "column";
+      preview.style.alignItems = "stretch";
+      preview.innerHTML = `
+        <div style="display:flex;align-items:flex-start;gap:.6rem">
+          <div style="flex:1;display:flex;flex-direction:column;gap:.35rem">
+            ${metas.map(m => {
+              const isImg = (m.attachment_type || "").startsWith("image/");
+              return `
+                <div style="display:flex;align-items:center;gap:.5rem">
+                  <span style="font-size:1.2rem">${isImg ? "🖼️" : "📄"}</span>
+                  <span class="up-name" style="flex:1">${m.attachment_name || "attachment"}</span>
+                </div>`;
+            }).join("")}
+          </div>
+          <span class="up-remove" onclick="clearFiles()">Remove</span>
+        </div>
+        <div style="margin-top:.35rem;font-size:.72rem;color:var(--muted)">Max ${MAX_ATTACHMENTS} files.</div>
+      `;
     }
 
     function escapeQuotes(s) { return String(s).replace(/'/g, "\\'"); }
 
-    function getCategoriesFromItems(items) {
+    function categoriesFromItems(items) {
       const cats = items.map(x => x.category).filter(Boolean);
       return ["All", ...new Set(cats)];
     }
 
-    function renderFilters(items) {
-      const categories = getCategoriesFromItems(items);
+    function renderFilters() {
+      const categories = categoriesFromItems(currentItems);
+      if (!categories.includes(activeFilter)) activeFilter = "All";
+
       document.getElementById("filterBar").innerHTML = categories.map(c =>
         `<button class="filter-btn ${c===activeFilter?'active':''}" onclick="setFilter('${escapeQuotes(c)}')">${c}</button>`
       ).join("");
@@ -220,42 +222,34 @@
 
     function setFilter(cat) {
       activeFilter = cat;
-      renderFilters(currentItems);
-      renderItems();
+      renderFilters();
+      renderGrid();
     }
 
-    function attachmentThumb(att) {
-      if (!att) return "";
-      if (att.type?.startsWith("image/"))
-        return `<img src="${att.dataUrl}" class="guide-thumb" alt="attachment"/>`;
-      return `<a href="${att.dataUrl}" download="${att.name}" class="guide-pdf-link">📄 ${att.name}</a>`;
-    }
-
-    function renderItems() {
+    function renderGrid() {
       const canEdit = isAuthed();
-      const items = currentItems.filter(x => activeFilter==="All" || x.category===activeFilter);
+      const items = currentItems.filter(x => activeFilter === "All" || x.category === activeFilter);
 
       document.getElementById("itemsGrid").innerHTML = items.length
         ? items.map(it => `
           <div class="card guide-card">
-            ${CAT_BADGE[it.category] || `<span class="badge badge-muted">${it.category}</span>`}
-            ${it.attachment ? attachmentThumb(it.attachment) : ""}
+            <span class="badge badge-muted">${it.category}</span>
+            ${attachmentsHtml(it)}
             <h3>${it.title}</h3>
             <p>${it.body}</p>
             <div class="guide-meta">By <strong style="color:var(--text)">${it.author}</strong> · ${it.date}</div>
             <div class="guide-actions">
-              <button class="btn btn-gold" style="padding:.35rem .8rem;font-size:.72rem" onclick="viewHero(${it.id})">Read</button>
-
+              <button class="btn btn-gold" style="padding:.35rem .8rem;font-size:.72rem" onclick="viewItem(${it.id})">Read</button>
               ${canEdit ? `
-                <button class="btn btn-ghost"  style="padding:.35rem .8rem;font-size:.72rem" onclick="editHero(${it.id})">Edit</button>
-                <button class="btn btn-danger" style="padding:.35rem .8rem;font-size:.72rem" onclick="deleteHero(${it.id})">Delete</button>
+                <button class="btn btn-ghost"  style="padding:.35rem .8rem;font-size:.72rem" onclick="editItem(${it.id})">Edit</button>
+                <button class="btn btn-danger" style="padding:.35rem .8rem;font-size:.72rem" onclick="deleteItem(${it.id})">Delete</button>
               ` : ``}
             </div>
           </div>`).join("")
         : `<div style="color:var(--muted);font-size:.9rem">No heroes found.</div>`;
     }
 
-    function viewHero(id) {
+    function viewItem(id) {
       const it = currentItems.find(x => x.id === id);
       if (!it) return;
 
@@ -264,116 +258,113 @@
       document.getElementById("viewMeta").textContent     = `By ${it.author} · ${it.date}`;
       document.getElementById("viewBody").textContent     = it.body;
 
-      const attEl = document.getElementById("viewAttachment");
-      if (it.attachment) {
-        if (it.attachment.type?.startsWith("image/")) {
-          attEl.innerHTML = `<img src="${it.attachment.dataUrl}" style="max-width:100%;border-radius:4px;border:1px solid var(--border)" alt="attachment"/>`;
-        } else {
-          attEl.innerHTML = `<a href="${it.attachment.dataUrl}" download="${it.attachment.name}" class="guide-pdf-link">📄 Download ${it.attachment.name}</a>`;
-        }
-      } else {
-        attEl.innerHTML = "";
-      }
-
+      document.getElementById("viewAttachment").innerHTML = attachmentsViewHtml(it);
       openModal("viewModal");
     }
 
-    function openHeroModal() {
+    function openItemModal() {
       if (!requireAuthOrAlert()) return;
-      openModal("heroModal");
+      resetForm();
+      openModal("itemModal");
     }
 
-    function editHero(id) {
+    async function editItem(id) {
       if (!requireAuthOrAlert()) return;
 
       const it = currentItems.find(x => x.id === id);
       if (!it) return;
 
-      document.getElementById("editHeroId").value = it.id;
-      document.getElementById("heroTitle").value = it.title;
-      document.getElementById("heroCategory").value = it.category;
-      document.getElementById("heroBody").value = it.body;
-      document.getElementById("heroAuthor").value = it.author;
+      document.getElementById("editId").value = it.id;
+      document.getElementById("itemTitle").value = it.title || "";
+      document.getElementById("itemCategory").value = it.category || "General";
+      document.getElementById("itemBody").value = it.body || "";
+      document.getElementById("itemAuthor").value = it.author || AUTHORS[0];
 
-      document.getElementById("heroModalTitle").textContent = "Edit Hero";
+      document.getElementById("itemModalTitle").textContent = "Edit Hero";
 
-      if (it.attachment) {
-        document.getElementById("existingAttachment").value = "1";
-        pendingFile = it.attachment;
-        showPreview(it.attachment);
-      } else {
-        clearFile();
-      }
+      pendingFiles = [];
+      existingAttachments = attachmentsFromRow(it);
+      renderPreview();
 
-      openModal("heroModal");
+      openModal("itemModal");
     }
 
-    async function deleteHero(id) {
+    async function deleteItem(id) {
       if (!requireAuthOrAlert()) return;
       if (!confirm("Delete this hero entry?")) return;
 
-      const { error } = await sb.from("content_items").delete().eq("id", id);
-      if (error) { console.error(error); alert("Error deleting hero."); return; }
+      const it = currentItems.find(x => x.id === id);
+
+      const ok = await dbDelete(TABLE, id);
+      if (!ok) return;
+
+      // best-effort delete attachments
+      const metas = it ? attachmentsFromRow(it) : [];
+      for (const m of metas) {
+        if (m.attachment_path) await deleteAttachmentByPath(m.attachment_path);
+      }
 
       await loadAndRender();
+      showToast("Deleted.", "success");
     }
 
-    async function saveHero() {
+    async function saveItem() {
       if (!requireAuthOrAlert()) return;
 
-      const id = document.getElementById("editHeroId").value;
+      const id = document.getElementById("editId").value;
 
-      let attachment = null;
-      if (pendingFile) {
-        attachment = pendingFile;
-      } else if (id && document.getElementById("existingAttachment").value) {
-        const existing = currentItems.find(x => x.id === Number(id));
-        attachment = existing?.attachment || null;
+      let metas = [];
+      if (pendingFiles.length) {
+        metas = await uploadAttachments(TABLE, pendingFiles, MAX_ATTACHMENTS);
+        if (!metas.length) return;
+      } else {
+        metas = existingAttachments;
       }
 
       const entry = {
-        section:  SECTION,
-        title:    document.getElementById("heroTitle").value.trim() || "Untitled",
-        category: document.getElementById("heroCategory").value,
-        body:     document.getElementById("heroBody").value.trim() || "",
-        author:   document.getElementById("heroAuthor").value,
-        date:     new Date().toISOString().split("T")[0],
-        attachment,
+        title: document.getElementById("itemTitle").value.trim() || "Untitled",
+        category: document.getElementById("itemCategory").value,
+        body: document.getElementById("itemBody").value.trim() || "",
+        author: document.getElementById("itemAuthor").value,
+        date: new Date().toISOString().split("T")[0],
+        ...attachmentsToRow(metas),
       };
 
       if (id) entry.id = Number(id);
 
-      const { error } = await sb.from("content_items").upsert(entry);
-      if (error) { console.error(error); alert("Error saving hero."); return; }
+      const res = await dbUpsert(TABLE, entry);
+      if (!res.ok) return;
 
-      closeModal("heroModal");
-      resetHeroForm();
+      closeModal("itemModal");
+      resetForm();
       await loadAndRender();
+      showToast("Saved.", "success");
     }
 
-    function resetHeroForm() {
-      document.getElementById("editHeroId").value = "";
-      document.getElementById("heroTitle").value = "";
-      document.getElementById("heroBody").value = "";
-      document.getElementById("heroAuthor").value = "Pingwing";
-      document.getElementById("heroCategory").value = "Mythic Plunder";
-      document.getElementById("heroModalTitle").textContent = "New Hero";
-      clearFile();
+    function resetForm() {
+      document.getElementById("editId").value = "";
+      document.getElementById("itemTitle").value = "";
+      document.getElementById("itemCategory").value = "General";
+      document.getElementById("itemBody").value = "";
+      document.getElementById("itemAuthor").value = AUTHORS[0];
+
+      document.getElementById("itemModalTitle").textContent = "New Hero";
+      clearFiles();
     }
 
-    ["heroModal", "viewModal"].forEach(id =>
+    ["itemModal", "viewModal"].forEach(id =>
       document.getElementById(id).addEventListener("click", e => {
         if (e.target.id === id) {
           closeModal(id);
-          if (id === "heroModal") resetHeroForm();
+          if (id === "itemModal") resetForm();
         }
       })
     );
 
     async function loadAndRender() {
-      currentItems = await fetchItems();
-      renderFilters(currentItems);
-      renderItems();
+      currentItems = await dbList(TABLE, { orderBy: "date", ascending: false });
+      renderFilters();
+      renderGrid();
       applyAuthUI();
     }
 
