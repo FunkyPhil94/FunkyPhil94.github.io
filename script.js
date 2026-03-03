@@ -95,6 +95,10 @@ const CONFIG = {
     { label: "Guides",            href: "guides.html"    },
     { label: "Influence Tracker", href: "influence.html" },
     { label: "Member Roster",     href: "roster.html"    },
+    { label: "Events", href: "events.html" },
+    { label: "Relic",  href: "relic.html"  },
+    { label: "Heroes", href: "heroes.html" },
+    { label: "Rules",  href: "rules.html"  }
   ]
 };
 
