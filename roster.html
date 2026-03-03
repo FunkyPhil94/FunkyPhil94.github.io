@@ -72,8 +72,6 @@
             <tr>
               <th>Name</th>
               <th>Rank</th>
-              <th>Class</th>
-              <th>Power</th>
               <th>Joined</th>
               <th title="Mythic Plunder warnings">⚔ Mythic</th>
               <th title="Castle Crashers GE warnings">🏰 Castle</th>
@@ -106,14 +104,6 @@
             <option value="r2">R2 – Member</option>
             <option value="r1" selected>R1 – Recruit</option>
           </select>
-        </div>
-        <div class="form-group">
-          <label>Class / Hero</label>
-          <input type="text" id="mClass" placeholder="e.g. Warrior"/>
-        </div>
-        <div class="form-group">
-          <label>Combat Power</label>
-          <input type="text" id="mPower" placeholder="e.g. 1,800,000"/>
         </div>
         <div class="form-group">
           <label>Date Joined</label>
@@ -209,8 +199,6 @@
             return `<tr>
               <td>${m.name}${totalWarn>0?` <span style="color:var(--red);font-size:.75rem">⚠</span>`:""}  </td>
               <td><span class="${rc}" style="font-size:.78rem;font-weight:700;letter-spacing:.06em">${rl}</span></td>
-              <td style="color:var(--muted)">${m.class||"–"}</td>
-              <td style="font-size:.85rem">${m.power||"–"}</td>
               <td style="color:var(--muted);font-size:.82rem">${m.joined||"–"}</td>
               <td>${warnCell(m.id,"mythic",m.warnings.mythic||0)}</td>
               <td>${warnCell(m.id,"castle",m.warnings.castle||0)}</td>
@@ -221,7 +209,7 @@
               </div></td>
             </tr>`;
           }).join("")
-        : `<tr><td colspan="9" style="color:var(--muted);text-align:center;padding:2rem">No members found.</td></tr>`;
+        : `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:2rem">No members found.</td></tr>`;
     }
 
     function saveMember() {
@@ -231,8 +219,6 @@
         id:       id ? Number(id) : nextId(members),
         name:     document.getElementById("mName").value.trim()  || "Unknown",
         rank:     document.getElementById("mRank").value,
-        class:    document.getElementById("mClass").value.trim() || "–",
-        power:    document.getElementById("mPower").value.trim() || "–",
         joined:   document.getElementById("mJoined").value       || today(),
         warnings: {
           mythic: Number(document.getElementById("mWarnMythic").value)||0,
@@ -251,8 +237,6 @@
       document.getElementById("editMemberId").value  = m.id;
       document.getElementById("mName").value         = m.name;
       document.getElementById("mRank").value         = normaliseRank(m.rank);
-      document.getElementById("mClass").value        = m.class;
-      document.getElementById("mPower").value        = m.power;
       document.getElementById("mJoined").value       = m.joined;
       document.getElementById("mWarnMythic").value   = m.warnings.mythic||0;
       document.getElementById("mWarnCastle").value   = m.warnings.castle||0;
@@ -268,7 +252,7 @@
     }
 
     function resetMemberForm() {
-      ["editMemberId","mName","mClass","mPower","mJoined","mNotes"].forEach(i => document.getElementById(i).value="");
+      ["editMemberId","mName","mJoined","mNotes"].forEach(i => document.getElementById(i).value="");
       document.getElementById("mRank").value = "r1";
       document.getElementById("mWarnMythic").value = 0;
       document.getElementById("mWarnCastle").value = 0;
