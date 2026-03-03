@@ -158,31 +158,37 @@
       refresh();
 
       lb.addEventListener("click", async () => {
-        msg.classList.remove("show");
-        msg.textContent = "";
+  const val = (pw.value || "").trim();
+  if (!val) {
+    showToast("Bitte Passwort eingeben.", "error");
+    return;
+  }
 
-        const val = (pw.value || "").trim();
-        if (!val) {
-          showMessage("Please enter a password.", "error");
-          return;
-        }
+  lb.disabled = true;
+  lb.textContent = "Prüfe…";
 
-        lb.disabled = true;
-        lb.textContent = "Checking…";
-        const ok = await loginWithPassword(val);
-        lb.disabled = false;
-        lb.textContent = "Unlock";
+  const ok = await loginWithPassword(val);
 
-        if (!ok) {
-          showMessage("✕ Incorrect password.", "error");
-          pw.value = "";
-          pw.focus();
-          return;
-        }
+  lb.disabled = false;
+  lb.textContent = "Unlock";
 
-        pw.value = "";
-        refresh();
-      });
+  if (!ok) {
+    showToast("✕ Falsches Passwort.", "error");
+    pw.value = "";
+    pw.focus();
+    return;
+  }
+
+  pw.value = "";
+  // Auth-Status setzen, UI aktualisieren
+  lb.style.display  = "none";
+  pw.style.display  = "none";
+  lob.style.display = "";
+  buildNav("index.html");
+  applyAuthUI();
+  renderDash();
+  showToast("✓ Zugang gewährt. Admin-Funktionen freigeschaltet.", "success", 4000);
+});
 
       // Enter to login
       pw.addEventListener("keydown", (e) => {
