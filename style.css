@@ -354,3 +354,35 @@ tbody td:first-child { font-family: 'Rajdhani', sans-serif; font-size: 1rem; fon
   nav ul { display: none; }
   .page  { padding-top: 80px; }
 }
+
+/* =========================================
+   LOGIN STATUS
+========================================= */
+.login-status {
+  margin-top: .8rem;
+  font-size: .82rem;
+  padding: .6rem .9rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: all .25s ease;
+}
+
+.login-status.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.login-status.success {
+  border-color: rgba(46, 204, 113, 0.5);
+  background: rgba(46, 204, 113, 0.08);
+  color: var(--green);
+}
+
+.login-status.error {
+  border-color: rgba(231, 76, 60, 0.5);
+  background: rgba(231, 76, 60, 0.08);
+  color: var(--red);
+}
