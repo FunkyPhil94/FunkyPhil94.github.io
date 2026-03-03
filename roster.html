@@ -132,23 +132,23 @@
     </div>
   </div>
 
+  <!-- Supabase client MUST be before script.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="script.js"></script>
+
   <script>
+    const TABLE = "members";
+
     buildNav("roster.html");
     applyAuthUI();
 
     const RANK_LABEL = { r5:"R5 – Leader", r4:"R4 – Vice", r3:"R3 – Elite", r2:"R2 – Member", r1:"R1 – Recruit" };
     const RANK_CLASS = { r5:"rank-r5", r4:"rank-r4", r3:"rank-r3", r2:"rank-r2", r1:"rank-r1" };
+    const rankOrder  = { r5:0, r4:1, r3:2, r2:3, r1:4 };
 
-    function normaliseRank(r) {
-      if (!r) return "r1";
-      if (r==="leader")  return "r5";
-      if (r==="officer") return "r4";
-      if (r==="member")  return "r2";
-      return r;
-    }
-
+    let currentMembers = [];
     let rankFilter = "";
+
     function setFilter(f) { rankFilter = f; render(); }
 
     function warnClass(n) { return n===0 ? "warn-0" : n===1 ? "warn-1" : "warn-2p"; }
@@ -165,34 +165,47 @@
       </div>`;
     }
 
-    function adjustWarn(id, cat, delta) {
+    function openMemberModal() {
       if (!requireAuthOrAlert()) return;
-      const members = DB.get("members");
-      const m = members.find(x => x.id===id);
+      resetMemberForm();
+      openModal("memberModal");
+    }
+
+    async function adjustWarn(id, cat, delta) {
+      if (!requireAuthOrAlert()) return;
+
+      const m = currentMembers.find(x => x.id === id);
       if (!m) return;
-      m.warnings[cat] = Math.max(0, (m.warnings[cat]||0) + delta);
-      DB.set("members", members);
-      render();
+
+      const key = cat === "mythic" ? "warnings_mythic" : "warnings_castle";
+      const next = Math.max(0, (Number(m[key]) || 0) + delta);
+
+      const res = await dbUpsert(TABLE, { id, [key]: next });
+      if (!res.ok) return;
+
+      await loadAndRender(false);
     }
 
     function render() {
       const canEdit = isAuthed();
-      const search = document.getElementById("searchInput").value.toLowerCase();
-      let members  = DB.get("members").map(m => ({ ...m, rank: normaliseRank(m.rank) }));
+      const search = (document.getElementById("searchInput").value || "").toLowerCase();
 
-      if (search)                members = members.filter(m => (m.name||"").toLowerCase().includes(search));
-      if (rankFilter==="warned") members = members.filter(m => (m.warnings?.mythic||0)>0 || (m.warnings?.castle||0)>0);
-      else if (rankFilter)       members = members.filter(m => m.rank===rankFilter);
+      let members = [...currentMembers];
 
-      const rankOrder = { r5:0, r4:1, r3:2, r2:3, r1:4 };
-      members.sort((a,b) => (rankOrder[a.rank]??5) - (rankOrder[b.rank]??5));
+      if (search) members = members.filter(m => (m.name||"").toLowerCase().includes(search));
+      if (rankFilter === "warned") {
+        members = members.filter(m => (m.warnings_mythic||0) > 0 || (m.warnings_castle||0) > 0);
+      } else if (rankFilter) {
+        members = members.filter(m => (m.rank||"r1") === rankFilter);
+      }
 
-      const all = DB.get("members");
-      const warnedCount = all.filter(m => (m.warnings?.mythic||0)>0 || (m.warnings?.castle||0)>0).length;
+      members.sort((a,b) => (rankOrder[a.rank] ?? 99) - (rankOrder[b.rank] ?? 99));
+
+      const warnedCount = currentMembers.filter(m => (m.warnings_mythic||0) > 0 || (m.warnings_castle||0) > 0).length;
 
       document.getElementById("rosterStats").innerHTML = `
-        <div class="stat-card"><div class="s-label">Total Members</div><div class="s-value">${all.length}</div></div>
-        <div class="stat-card"><div class="s-label">R4 / R5</div><div class="s-value">${all.filter(m=>['r5','r4'].includes(normaliseRank(m.rank))).length}</div></div>
+        <div class="stat-card"><div class="s-label">Total Members</div><div class="s-value">${currentMembers.length}</div></div>
+        <div class="stat-card"><div class="s-label">R4 / R5</div><div class="s-value">${currentMembers.filter(m => m.rank==='r5' || m.rank==='r4').length}</div></div>
         <div class="stat-card"><div class="s-label">With Warnings</div><div class="s-value" style="color:var(--red)">${warnedCount}</div></div>
       `;
 
@@ -200,14 +213,16 @@
         ? members.map(m => {
             const rc = RANK_CLASS[m.rank] || "rank-r1";
             const rl = RANK_LABEL[m.rank] || (m.rank||"").toUpperCase();
-            const totalWarn = (m.warnings?.mythic||0) + (m.warnings?.castle||0);
+            const myth = Number(m.warnings_mythic) || 0;
+            const cast = Number(m.warnings_castle) || 0;
+            const totalWarn = myth + cast;
 
             return `<tr>
-              <td>${m.name || "Unknown"}${totalWarn>0?` <span style="color:var(--red);font-size:.75rem">⚠</span>`:""}</td>
+              <td>${m.name || "Unknown"}${totalWarn>0 ? ` <span style="color:var(--red);font-size:.75rem">⚠</span>` : ""}</td>
               <td><span class="${rc}" style="font-size:.78rem;font-weight:700;letter-spacing:.06em">${rl}</span></td>
-              <td>${warnCell(m.id,"mythic",m.warnings?.mythic||0)}</td>
-              <td>${warnCell(m.id,"castle",m.warnings?.castle||0)}</td>
-              <td style="font-size:.78rem;color:var(--muted);max-width:160px">${m.notes||"–"}</td>
+              <td>${warnCell(m.id,"mythic", myth)}</td>
+              <td>${warnCell(m.id,"castle", cast)}</td>
+              <td style="font-size:.78rem;color:var(--muted);max-width:160px">${m.notes || "–"}</td>
               <td>
                 ${canEdit ? `
                   <div style="display:flex;gap:.4rem">
@@ -221,65 +236,55 @@
         : `<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:2rem">No members found.</td></tr>`;
     }
 
-    function openMemberModal() {
-      if (!requireAuthOrAlert()) return;
-      openModal("memberModal");
-    }
-
-    function saveMember() {
+    async function saveMember() {
       if (!requireAuthOrAlert()) return;
 
-      const members = DB.get("members");
-      const id      = document.getElementById("editMemberId").value;
+      const id = document.getElementById("editMemberId").value;
 
       const entry = {
-        id:   id ? Number(id) : nextId(members),
-        name: document.getElementById("mName").value.trim() || "Unknown",
+        name: (document.getElementById("mName").value || "").trim() || "Unknown",
         rank: document.getElementById("mRank").value,
-        warnings: {
-          mythic: Number(document.getElementById("mWarnMythic").value) || 0,
-          castle: Number(document.getElementById("mWarnCastle").value) || 0,
-        },
-        notes: document.getElementById("mNotes").value.trim(),
+        warnings_mythic: Number(document.getElementById("mWarnMythic").value) || 0,
+        warnings_castle: Number(document.getElementById("mWarnCastle").value) || 0,
+        notes: (document.getElementById("mNotes").value || "").trim() || null,
       };
 
-      if (id) {
-        const i = members.findIndex(m => m.id===Number(id));
-        members[i] = entry;
-      } else {
-        members.push(entry);
-      }
+      if (id) entry.id = Number(id);
 
-      DB.set("members", members);
+      const res = await dbUpsert(TABLE, entry);
+      if (!res.ok) return;
+
       closeModal("memberModal");
       resetMemberForm();
-      render();
+      await loadAndRender(false);
       showToast("Member saved.", "success");
     }
 
     function editMember(id) {
       if (!requireAuthOrAlert()) return;
 
-      const m = DB.get("members").find(x => x.id===id);
+      const m = currentMembers.find(x => x.id === id);
       if (!m) return;
 
       document.getElementById("editMemberId").value = m.id;
       document.getElementById("mName").value        = m.name || "";
-      document.getElementById("mRank").value        = normaliseRank(m.rank);
-      document.getElementById("mWarnMythic").value  = m.warnings?.mythic || 0;
-      document.getElementById("mWarnCastle").value  = m.warnings?.castle || 0;
+      document.getElementById("mRank").value        = m.rank || "r1";
+      document.getElementById("mWarnMythic").value  = Number(m.warnings_mythic) || 0;
+      document.getElementById("mWarnCastle").value  = Number(m.warnings_castle) || 0;
       document.getElementById("mNotes").value       = m.notes || "";
 
       document.getElementById("memberModalTitle").textContent = "Edit Member";
       openModal("memberModal");
     }
 
-    function deleteMember(id) {
+    async function deleteMember(id) {
       if (!requireAuthOrAlert()) return;
       if (!confirm("Remove this member from the roster?")) return;
 
-      DB.set("members", DB.get("members").filter(m => m.id!==id));
-      render();
+      const ok = await dbDelete(TABLE, id);
+      if (!ok) return;
+
+      await loadAndRender(false);
       showToast("Member deleted.", "success");
     }
 
@@ -295,7 +300,25 @@
       if (e.target.id==="memberModal") { closeModal("memberModal"); resetMemberForm(); }
     });
 
-    render();
+    async function loadAndRender(showLoadToast = true) {
+      if (showLoadToast) showToast("Loading roster…", "info", 900);
+
+      // Note: order in DB not critical; we sort client-side anyway
+      currentMembers = await dbList(TABLE, { orderBy: "id", ascending: true });
+
+      // normalize defaults
+      currentMembers = (currentMembers || []).map(m => ({
+        ...m,
+        rank: m.rank || "r1",
+        warnings_mythic: Number(m.warnings_mythic) || 0,
+        warnings_castle: Number(m.warnings_castle) || 0,
+      }));
+
+      render();
+      applyAuthUI();
+    }
+
+    loadAndRender();
   </script>
 </body>
 </html>
