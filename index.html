@@ -6,47 +6,39 @@
   <title>NATO [GBR] – Portal</title>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="style.css"/>
+
   <style>
-    .pin-featured {
-      border: 1px solid rgba(201,168,76,0.35);
-      background: linear-gradient(135deg, rgba(201,168,76,0.06) 0%, var(--surface) 60%);
-      border-radius: 5px;
-      padding: 1.6rem;
-      margin-bottom: 1rem;
+    .pin-list-item{
+      display:flex;align-items:flex-start;gap:1rem;
+      padding:.9rem 1.2rem;background:var(--surface);
+      border:1px solid var(--border);border-radius:4px;
+      transition:border-color .2s;
     }
-    .pin-featured .pin-title {
-      font-family: 'Rajdhani', sans-serif;
-      font-size: 1.35rem; font-weight: 700; letter-spacing: 0.03em;
-      margin-bottom: 0.5rem;
+    .pin-list-item:hover{border-color:rgba(201,168,76,.3);}
+    .pli-title{font-size:.9rem;font-weight:500;color:var(--text);}
+    .pli-meta{font-size:.72rem;color:var(--muted);margin-top:.2rem;letter-spacing:.05em;}
+    .section-heading{
+      font-family:'Rajdhani',sans-serif;font-size:.72rem;font-weight:700;
+      letter-spacing:.18em;text-transform:uppercase;color:var(--muted);
+      margin:1.8rem 0 .8rem;
     }
-    .pin-featured .pin-body { font-size: 0.9rem; color: var(--muted); line-height: 1.7; white-space: pre-wrap; }
-    .pin-featured .pin-meta { margin-top: 1rem; font-size: 0.72rem; color: var(--muted); letter-spacing: 0.06em; }
-    .pin-list-item {
-      display: flex; align-items: flex-start; gap: 1rem;
-      padding: 0.9rem 1.2rem;
-      background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
-      transition: border-color 0.2s;
+    .quicklinks{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.75rem;}
+    .quicklink{
+      background:var(--surface);border:1px solid var(--border);border-radius:4px;
+      padding:1rem 1.2rem;text-decoration:none;display:flex;align-items:center;gap:.8rem;
+      transition:border-color .2s, background .2s;
     }
-    .pin-list-item:hover { border-color: rgba(201,168,76,0.3); }
-    .pli-title { font-size: 0.9rem; font-weight: 500; color: var(--text); }
-    .pli-meta  { font-size: 0.72rem; color: var(--muted); margin-top: 0.2rem; letter-spacing: 0.05em; }
-    .section-heading {
-      font-family: 'Rajdhani', sans-serif; font-size: 0.72rem; font-weight: 700;
-      letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted);
-      margin: 1.8rem 0 0.8rem;
+    .quicklink:hover{border-color:rgba(201,168,76,.35);background:rgba(201,168,76,.04);}
+    .ql-icon{font-size:1.3rem;}
+    .ql-label{
+      font-family:'Rajdhani',sans-serif;font-size:1rem;font-weight:700;
+      letter-spacing:.04em;text-transform:uppercase;color:var(--text);
     }
-    .quicklinks { display: grid; grid-template-columns: repeat(auto-fill,minmax(200px,1fr)); gap: 0.75rem; }
-    .quicklink {
-      background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
-      padding: 1rem 1.2rem; text-decoration: none;
-      display: flex; align-items: center; gap: 0.8rem;
-      transition: border-color 0.2s, background 0.2s;
-    }
-    .quicklink:hover { border-color: rgba(201,168,76,0.35); background: rgba(201,168,76,0.04); }
-    .ql-icon  { font-size: 1.3rem; }
-    .ql-label { font-family: 'Rajdhani',sans-serif; font-size:1rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text); }
+    /* Damit lange Bodies sauber umbrechen */
+    .pin-body { white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; }
   </style>
 </head>
+
 <body>
   <nav id="mainNav"><a class="nav-logo" href="index.html">NATO [GBR]</a><ul></ul></nav>
 
@@ -75,13 +67,16 @@
       <div id="loginMsg" class="login-status"></div>
     </div>
 
-    <div class="stat-grid" id="statGrid" style="margin-bottom:2rem"></div>
+    <!-- STATS -->
+    <div class="stat-grid" id="statGrid" style="margin-bottom:1rem"></div>
+
+    <!-- LEADERS -->
     <div class="card" id="leaderCard" style="margin-bottom:2rem; display:none">
       <div class="page-label">Leadership</div>
       <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.6rem" id="leaderNames"></div>
     </div>
 
-    <!-- Announcement board -->
+    <!-- Announcements -->
     <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem">
       <div>
         <div class="page-label">Latest</div>
@@ -90,25 +85,29 @@
       </div>
       <button class="btn btn-gold" style="padding:.5rem 1.1rem;font-size:.78rem"
               data-requires-auth="true"
-              onclick="openModal('pinModal')">+ New Post</button>
+              onclick="openPinModal()">+ New Post</button>
     </div>
 
-    <div id="featuredPin"></div>
-    <div class="section-heading" id="recentHeading" style="display:none">Recent</div>
+    <div class="section-heading" id="recentHeading" style="display:none">Latest 3</div>
     <div id="recentPins" style="display:flex;flex-direction:column;gap:.5rem"></div>
     <div id="noPins" style="display:none;color:var(--muted);font-size:.9rem;padding:1rem 0">No announcements yet.</div>
 
     <!-- Quick nav -->
     <div class="section-heading">Sections</div>
     <div class="quicklinks">
-      <a href="guides.html"    class="quicklink"><span class="ql-icon">📖</span><span class="ql-label">Guides</span></a>
+      <a href="pinboard.html" class="quicklink"><span class="ql-icon">📌</span><span class="ql-label">Pinboard</span></a>
+      <a href="guides.html"   class="quicklink"><span class="ql-icon">📖</span><span class="ql-label">Guides</span></a>
+
+      <a href="events.html"   class="quicklink"><span class="ql-icon">📅</span><span class="ql-label">Events</span></a>
+      <a href="relic.html"    class="quicklink"><span class="ql-icon">🗿</span><span class="ql-label">Relic</span></a>
+      <a href="heroes.html"   class="quicklink"><span class="ql-icon">🦸</span><span class="ql-label">Heroes</span></a>
+      <a href="rules.html"    class="quicklink"><span class="ql-icon">📜</span><span class="ql-label">Rules</span></a>
+
       <a href="influence.html" class="quicklink" data-requires-auth="true">
-        <span class="ql-icon">📊</span>
-        <span class="ql-label">Influence Tracker</span>
+        <span class="ql-icon">📊</span><span class="ql-label">Influence</span>
       </a>
       <a href="roster.html" class="quicklink" data-requires-auth="true">
-        <span class="ql-icon">🛡</span>
-        <span class="ql-label">Member Roster</span>
+        <span class="ql-icon">🛡</span><span class="ql-label">Roster</span>
       </a>
     </div>
   </div>
@@ -118,8 +117,10 @@
     <div class="modal">
       <h3 id="pinModalTitle">New Announcement</h3>
       <input type="hidden" id="editPinId"/>
+
       <div class="form-group"><label>Title</label><input type="text" id="pinTitle" placeholder="Announcement title…"/></div>
       <div class="form-group"><label>Body</label><textarea id="pinBody" rows="5" placeholder="Write your announcement here…"></textarea></div>
+
       <div class="form-group">
         <label>Priority</label>
         <select id="pinPriority">
@@ -128,7 +129,12 @@
           <option value="urgent">Urgent</option>
         </select>
       </div>
-      <div class="form-group"><label>Author</label><input type="text" id="pinAuthor" placeholder="Your name"/></div>
+
+      <div class="form-group">
+        <label>Author</label>
+        <input type="text" id="pinAuthor" placeholder="Your name"/>
+      </div>
+
       <div class="modal-actions">
         <button class="btn btn-ghost" onclick="closeModal('pinModal');resetPinForm()">Cancel</button>
         <button class="btn btn-gold"  onclick="savePin()">Save</button>
@@ -136,155 +142,208 @@
     </div>
   </div>
 
+  <!-- Supabase client MUST be before script.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="script.js"></script>
+
   <script>
     const PRIORITY_BADGE = {
       urgent: '<span class="badge badge-red">Urgent</span>',
       high:   '<span class="badge badge-gold">High</span>',
       normal: '<span class="badge badge-muted">Normal</span>',
     };
-  
+
     const pw  = document.getElementById("pwInput");
     const lb  = document.getElementById("loginBtn");
     const lob = document.getElementById("logoutBtn");
-  
-    function updateLoginUI() {
+
+    // --- UI update (MUSS async sein!) ---
+    async function updateLoginUI() {
       const a = isAuthed();
       lb.style.display  = a ? "none" : "";
       pw.style.display  = a ? "none" : "";
       lob.style.display = a ? "" : "none";
+
       buildNav("index.html");
       applyAuthUI();
       await renderDash();
     }
-  
-    lb.addEventListener("click", () => {
+
+    lb.addEventListener("click", async () => {
       const v = (pw.value || "").trim();
       if (!v) { showToast("Bitte Passwort eingeben.", "error"); return; }
-  
+
       const ok = loginWithPassword(v);
       pw.value = "";
-  
+
       if (!ok) { showToast("Falsches Passwort.", "error"); pw.focus(); return; }
-  
-      updateLoginUI();
+
+      await updateLoginUI();
       showToast("Eingeloggt! Admin freigeschaltet.", "success", 4000);
     });
-  
+
     pw.addEventListener("keydown", (e) => { if (e.key === "Enter") lb.click(); });
     lob.addEventListener("click", () => logout());
 
-    
-      async function renderDash() {
-      // PINS / GUIDES kannst du lassen wie bisher (je nachdem ob Supabase oder local)
-      // Member kommen jetzt aus Supabase:
-      const { data: members, error } = await sb
-        .from("members")
-        .select("name, rank");
-    
-      if (error) {
-        console.error(error);
+    // --- PIN CRUD (via Supabase tables "pins") ---
+    function openPinModal() {
+      if (!requireAuthOrAlert()) return;
+      openModal("pinModal");
+    }
+
+    async function savePin() {
+      if (!requireAuthOrAlert()) return;
+
+      const id = document.getElementById("editPinId").value;
+
+      const entry = {
+        title:    document.getElementById("pinTitle").value.trim()  || "Untitled",
+        body:     document.getElementById("pinBody").value.trim()   || "",
+        priority: document.getElementById("pinPriority").value,
+        author:   document.getElementById("pinAuthor").value.trim() || "Unknown",
+        date:     new Date().toISOString().split("T")[0],
+      };
+      if (id) entry.id = Number(id);
+
+      const res = await dbUpsert("pins", entry);
+      if (!res.ok) return;
+
+      closeModal("pinModal");
+      resetPinForm();
+      await renderDash();
+      showToast("Saved.", "success");
+    }
+
+    async function deletePin(id) {
+      if (!requireAuthOrAlert()) return;
+      if (!confirm("Delete this announcement?")) return;
+
+      const ok = await dbDelete("pins", id);
+      if (!ok) return;
+
+      await renderDash();
+      showToast("Deleted.", "success");
+    }
+
+    function editPinFromCache(pin) {
+      if (!requireAuthOrAlert()) return;
+
+      document.getElementById("editPinId").value   = pin.id;
+      document.getElementById("pinTitle").value    = pin.title || "";
+      document.getElementById("pinBody").value     = pin.body || "";
+      document.getElementById("pinPriority").value = pin.priority || "normal";
+      document.getElementById("pinAuthor").value   = pin.author || "Unknown";
+      document.getElementById("pinModalTitle").textContent = "Edit Announcement";
+      openModal("pinModal");
+    }
+
+    function resetPinForm() {
+      document.getElementById("editPinId").value = "";
+      document.getElementById("pinTitle").value = "";
+      document.getElementById("pinBody").value = "";
+      document.getElementById("pinAuthor").value = "";
+      document.getElementById("pinPriority").value = "normal";
+      document.getElementById("pinModalTitle").textContent = "New Announcement";
+    }
+
+    document.getElementById("pinModal").addEventListener("click", e => {
+      if (e.target.id === "pinModal") { closeModal("pinModal"); resetPinForm(); }
+    });
+
+    // --- DASHBOARD: Stats + Leadership + Latest 3 Pins ---
+    async function renderDash() {
+      // MEMBERS (Supabase table: members)
+      const { data: members, error: mErr } = await sb.from("members").select("name, rank");
+      if (mErr) {
+        console.error(mErr);
         showToast("Members konnten nicht geladen werden.", "error");
         return;
       }
-    
+
       const totalMembers = (members || []).length;
-    
-      // R5 + R4
-      const leaders = (members || []).filter(m => (m.rank || "").toLowerCase() === "r5" || (m.rank || "").toLowerCase() === "r4");
+
+      const leaders = (members || []).filter(m => {
+        const r = (m.rank || "").toLowerCase();
+        return r === "r5" || r === "r4";
+      });
+
       const leaderCount = leaders.length;
-    
-      // Namenliste
-      const leaderCard = document.getElementById("leaderCard");
+
+      const leaderCard  = document.getElementById("leaderCard");
       const leaderNames = document.getElementById("leaderNames");
-    
+
       if (leaderCount > 0) {
         leaderCard.style.display = "";
         leaderNames.innerHTML = leaders
-          .sort((a,b) => (a.rank === b.rank ? a.name.localeCompare(b.name) : (a.rank === "r5" ? -1 : 1)))
-          .map(l => `<span class="badge ${l.rank === "r5" ? "badge-gold" : "badge-blue"}">${l.name}</span>`)
+          .sort((a,b) => {
+            const ar = (a.rank||"").toLowerCase();
+            const br = (b.rank||"").toLowerCase();
+            if (ar === br) return (a.name||"").localeCompare(b.name||"");
+            return ar === "r5" ? -1 : 1; // R5 zuerst
+          })
+          .map(l => {
+            const r = (l.rank||"").toLowerCase();
+            return `<span class="badge ${r==="r5" ? "badge-gold" : "badge-blue"}">${l.name}</span>`;
+          })
           .join("");
       } else {
         leaderCard.style.display = "none";
         leaderNames.innerHTML = "";
       }
-    
-      // Hier deine anderen Zahlen (Announcements/Guides) wie gehabt:
-      const pins   = await dbList("pins",   { orderBy: "date", ascending: false });   // falls du dbList nutzt
-      const guides = await dbList("guides", { orderBy: "date", ascending: false });   // falls du dbList nutzt
-    
-      // Wenn pins/guides bei dir noch anders kommen, ersetze diese 2 Zeilen durch deinen bestehenden Code.
-    
+
+      // PINS + GUIDES counts (Supabase tables)
+      const pins   = await dbList("pins",   { orderBy: "date", ascending: false });
+      const guides = await dbList("guides", { orderBy: "date", ascending: false });
+
       document.getElementById("statGrid").innerHTML = `
         <div class="stat-card"><div class="s-label">Members</div><div class="s-value">${totalMembers}</div></div>
         <div class="stat-card"><div class="s-label">R5 / R4</div><div class="s-value">${leaderCount}</div></div>
         <div class="stat-card"><div class="s-label">Announcements</div><div class="s-value">${(pins||[]).length}</div></div>
         <div class="stat-card"><div class="s-label">Guides</div><div class="s-value">${(guides||[]).length}</div></div>
       `;
-    }
-  
-    function savePin() {
-      if (!requireAuthOrAlert()) return;
-  
-      const pins = DB.get("pins");
-      const id   = document.getElementById("editPinId").value;
-  
-      const entry = {
-        id:       id ? Number(id) : nextId(pins),
-        title:    document.getElementById("pinTitle").value.trim()  || "Untitled",
-        body:     document.getElementById("pinBody").value.trim()   || "",
-        priority: document.getElementById("pinPriority").value,
-        author:   document.getElementById("pinAuthor").value.trim() || "Unknown",
-        date:     today(),
-      };
-  
-      if (id) {
-        const i = pins.findIndex(p => p.id === Number(id));
-        if (i >= 0) pins[i] = entry;
-      } else {
-        pins.push(entry);
+
+      // Latest 3 announcements
+      const latest3 = (pins || []).slice(0, 3);
+
+      const noPinsEl = document.getElementById("noPins");
+      const recentHeadingEl = document.getElementById("recentHeading");
+      const recentPinsEl = document.getElementById("recentPins");
+
+      if (!latest3.length) {
+        noPinsEl.style.display = "block";
+        recentHeadingEl.style.display = "none";
+        recentPinsEl.innerHTML = "";
+        return;
       }
-  
-      DB.set("pins", pins);
-      closeModal("pinModal");
-      resetPinForm();
-      await renderDash();
+
+      noPinsEl.style.display = "none";
+      recentHeadingEl.style.display = "block";
+
+      const canEdit = isAuthed();
+
+      recentPinsEl.innerHTML = latest3.map(p => `
+        <div class="pin-list-item">
+          <div style="margin-top:.15rem;flex-shrink:0">${PRIORITY_BADGE[p.priority] || PRIORITY_BADGE.normal}</div>
+
+          <div style="flex:1;min-width:0">
+            <div class="pli-title">${p.title || "Untitled"}</div>
+            <div class="pin-body" style="margin-top:.25rem">${p.body || ""}</div>
+            <div class="pli-meta">${p.author || "Unknown"} · ${p.date || ""}</div>
+          </div>
+
+          ${canEdit ? `
+            <div style="display:flex;gap:.4rem;flex-shrink:0">
+              <button class="btn btn-ghost" style="padding:.28rem .6rem;font-size:.68rem"
+                onclick='editPinFromCache(${JSON.stringify(p).replace(/'/g,"&#39;")})'>Edit</button>
+              <button class="btn btn-danger" style="padding:.28rem .6rem;font-size:.68rem"
+                onclick="deletePin(${p.id})">✕</button>
+            </div>
+          ` : ``}
+        </div>
+      `).join("");
     }
-  
-    function editPin(id) {
-      if (!requireAuthOrAlert()) return;
-  
-      const p = DB.get("pins").find(x => x.id === id);
-      if (!p) return;
-  
-      document.getElementById("editPinId").value   = p.id;
-      document.getElementById("pinTitle").value    = p.title;
-      document.getElementById("pinBody").value     = p.body;
-      document.getElementById("pinPriority").value = p.priority;
-      document.getElementById("pinAuthor").value   = p.author;
-      document.getElementById("pinModalTitle").textContent = "Edit Announcement";
-      openModal("pinModal");
-    }
-  
-    function deletePin(id) {
-      if (!requireAuthOrAlert()) return;
-  
-      if (!confirm("Delete this announcement?")) return;
-      DB.set("pins", DB.get("pins").filter(p => p.id !== id));
-      await renderDash();
-    }
-  
-    function resetPinForm() {
-      ["editPinId","pinTitle","pinBody","pinAuthor"].forEach(i => document.getElementById(i).value = "");
-      document.getElementById("pinPriority").value = "normal";
-      document.getElementById("pinModalTitle").textContent = "New Announcement";
-    }
-  
-    document.getElementById("pinModal").addEventListener("click", e => {
-      if (e.target.id === "pinModal") { closeModal("pinModal"); resetPinForm(); }
-    });
-  
-    // Initial UI
+
+    // Initial
     updateLoginUI();
   </script>
 </body>
