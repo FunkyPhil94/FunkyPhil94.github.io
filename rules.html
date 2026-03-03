@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NATO [GBR] – Rules</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css"/>
+
+  <style>
+    .guide-filters { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1.5rem; }
+    .filter-btn {
+      padding:.35rem .85rem; border-radius:2px; font-size:.75rem; font-weight:600;
+      letter-spacing:.08em; text-transform:uppercase; cursor:pointer;
+      background:transparent; border:1px solid var(--border); color:var(--muted);
+      transition:all .2s;
+    }
+    .filter-btn.active, .filter-btn:hover { border-color:var(--gold); color:var(--gold); background:rgba(201,168,76,.08); }
+    .guides-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:1rem; }
+    .guide-card  { display:flex; flex-direction:column; gap:.5rem; }
+    .guide-card h3 { font-family:'Rajdhani',sans-serif; font-size:1.1rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase; }
+    .guide-card p  { font-size:.84rem; color:var(--muted); line-height:1.6; flex:1; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+    .guide-meta    { font-size:.7rem; color:var(--muted); letter-spacing:.06em; }
+    .guide-actions { display:flex; gap:.5rem; margin-top:.4rem; flex-wrap:wrap; }
+    .guide-thumb {
+      width:100%; max-height:160px; object-fit:cover; border-radius:3px;
+      border:1px solid var(--border); margin-bottom:.2rem;
+    }
+    .guide-pdf-link {
+      display:inline-flex; align-items:center; gap:.4rem;
+      font-size:.78rem; color:var(--blue); text-decoration:none;
+      border:1px solid rgba(61,127,255,.25); border-radius:3px;
+      padding:.3rem .7rem; transition:background .2s;
+    }
+    .guide-pdf-link:hover { background:rgba(61,127,255,.1); }
+
+    /* Upload area */
+    .upload-area {
+      border:2px dashed var(--border); border-radius:4px;
+      padding:1.2rem; text-align:center; cursor:pointer;
+      transition:border-color .2s, background .2s;
+      position:relative;
+    }
+    .upload-area:hover, .upload-area.dragover { border-color:var(--gold); background:rgba(201,168,76,.04); }
+    .upload-area input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+    .upload-area .ua-icon { font-size:1.5rem; margin-bottom:.3rem; }
+    .upload-area .ua-label { font-size:.8rem; color:var(--muted); }
+    .upload-preview { margin-top:.6rem; display:flex; align-items:center; gap:.6rem; }
+    .upload-preview img { width:48px; height:48px; object-fit:cover; border-radius:3px; border:1px solid var(--border); }
+    .upload-preview .up-name { font-size:.78rem; color:var(--text); overflow-wrap:anywhere; word-break:break-word; }
+    .upload-preview .up-remove { font-size:.72rem; color:var(--red); cursor:pointer; margin-left:auto; }
+
+    /* View modal content */
+    #viewBody { font-size:.9rem; line-height:1.75; color:var(--muted); white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; }
+    #viewAttachment { margin-top:1.2rem; }
+  </style>
+</head>
+
+<body>
+  <nav id="mainNav"><a class="nav-logo" href="index.html">NATO [GBR]</a><ul></ul></nav>
+
+  <div class="page fade-up">
+    <div class="page-header" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+      <div>
+        <div class="page-label">Guild rules</div>
+        <div class="page-title">Rules</div>
+        <div class="page-divider"></div>
+      </div>
+      <button class="btn btn-gold" data-requires-auth="true" onclick="openRulesModal()">+ New Rule</button>
+    </div>
+
+    <div class="guide-filters" id="filterBar"></div>
+    <div class="guides-grid"  id="itemsGrid"></div>
+  </div>
+
+  <!-- View Modal -->
+  <div class="modal-overlay" id="viewModal">
+    <div class="modal" style="max-width:620px;max-height:90vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:1rem">
+        <div>
+          <div id="viewCategory" style="font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:.3rem"></div>
+          <h3 id="viewTitle" style="margin:0;font-size:1.5rem"></h3>
+          <div id="viewMeta" style="font-size:.72rem;color:var(--muted);margin-top:.4rem;letter-spacing:.06em"></div>
+        </div>
+        <button class="btn btn-ghost" style="padding:.3rem .7rem;font-size:.72rem;flex-shrink:0" onclick="closeModal('viewModal')">✕</button>
+      </div>
+      <p id="viewBody"></p>
+      <div id="viewAttachment"></div>
+    </div>
+  </div>
+
+  <!-- Edit / New Rules Modal -->
+  <div class="modal-overlay" id="rulesModal">
+    <div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto">
+      <h3 id="rulesModalTitle">New Rule</h3>
+      <input type="hidden" id="editRulesId"/>
+      <input type="hidden" id="existingAttachment"/>
+
+      <div class="form-group"><label>Title</label><input type="text" id="rulesTitle" placeholder="Rule title…"/></div>
+
+      <div class="form-group">
+        <label>Category</label>
+        <select id="rulesCategory">
+          <option>Mythic Plunder</option>
+          <option>Castle Crashers GE</option>
+          <option>General</option>
+        </select>
+      </div>
+
+      <div class="form-group"><label>Content</label><textarea id="rulesBody" rows="5" placeholder="Write your rule here…"></textarea></div>
+
+      <div class="form-group">
+        <label>Attachment (Image or PDF)</label>
+        <div class="upload-area" id="uploadArea">
+          <input type="file" id="fileInput" accept="image/*,.pdf" onchange="handleFile(this.files[0])"/>
+          <div class="ua-icon">📎</div>
+          <div class="ua-label">Click or drag an image / PDF here</div>
+        </div>
+        <div class="upload-preview" id="uploadPreview" style="display:none"></div>
+      </div>
+
+      <div class="form-group">
+        <label>Author</label>
+        <select id="rulesAuthor">
+          <option value="Pingwing">Pingwing</option>
+          <option value="Finnegan">Finnegan</option>
+          <option value="MonkeyGod">MonkeyGod</option>
+          <option value="GettoBird">GettoBird</option>
+          <option value="Kait_See">Kait_See</option>
+          <option value="Squirtle">Squirtle</option>
+        </select>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('rulesModal');resetRulesForm()">Cancel</button>
+        <button class="btn btn-gold"  onclick="saveRules()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Supabase client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="script.js"></script>
+
+  <script>
+    const SECTION = "rules";
+    let activeFilter = "All";
+    let pendingFile  = null;
+    let currentItems = [];
+
+    buildNav("rules.html");
+    applyAuthUI();
+
+    const CAT_BADGE = {
+      "Mythic Plunder":     '<span class="badge badge-gold">Mythic Plunder</span>',
+      "Castle Crashers GE": '<span class="badge badge-blue">Castle Crashers GE</span>',
+      "General":            '<span class="badge badge-muted">General</span>',
+    };
+
+    function handleFile(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        pendingFile = { dataUrl: e.target.result, type: file.type, name: file.name };
+        showPreview(pendingFile);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function showPreview(f) {
+      const preview = document.getElementById("uploadPreview");
+      const isImage = f.type?.startsWith("image/");
+      preview.style.display = "flex";
+      preview.innerHTML = isImage
+        ? `<img src="${f.dataUrl}" alt="preview"/><span class="up-name">${f.name}</span><span class="up-remove" onclick="clearFile()">Remove</span>`
+        : `<span style="font-size:1.4rem">📄</span><span class="up-name">${f.name}</span><span class="up-remove" onclick="clearFile()">Remove</span>`;
+    }
+
+    function clearFile() {
+      pendingFile = null;
+      document.getElementById("existingAttachment").value = "";
+      document.getElementById("uploadPreview").style.display = "none";
+      document.getElementById("uploadPreview").innerHTML = "";
+      document.getElementById("fileInput").value = "";
+    }
+
+    const ua = document.getElementById("uploadArea");
+    ua.addEventListener("dragover",  e => { e.preventDefault(); ua.classList.add("dragover"); });
+    ua.addEventListener("dragleave", () => ua.classList.remove("dragover"));
+    ua.addEventListener("drop", e => {
+      e.preventDefault(); ua.classList.remove("dragover");
+      const file = e.dataTransfer.files[0];
+      if (file) handleFile(file);
+    });
+
+    async function fetchItems() {
+      const { data, error } = await sb
+        .from("content_items")
+        .select("*")
+        .eq("section", SECTION)
+        .order("date", { ascending: false });
+
+      if (error) { console.error(error); return []; }
+      return data || [];
+    }
+
+    function escapeQuotes(s) { return String(s).replace(/'/g, "\\'"); }
+
+    function getCategoriesFromItems(items) {
+      const cats = items.map(x => x.category).filter(Boolean);
+      return ["All", ...new Set(cats)];
+    }
+
+    function renderFilters(items) {
+      const categories = getCategoriesFromItems(items);
+      document.getElementById("filterBar").innerHTML = categories.map(c =>
+        `<button class="filter-btn ${c===activeFilter?'active':''}" onclick="setFilter('${escapeQuotes(c)}')">${c}</button>`
+      ).join("");
+    }
+
+    function setFilter(cat) {
+      activeFilter = cat;
+      renderFilters(currentItems);
+      renderItems();
+    }
+
+    function attachmentThumb(att) {
+      if (!att) return "";
+      if (att.type?.startsWith("image/"))
+        return `<img src="${att.dataUrl}" class="guide-thumb" alt="attachment"/>`;
+      return `<a href="${att.dataUrl}" download="${att.name}" class="guide-pdf-link">📄 ${att.name}</a>`;
+    }
+
+    function renderItems() {
+      const canEdit = isAuthed();
+      const items = currentItems.filter(x => activeFilter==="All" || x.category===activeFilter);
+
+      document.getElementById("itemsGrid").innerHTML = items.length
+        ? items.map(it => `
+          <div class="card guide-card">
+            ${CAT_BADGE[it.category] || `<span class="badge badge-muted">${it.category}</span>`}
+            ${it.attachment ? attachmentThumb(it.attachment) : ""}
+            <h3>${it.title}</h3>
+            <p>${it.body}</p>
+            <div class="guide-meta">By <strong style="color:var(--text)">${it.author}</strong> · ${it.date}</div>
+            <div class="guide-actions">
+              <button class="btn btn-gold" style="padding:.35rem .8rem;font-size:.72rem" onclick="viewRule(${it.id})">Read</button>
+
+              ${canEdit ? `
+                <button class="btn btn-ghost"  style="padding:.35rem .8rem;font-size:.72rem" onclick="editRule(${it.id})">Edit</button>
+                <button class="btn btn-danger" style="padding:.35rem .8rem;font-size:.72rem" onclick="deleteRule(${it.id})">Delete</button>
+              ` : ``}
+            </div>
+          </div>`).join("")
+        : `<div style="color:var(--muted);font-size:.9rem">No rules found.</div>`;
+    }
+
+    function viewRule(id) {
+      const it = currentItems.find(x => x.id === id);
+      if (!it) return;
+
+      document.getElementById("viewCategory").textContent = it.category;
+      document.getElementById("viewTitle").textContent    = it.title;
+      document.getElementById("viewMeta").textContent     = `By ${it.author} · ${it.date}`;
+      document.getElementById("viewBody").textContent     = it.body;
+
+      const attEl = document.getElementById("viewAttachment");
+      if (it.attachment) {
+        if (it.attachment.type?.startsWith("image/")) {
+          attEl.innerHTML = `<img src="${it.attachment.dataUrl}" style="max-width:100%;border-radius:4px;border:1px solid var(--border)" alt="attachment"/>`;
+        } else {
+          attEl.innerHTML = `<a href="${it.attachment.dataUrl}" download="${it.attachment.name}" class="guide-pdf-link">📄 Download ${it.attachment.name}</a>`;
+        }
+      } else {
+        attEl.innerHTML = "";
+      }
+
+      openModal("viewModal");
+    }
+
+    function openRulesModal() {
+      if (!requireAuthOrAlert()) return;
+      openModal("rulesModal");
+    }
+
+    function editRule(id) {
+      if (!requireAuthOrAlert()) return;
+
+      const it = currentItems.find(x => x.id === id);
+      if (!it) return;
+
+      document.getElementById("editRulesId").value = it.id;
+      document.getElementById("rulesTitle").value = it.title;
+      document.getElementById("rulesCategory").value = it.category;
+      document.getElementById("rulesBody").value = it.body;
+      document.getElementById("rulesAuthor").value = it.author;
+
+      document.getElementById("rulesModalTitle").textContent = "Edit Rule";
+
+      if (it.attachment) {
+        document.getElementById("existingAttachment").value = "1";
+        pendingFile = it.attachment;
+        showPreview(it.attachment);
+      } else {
+        clearFile();
+      }
+
+      openModal("rulesModal");
+    }
+
+    async function deleteRule(id) {
+      if (!requireAuthOrAlert()) return;
+      if (!confirm("Delete this rule?")) return;
+
+      const { error } = await sb.from("content_items").delete().eq("id", id);
+      if (error) { console.error(error); alert("Error deleting rule."); return; }
+
+      await loadAndRender();
+    }
+
+    async function saveRules() {
+      if (!requireAuthOrAlert()) return;
+
+      const id = document.getElementById("editRulesId").value;
+
+      let attachment = null;
+      if (pendingFile) {
+        attachment = pendingFile;
+      } else if (id && document.getElementById("existingAttachment").value) {
+        const existing = currentItems.find(x => x.id === Number(id));
+        attachment = existing?.attachment || null;
+      }
+
+      const entry = {
+        section:  SECTION,
+        title:    document.getElementById("rulesTitle").value.trim() || "Untitled",
+        category: document.getElementById("rulesCategory").value,
+        body:     document.getElementById("rulesBody").value.trim() || "",
+        author:   document.getElementById("rulesAuthor").value,
+        date:     new Date().toISOString().split("T")[0],
+        attachment,
+      };
+
+      if (id) entry.id = Number(id);
+
+      const { error } = await sb.from("content_items").upsert(entry);
+      if (error) { console.error(error); alert("Error saving rule."); return; }
+
+      closeModal("rulesModal");
+      resetRulesForm();
+      await loadAndRender();
+    }
+
+    function resetRulesForm() {
+      document.getElementById("editRulesId").value = "";
+      document.getElementById("rulesTitle").value = "";
+      document.getElementById("rulesBody").value = "";
+      document.getElementById("rulesAuthor").value = "Pingwing";
+      document.getElementById("rulesCategory").value = "Mythic Plunder";
+      document.getElementById("rulesModalTitle").textContent = "New Rule";
+      clearFile();
+    }
+
+    ["rulesModal", "viewModal"].forEach(id =>
+      document.getElementById(id).addEventListener("click", e => {
+        if (e.target.id === id) {
+          closeModal(id);
+          if (id === "rulesModal") resetRulesForm();
+        }
+      })
+    );
+
+    async function loadAndRender() {
+      currentItems = await fetchItems();
+      renderFilters(currentItems);
+      renderItems();
+      applyAuthUI();
+    }
+
+    loadAndRender();
+  </script>
+</body>
+</html>
