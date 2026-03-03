@@ -88,17 +88,18 @@ function showToast(message,type,durationMs){
 
 // ============================================================
 const CONFIG = {
-  guildName: localStorage.getItem("nato_guildName") || "NATO [GBR]",
+  guildName: "NATO [GBR]",
   pages: [
-    { label: "Dashboard",         href: "index.html"     },
-    { label: "Pinboard",          href: "pinboard.html"  },
-    { label: "Guides",            href: "guides.html"    },
-    { label: "Influence Tracker", href: "influence.html" },
-    { label: "Member Roster",     href: "roster.html"    },
-    { label: "Events", href: "events.html" },
-    { label: "Relic",  href: "relic.html"  },
-    { label: "Heroes", href: "heroes.html" },
-    { label: "Rules",  href: "rules.html"  }
+    { label: "Pinboard", href: "pinboard.html" },
+    { label: "Guides",   href: "guides.html"   },
+    { label: "Events",   href: "events.html"   },
+    { label: "Relic",    href: "relic.html"    },
+    { label: "Heroes",   href: "heroes.html"   },
+    { label: "Rules",    href: "rules.html"    },
+
+    // Only for logged-in users:
+    { label: "Influence Tracker", href: "influence.html", requiresAuth: true },
+    { label: "Member Roster",     href: "roster.html",    requiresAuth: true },
   ]
 };
 
@@ -115,23 +116,13 @@ function buildNav(currentPage) {
   const authed = isAuthed();
 
   const ul = nav.querySelector("ul");
-  if (ul) {
-    ul.innerHTML = CONFIG.pages
-      .filter(p => {
-        // Hide these pages if not logged in
-        if (!authed && (
-          p.href === "influence.html" ||
-          p.href === "roster.html"
-        )) return false;
+  const visiblePages = CONFIG.pages.filter(p => !p.requiresAuth || authed);
 
-        return true;
-      })
-      .map(p => {
-        const active = currentPage === p.href ? ' class="active"' : '';
-        return `<li><a href="${p.href}"${active}>${p.label}</a></li>`;
-      })
-      .join("");
-  }
+  ul.innerHTML = visiblePages.map(p => {
+    const active = currentPage === p.href ? ' class="active"' : '';
+    return `<li><a href="${p.href}"${active}>${p.label}</a></li>`;
+  }).join("");
+}
 
   // Logout button
   let btn = nav.querySelector(".nav-logout");
