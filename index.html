@@ -76,6 +76,10 @@
     </div>
 
     <div class="stat-grid" id="statGrid" style="margin-bottom:2rem"></div>
+    <div class="card" id="leaderCard" style="margin-bottom:2rem; display:none">
+      <div class="page-label">Leadership</div>
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.6rem" id="leaderNames"></div>
+    </div>
 
     <!-- Announcement board -->
     <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem">
@@ -151,7 +155,7 @@
       lob.style.display = a ? "" : "none";
       buildNav("index.html");
       applyAuthUI();
-      renderDash();
+      await renderDash();
     }
   
     lb.addEventListener("click", () => {
@@ -169,53 +173,54 @@
   
     pw.addEventListener("keydown", (e) => { if (e.key === "Enter") lb.click(); });
     lob.addEventListener("click", () => logout());
-  
-    function renderDash() {
-      const canEdit = isAuthed();
-  
-      const members  = DB.get("members");
-      const pins     = DB.get("pins");
-      const guides   = DB.get("guides");
-      const warnings = members.reduce((a,m) => a+(m.warnings?.mythic||0)+(m.warnings?.castle||0), 0);
-  
-      document.getElementById("statGrid").innerHTML = `
-        <div class="stat-card"><div class="s-label">Members</div><div class="s-value">${members.length}</div></div>
-        <div class="stat-card"><div class="s-label">Announcements</div><div class="s-value">${pins.length}</div></div>
-        <div class="stat-card"><div class="s-label">Guides</div><div class="s-value">${guides.length}</div></div>
-        <div class="stat-card"><div class="s-label">Total Warnings</div><div class="s-value" style="color:var(--red)">${warnings}</div></div>
-      `;
-  
-      const sorted  = pins.slice().sort((a,b) => (b.date||"").localeCompare(a.date||""));
-      const latest3 = sorted.slice(0, 3);
-  
-      if (!latest3.length) {
-        document.getElementById("noPins").style.display = "block";
-        document.getElementById("featuredPin").innerHTML = "";
-        document.getElementById("recentHeading").style.display = "none";
-        document.getElementById("recentPins").innerHTML = "";
+
+    
+      async function renderDash() {
+      // PINS / GUIDES kannst du lassen wie bisher (je nachdem ob Supabase oder local)
+      // Member kommen jetzt aus Supabase:
+      const { data: members, error } = await sb
+        .from("members")
+        .select("name, rank");
+    
+      if (error) {
+        console.error(error);
+        showToast("Members konnten nicht geladen werden.", "error");
         return;
       }
-  
-      document.getElementById("noPins").style.display = "none";
-      document.getElementById("featuredPin").innerHTML = "";
-      document.getElementById("recentHeading").style.display = "block";
-      document.getElementById("recentHeading").textContent = "Latest 3";
-  
-      document.getElementById("recentPins").innerHTML = latest3.map(p => `
-        <div class="pin-list-item">
-          <div style="margin-top:.15rem;flex-shrink:0">${PRIORITY_BADGE[p.priority]||PRIORITY_BADGE.normal}</div>
-          <div style="flex:1">
-            <div class="pli-title">${p.title}</div>
-            <div class="pli-meta">${p.author} · ${p.date}</div>
-          </div>
-  
-          ${canEdit ? `
-            <div style="display:flex;gap:.4rem;flex-shrink:0">
-              <button class="btn btn-ghost"  style="padding:.28rem .6rem;font-size:.68rem" onclick="editPin(${p.id})">Edit</button>
-              <button class="btn btn-danger" style="padding:.28rem .6rem;font-size:.68rem" onclick="deletePin(${p.id})">✕</button>
-            </div>` : ``}
-        </div>
-      `).join("");
+    
+      const totalMembers = (members || []).length;
+    
+      // R5 + R4
+      const leaders = (members || []).filter(m => (m.rank || "").toLowerCase() === "r5" || (m.rank || "").toLowerCase() === "r4");
+      const leaderCount = leaders.length;
+    
+      // Namenliste
+      const leaderCard = document.getElementById("leaderCard");
+      const leaderNames = document.getElementById("leaderNames");
+    
+      if (leaderCount > 0) {
+        leaderCard.style.display = "";
+        leaderNames.innerHTML = leaders
+          .sort((a,b) => (a.rank === b.rank ? a.name.localeCompare(b.name) : (a.rank === "r5" ? -1 : 1)))
+          .map(l => `<span class="badge ${l.rank === "r5" ? "badge-gold" : "badge-blue"}">${l.name}</span>`)
+          .join("");
+      } else {
+        leaderCard.style.display = "none";
+        leaderNames.innerHTML = "";
+      }
+    
+      // Hier deine anderen Zahlen (Announcements/Guides) wie gehabt:
+      const pins   = await dbList("pins",   { orderBy: "date", ascending: false });   // falls du dbList nutzt
+      const guides = await dbList("guides", { orderBy: "date", ascending: false });   // falls du dbList nutzt
+    
+      // Wenn pins/guides bei dir noch anders kommen, ersetze diese 2 Zeilen durch deinen bestehenden Code.
+    
+      document.getElementById("statGrid").innerHTML = `
+        <div class="stat-card"><div class="s-label">Members</div><div class="s-value">${totalMembers}</div></div>
+        <div class="stat-card"><div class="s-label">R5 / R4</div><div class="s-value">${leaderCount}</div></div>
+        <div class="stat-card"><div class="s-label">Announcements</div><div class="s-value">${(pins||[]).length}</div></div>
+        <div class="stat-card"><div class="s-label">Guides</div><div class="s-value">${(guides||[]).length}</div></div>
+      `;
     }
   
     function savePin() {
@@ -243,7 +248,7 @@
       DB.set("pins", pins);
       closeModal("pinModal");
       resetPinForm();
-      renderDash();
+      await renderDash();
     }
   
     function editPin(id) {
@@ -266,7 +271,7 @@
   
       if (!confirm("Delete this announcement?")) return;
       DB.set("pins", DB.get("pins").filter(p => p.id !== id));
-      renderDash();
+      await renderDash();
     }
   
     function resetPinForm() {
