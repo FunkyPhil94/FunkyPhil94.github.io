@@ -51,27 +51,30 @@
   <nav id="mainNav"><a class="nav-logo" href="index.html">NATO [GBR]</a><ul></ul></nav>
 
   <div class="page fade-up">
+
+    <!-- LOGIN CARD -->
     <div class="card" id="loginCard" style="margin-bottom:1.2rem">
-  <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
-    <div>
-      <div style="font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin-bottom:.35rem">
-        Admin Unlock
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+        <div>
+          <div style="font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin-bottom:.35rem">
+            Admin Unlock
+          </div>
+          <div style="font-size:.85rem;color:var(--muted);line-height:1.6">
+            Enter password to unlock edit/create functions on this portal.
+          </div>
+        </div>
+
+        <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
+          <input id="pwInput" type="password" placeholder="Password"
+            style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;
+                   color:var(--text);padding:.6rem .9rem;outline:none;min-width:220px"/>
+          <button class="btn btn-gold" id="loginBtn" type="button">Unlock</button>
+          <button class="btn btn-ghost" id="logoutBtn" type="button" style="display:none">Logout</button>
+        </div>
       </div>
-      <div style="font-size:.85rem;color:var(--muted);line-height:1.6">
-        Enter password to unlock edit/create functions on this portal.
-      </div>
+      <div id="loginMsg" class="login-status"></div>
     </div>
 
-    <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
-      <input id="pwInput" type="password" placeholder="Password"
-        style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;
-               color:var(--text);padding:.6rem .9rem;outline:none;min-width:220px"/>
-      <button class="btn btn-gold" id="loginBtn" type="button">Unlock</button>
-      <button class="btn btn-ghost" id="logoutBtn" type="button" style="display:none">Logout</button>
-    </div>
-  </div>
-  <div id="loginMsg" class="login-status"></div>
-</div>
     <div class="stat-grid" id="statGrid" style="margin-bottom:2rem"></div>
 
     <!-- Announcement board -->
@@ -81,7 +84,9 @@
         <div class="page-title">Announcements</div>
         <div class="page-divider"></div>
       </div>
-      <button class="btn btn-gold" style="padding:.5rem 1.1rem;font-size:.78rem" onclick="openModal('pinModal')">+ New Post</button>
+      <button class="btn btn-gold" style="padding:.5rem 1.1rem;font-size:.78rem"
+              data-requires-auth="true"
+              onclick="openModal('pinModal')">+ New Post</button>
     </div>
 
     <div id="featuredPin"></div>
@@ -94,7 +99,7 @@
     <div class="quicklinks">
       <a href="guides.html"    class="quicklink"><span class="ql-icon">📖</span><span class="ql-label">Guides</span></a>
       <a href="influence.html" class="quicklink"><span class="ql-icon">📊</span><span class="ql-label">Influence Tracker</span></a>
-      <a href="roster.html"   class="quicklink"><span class="ql-icon">🛡</span><span class="ql-label">Member Roster</span></a>
+      <a href="roster.html"    class="quicklink"><span class="ql-icon">🛡</span><span class="ql-label">Member Roster</span></a>
     </div>
   </div>
 
@@ -107,7 +112,11 @@
       <div class="form-group"><label>Body</label><textarea id="pinBody" rows="5" placeholder="Write your announcement here…"></textarea></div>
       <div class="form-group">
         <label>Priority</label>
-        <select id="pinPriority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select>
+        <select id="pinPriority">
+          <option value="normal">Normal</option>
+          <option value="high">High</option>
+          <option value="urgent">Urgent</option>
+        </select>
       </div>
       <div class="form-group"><label>Author</label><input type="text" id="pinAuthor" placeholder="Your name"/></div>
       <div class="modal-actions">
@@ -120,94 +129,68 @@
   <script src="script.js"></script>
   <script>
     buildNav("index.html");
-
     applyAuthUI();
-initLoginBox();
+    initLoginBox();
 
-function initLoginBox() {
-  const msg = document.getElementById("loginMsg");
-  const pw  = document.getElementById("pwInput");
-  const lb  = document.getElementById("loginBtn");
-  const lob = document.getElementById("logoutBtn");
+    function initLoginBox() {
+      const msg = document.getElementById("loginMsg");
+      const pw  = document.getElementById("pwInput");
+      const lb  = document.getElementById("loginBtn");
+      const lob = document.getElementById("logoutBtn");
 
-  const showMessage = (text, type="success", autoHide=true) => {
-    msg.textContent = text;
-    msg.className = `login-status show ${type}`;
+      const showMessage = (text, type="success", autoHide=true) => {
+        msg.textContent = text;
+        msg.className = `login-status show ${type}`;
+        if (autoHide) setTimeout(() => msg.classList.remove("show"), 3000);
+      };
 
-    if (autoHide) {
-      setTimeout(() => {
+      const refresh = () => {
+        const ok = isAuthed();
+        lb.style.display  = ok ? "none" : "";
+        pw.style.display  = ok ? "none" : "";
+        lob.style.display = ok ? "" : "none";
+        buildNav("index.html");
+        applyAuthUI();
+        renderDash();
+        if (ok) showMessage("✓ Access granted. Admin features unlocked.", "success", false);
+      };
+
+      refresh();
+
+      lb.addEventListener("click", async () => {
         msg.classList.remove("show");
-      }, 3000);
+        msg.textContent = "";
+
+        const val = (pw.value || "").trim();
+        if (!val) {
+          showMessage("Please enter a password.", "error");
+          return;
+        }
+
+        lb.disabled = true;
+        lb.textContent = "Checking…";
+        const ok = await loginWithPassword(val);
+        lb.disabled = false;
+        lb.textContent = "Unlock";
+
+        if (!ok) {
+          showMessage("✕ Incorrect password.", "error");
+          pw.value = "";
+          pw.focus();
+          return;
+        }
+
+        pw.value = "";
+        refresh();
+      });
+
+      // Enter to login
+      pw.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") lb.click();
+      });
+
+      lob.addEventListener("click", () => logout());
     }
-  };
-
-  const refresh = () => {
-    const ok = isAuthed();
-
-    lb.style.display  = ok ? "none" : "";
-    pw.style.display  = ok ? "none" : "";
-    lob.style.display = ok ? "" : "none";
-
-    buildNav("index.html");
-    applyAuthUI();
-    renderDash();
-
-    if (ok) {
-      showMessage("✓ Access granted. Admin features unlocked.", "success", false);
-    }
-  };
-
-  refresh();
-
-  lb.addEventListener("click", async () => {
-    msg.classList.remove("show");
-    msg.textContent = "";
-
-    if (!pw.value.trim()) {
-      showMessage("Please enter a password.", "error");
-      return;
-    }
-
-    lb.disabled = true;
-    lb.textContent = "Checking…";
-
-    const ok = await loginWithPassword(pw.value);
-
-    lb.disabled = false;
-    lb.textContent = "Unlock";
-
-    if (!ok) {
-      showMessage("✕ Incorrect password.", "error");
-      pw.value = "";
-      return;
-    }
-
-    pw.value = "";
-    refresh();
-  });
-
-  lob.addEventListener("click", () => {
-    logout();
-  });
-}
-
-  refresh();
-
-  lb.addEventListener("click", async () => {
-    msg.textContent = "Checking…";
-    const ok = await loginWithPassword(pw.value || "");
-    if (!ok) {
-      msg.textContent = "Wrong password.";
-      msg.style.color = "var(--red)";
-      return;
-    }
-    msg.style.color = "var(--green)";
-    pw.value = "";
-    refresh();
-  });
-
-  lob.addEventListener("click", () => logout());
-}
 
     const PRIORITY_BADGE = {
       urgent: '<span class="badge badge-red">Urgent</span>',
@@ -216,6 +199,8 @@ function initLoginBox() {
     };
 
     function renderDash() {
+      const canEdit = isAuthed();
+
       const members  = DB.get("members");
       const pins     = DB.get("pins");
       const guides   = DB.get("guides");
@@ -246,10 +231,11 @@ function initLoginBox() {
           <div style="display:flex;align-items:center;gap:.7rem;margin-bottom:.7rem;flex-wrap:wrap">
             ${PRIORITY_BADGE[latest.priority]||PRIORITY_BADGE.normal}
             <span class="pin-title" style="flex:1">${latest.title}</span>
-            <div style="display:flex;gap:.4rem">
-              <button class="btn btn-ghost"  style="padding:.3rem .7rem;font-size:.7rem" onclick="editPin(${latest.id})">Edit</button>
-              <button class="btn btn-danger" style="padding:.3rem .7rem;font-size:.7rem" onclick="deletePin(${latest.id})">Delete</button>
-            </div>
+            ${canEdit ? `
+              <div style="display:flex;gap:.4rem">
+                <button class="btn btn-ghost"  style="padding:.3rem .7rem;font-size:.7rem" onclick="editPin(${latest.id})">Edit</button>
+                <button class="btn btn-danger" style="padding:.3rem .7rem;font-size:.7rem" onclick="deletePin(${latest.id})">Delete</button>
+              </div>` : ``}
           </div>
           <div class="pin-body">${latest.body}</div>
           <div class="pin-meta">Posted by <strong style="color:var(--text)">${latest.author}</strong> · ${latest.date}</div>
@@ -264,10 +250,11 @@ function initLoginBox() {
               <div class="pli-title">${p.title}</div>
               <div class="pli-meta">${p.author} · ${p.date}</div>
             </div>
-            <div style="display:flex;gap:.4rem;flex-shrink:0">
-              <button class="btn btn-ghost"  style="padding:.28rem .6rem;font-size:.68rem" onclick="editPin(${p.id})">Edit</button>
-              <button class="btn btn-danger" style="padding:.28rem .6rem;font-size:.68rem" onclick="deletePin(${p.id})">✕</button>
-            </div>
+            ${canEdit ? `
+              <div style="display:flex;gap:.4rem;flex-shrink:0">
+                <button class="btn btn-ghost"  style="padding:.28rem .6rem;font-size:.68rem" onclick="editPin(${p.id})">Edit</button>
+                <button class="btn btn-danger" style="padding:.28rem .6rem;font-size:.68rem" onclick="deletePin(${p.id})">✕</button>
+              </div>` : ``}
           </div>`).join("");
       } else {
         document.getElementById("recentHeading").style.display = "none";
@@ -276,6 +263,8 @@ function initLoginBox() {
     }
 
     function savePin() {
+      if (!requireAuthOrAlert()) return;
+
       const pins = DB.get("pins");
       const id   = document.getElementById("editPinId").value;
       const entry = {
@@ -286,14 +275,26 @@ function initLoginBox() {
         author:   document.getElementById("pinAuthor").value.trim() || "Unknown",
         date:     today(),
       };
-      if (id) { const i = pins.findIndex(p => p.id===Number(id)); pins[i]=entry; }
-      else    { pins.push(entry); }
+
+      if (id) {
+        const i = pins.findIndex(p => p.id === Number(id));
+        pins[i] = entry;
+      } else {
+        pins.push(entry);
+      }
+
       DB.set("pins", pins);
-      closeModal("pinModal"); resetPinForm(); renderDash();
+      closeModal("pinModal");
+      resetPinForm();
+      renderDash();
     }
 
     function editPin(id) {
-      const p = DB.get("pins").find(x => x.id===id);
+      if (!requireAuthOrAlert()) return;
+
+      const p = DB.get("pins").find(x => x.id === id);
+      if (!p) return;
+
       document.getElementById("editPinId").value   = p.id;
       document.getElementById("pinTitle").value    = p.title;
       document.getElementById("pinBody").value     = p.body;
@@ -304,19 +305,24 @@ function initLoginBox() {
     }
 
     function deletePin(id) {
+      if (!requireAuthOrAlert()) return;
+
       if (!confirm("Delete this announcement?")) return;
-      DB.set("pins", DB.get("pins").filter(p => p.id!==id));
+      DB.set("pins", DB.get("pins").filter(p => p.id !== id));
       renderDash();
     }
 
     function resetPinForm() {
-      ["editPinId","pinTitle","pinBody","pinAuthor"].forEach(i => document.getElementById(i).value="");
+      ["editPinId","pinTitle","pinBody","pinAuthor"].forEach(i => document.getElementById(i).value = "");
       document.getElementById("pinPriority").value = "normal";
       document.getElementById("pinModalTitle").textContent = "New Announcement";
     }
 
     document.getElementById("pinModal").addEventListener("click", e => {
-      if (e.target.id==="pinModal") { closeModal("pinModal"); resetPinForm(); }
+      if (e.target.id === "pinModal") {
+        closeModal("pinModal");
+        resetPinForm();
+      }
     });
 
     renderDash();
