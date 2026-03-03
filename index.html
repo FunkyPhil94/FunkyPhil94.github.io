@@ -130,81 +130,45 @@
   <script>
     buildNav("index.html");
     applyAuthUI();
-    initLoginBox();
+    renderDash();
+    // Login-Sichtbarkeit initial setzen
+    if (isAuthed()) {
+      document.getElementById("loginBtn").style.display  = "none";
+      document.getElementById("pwInput").style.display   = "none";
+      document.getElementById("logoutBtn").style.display = "";
+    }
 
-    function initLoginBox() {
-      const msg = document.getElementById("loginMsg");
-      const pw  = document.getElementById("pwInput");
-      const lb  = document.getElementById("loginBtn");
-      const lob = document.getElementById("logoutBtn");
-
-      const showMessage = (text, type="success", autoHide=true) => {
-        msg.textContent = text;
-        msg.className = `login-status show ${type}`;
-        if (autoHide) setTimeout(() => msg.classList.remove("show"), 3000);
-      };
-
-      const refresh = () => {
-        const ok = isAuthed();
-        lb.style.display  = ok ? "none" : "";
-        pw.style.display  = ok ? "none" : "";
-        lob.style.display = ok ? "" : "none";
-        buildNav("index.html");
-        applyAuthUI();
-        renderDash();
-        if (ok) showMessage("✓ Access granted. Admin features unlocked.", "success", false);
-      };
-
-      refresh();
-
-lb.addEventListener("click", async () => {
+lb.addEventListener("click", () => {
   const val = (pw.value || "").trim();
   if (!val) {
-    msg.textContent = "⚠ Bitte Passwort eingeben.";
-    msg.className = "login-status show error";
+    showToast("Bitte Passwort eingeben.", "error");
     return;
   }
 
-  lb.disabled = true;
-  lb.textContent = "Prüfe…";
-  msg.className = "login-status"; // verstecken während Prüfung
-
-  let ok = false;
-  try { ok = await loginWithPassword(val); }
-  catch(e) { console.error(e); }
-
-  lb.disabled = false;
-  lb.textContent = "Unlock";
+  const ok = loginWithPassword(val);   // kein await mehr noetig!
+  pw.value = "";
 
   if (!ok) {
-    msg.textContent = "✕ Falsches Passwort.";
-    msg.className = "login-status show error";
-    pw.value = "";
+    showToast("Falsches Passwort.", "error");
     pw.focus();
     return;
   }
 
-  // Erfolgreich — zuerst Meldung zeigen, DANN UI umbauen
-  msg.textContent = "✓ Eingeloggt! Admin-Funktionen freigeschaltet.";
-  msg.className = "login-status show success";
-
-  pw.value = "";
+  // Erfolgreich eingeloggt
   lb.style.display  = "none";
   pw.style.display  = "none";
   lob.style.display = "";
   buildNav("index.html");
   applyAuthUI();
   renderDash();
-  // refresh() NICHT aufrufen — das würde showMessage überschreiben
+  showToast("Eingeloggt! Admin-Funktionen freigeschaltet.", "success", 4000);
 });
 
-      // Enter to login
-      pw.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") lb.click();
-      });
+pw.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") lb.click();
+});
 
-      lob.addEventListener("click", () => logout());
-    }
+lob.addEventListener("click", () => logout());
 
     const PRIORITY_BADGE = {
       urgent: '<span class="badge badge-red">Urgent</span>',
