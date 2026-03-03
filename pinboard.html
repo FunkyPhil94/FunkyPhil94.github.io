@@ -74,67 +74,82 @@
   if (!requireAuthOrAlert()) return;
   openModal("pinModal");
 }
-    function render() {
+    async function render() {
     const canEdit = isAuthed();
-    const pins = DB.get("pins").slice().reverse();
     const container = document.getElementById("pinList");
+    if (!container) return;
+  
+    const { data: pins, error } = await sb
+      .from("pins")
+      .select("*")
+      .order("date", { ascending: false });
+  
+    if (error) {
+      console.error("Supabase error:", error);
+      container.innerHTML = `<div style="color:red">Error loading pins.</div>`;
+      return;
+    }
   
     container.innerHTML = pins.length
       ? pins.map(p => `
-        <div class="card" style="margin-bottom:1rem">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
-            <div style="flex:1">
-              <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.4rem">
-                ${PRIORITY_BADGE[p.priority] || PRIORITY_BADGE.normal}
-                <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:1.1rem">
-                  ${p.title}
+          <div class="card" style="margin-bottom:1rem">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+              <div style="flex:1">
+                <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.4rem">
+                  ${PRIORITY_BADGE[p.priority] || PRIORITY_BADGE.normal}
+                  <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:1.1rem">
+                    ${p.title}
+                  </div>
+                </div>
+  
+                <div class="pin-body" style="white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;">
+                  ${p.body}
+                </div>
+  
+                <div style="margin-top:.8rem;font-size:.75rem;color:var(--muted)">
+                  Posted by ${p.author} · ${p.date}
                 </div>
               </div>
   
-              <div class="pin-body" style="white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;">
-                ${p.body}
-              </div>
-  
-              <div style="margin-top:.8rem;font-size:.75rem;color:var(--muted)">
-                Posted by ${p.author} · ${p.date}
-              </div>
+              ${canEdit ? `
+                <div style="display:flex;gap:.5rem">
+                  <button class="btn btn-ghost"
+                          style="padding:.35rem .8rem;font-size:.72rem"
+                          onclick="editPin(${p.id})">Edit</button>
+                  <button class="btn btn-danger"
+                          style="padding:.35rem .8rem;font-size:.72rem"
+                          onclick="deletePin(${p.id})">Delete</button>
+                </div>
+              ` : ``}
             </div>
-  
-            ${canEdit ? `
-              <div style="display:flex;gap:.5rem">
-                <button class="btn btn-ghost"
-                        style="padding:.35rem .8rem;font-size:.72rem"
-                        onclick="editPin(${p.id})">Edit</button>
-                <button class="btn btn-danger"
-                        style="padding:.35rem .8rem;font-size:.72rem"
-                        onclick="deletePin(${p.id})">Delete</button>
-              </div>
-            ` : ``}
           </div>
-        </div>
-      `).join("")
+        `).join("")
       : `<div style="color:var(--muted);font-size:.9rem">No announcements yet.</div>`;
   }
 
-    function savePin() {
+    async function savePin() {
       if (!requireAuthOrAlert()) return;
-      const pins  = DB.get("pins");
-      const id    = document.getElementById("editPinId").value;
+    
+      const id = document.getElementById("editPinId").value;
+    
       const entry = {
-        id:       id ? Number(id) : nextId(pins),
-        title:    document.getElementById("pinTitle").value.trim()    || "Untitled",
-        body:     document.getElementById("pinBody").value.trim()     || "",
+        title:    document.getElementById("pinTitle").value.trim() || "Untitled",
+        body:     document.getElementById("pinBody").value.trim() || "",
         priority: document.getElementById("pinPriority").value,
         author:   document.getElementById("pinAuthor").value,
-        date:     today(),
+        date:     new Date().toISOString().split("T")[0]
       };
-      if (id) {
-        const idx = pins.findIndex(p => p.id === Number(id));
-        pins[idx] = entry;
-      } else {
-        pins.push(entry);
+    
+      if (id) entry.id = Number(id);
+    
+      const { error } = await sb.from("pins").upsert(entry);
+    
+      if (error) {
+        console.error(error);
+        alert("Error saving pin.");
+        return;
       }
-      DB.set("pins", pins);
+    
       closeModal("pinModal");
       resetPinForm();
       render();
@@ -142,20 +157,35 @@
 
     function editPin(id) {
       if (!requireAuthOrAlert()) return;
-      const p = DB.get("pins").find(x => x.id === id);
-      document.getElementById("editPinId").value       = p.id;
-      document.getElementById("pinTitle").value        = p.title;
-      document.getElementById("pinBody").value         = p.body;
-      document.getElementById("pinPriority").value     = p.priority;
-      document.getElementById("pinAuthor").value       = p.author;
+    
+      const p = currentPins.find(x => x.id === id);
+      if (!p) return;
+    
+      document.getElementById("editPinId").value = p.id;
+      document.getElementById("pinTitle").value = p.title;
+      document.getElementById("pinBody").value = p.body;
+      document.getElementById("pinPriority").value = p.priority;
+      document.getElementById("pinAuthor").value = p.author;
+    
       document.getElementById("pinModalTitle").textContent = "Edit Announcement";
       openModal("pinModal");
     }
 
-    function deletePin(id) {
+    async function deletePin(id) {
       if (!requireAuthOrAlert()) return;
       if (!confirm("Delete this announcement?")) return;
-      DB.set("pins", DB.get("pins").filter(p => p.id !== id));
+    
+      const { error } = await sb
+        .from("pins")
+        .delete()
+        .eq("id", id);
+    
+      if (error) {
+        console.error(error);
+        alert("Error deleting pin.");
+        return;
+      }
+    
       render();
     }
 
