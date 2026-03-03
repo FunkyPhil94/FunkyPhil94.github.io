@@ -51,6 +51,27 @@
   <nav id="mainNav"><a class="nav-logo" href="index.html">NATO [GBR]</a><ul></ul></nav>
 
   <div class="page fade-up">
+    <div class="card" id="loginCard" style="margin-bottom:1.2rem">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+    <div>
+      <div style="font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin-bottom:.35rem">
+        Admin Unlock
+      </div>
+      <div style="font-size:.85rem;color:var(--muted);line-height:1.6">
+        Enter password to unlock edit/create functions on this portal.
+      </div>
+    </div>
+
+    <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
+      <input id="pwInput" type="password" placeholder="Password"
+        style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;
+               color:var(--text);padding:.6rem .9rem;outline:none;min-width:220px"/>
+      <button class="btn btn-gold" id="loginBtn" type="button">Unlock</button>
+      <button class="btn btn-ghost" id="logoutBtn" type="button" style="display:none">Logout</button>
+    </div>
+  </div>
+  <div id="loginMsg" style="margin-top:.7rem;font-size:.8rem;color:var(--muted)"></div>
+</div>
     <div class="stat-grid" id="statGrid" style="margin-bottom:2rem"></div>
 
     <!-- Announcement board -->
@@ -99,6 +120,45 @@
   <script src="script.js"></script>
   <script>
     buildNav("index.html");
+
+    applyAuthUI();
+initLoginBox();
+
+function initLoginBox() {
+  const msg = document.getElementById("loginMsg");
+  const pw  = document.getElementById("pwInput");
+  const lb  = document.getElementById("loginBtn");
+  const lob = document.getElementById("logoutBtn");
+
+  const refresh = () => {
+    const ok = isAuthed();
+    lb.style.display  = ok ? "none" : "";
+    pw.style.display  = ok ? "none" : "";
+    lob.style.display = ok ? "" : "none";
+    msg.textContent   = ok ? "Unlocked ✓" : "";
+    buildNav("index.html"); // update nav logout
+    applyAuthUI();
+    // also rerender dashboard so buttons/templates can react
+    renderDash();
+  };
+
+  refresh();
+
+  lb.addEventListener("click", async () => {
+    msg.textContent = "Checking…";
+    const ok = await loginWithPassword(pw.value || "");
+    if (!ok) {
+      msg.textContent = "Wrong password.";
+      msg.style.color = "var(--red)";
+      return;
+    }
+    msg.style.color = "var(--green)";
+    pw.value = "";
+    refresh();
+  });
+
+  lob.addEventListener("click", () => logout());
+}
 
     const PRIORITY_BADGE = {
       urgent: '<span class="badge badge-red">Urgent</span>',
