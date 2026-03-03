@@ -68,6 +68,9 @@ const AUTHORS = ["Pingwing", "Finnegan", "MonkeyGod", "GettoBird", "Kait_See", "
 // Attachments bucket (Supabase Storage)
 const STORAGE_BUCKET = "attachments";
 
+// Max attachments per item
+const MAX_ATTACHMENTS = 3;
+
 // ============================================================
 //  TOAST  -  showToast("Text", "success"|"error"|"info", ms)
 // ============================================================
@@ -200,19 +203,8 @@ function buildNav(currentPage) {
 }
 
 // ============================================================
-//  DB HELPERS (Punkt 4)
-//  Pages only define: const TABLE = "events" (etc.)
+//  DB HELPERS
 // ============================================================
-
-/**
- * List rows from a table.
- * @param {string} table
- * @param {object} options
- * @param {string} options.orderBy - column name
- * @param {boolean} options.ascending
- * @param {number|null} options.limit
- * @param {object|null} options.filters - {col: value}
- */
 async function dbList(table, options = {}) {
   if (!requireSupabase()) return [];
 
@@ -240,7 +232,6 @@ async function dbList(table, options = {}) {
   return data || [];
 }
 
-/** Get one row by id */
 async function dbGet(table, id) {
   if (!requireSupabase()) return null;
   const { data, error } = await sb.from(table).select("*").eq("id", id).maybeSingle();
@@ -252,10 +243,6 @@ async function dbGet(table, id) {
   return data || null;
 }
 
-/**
- * Upsert row (insert if no id, update if id).
- * Expects your table has "id" as PK.
- */
 async function dbUpsert(table, row) {
   if (!requireSupabase()) return { ok: false, data: null };
 
@@ -280,10 +267,8 @@ async function dbDelete(table, id) {
 }
 
 // ============================================================
-//  STORAGE HELPERS (Attachments)
-//  Best practice: store file in Storage, save only path/meta in DB.
+//  STORAGE HELPERS (single upload) + MULTI (max 3)
 // ============================================================
-
 function safeFileExt(name = "") {
   const i = name.lastIndexOf(".");
   if (i === -1) return "";
@@ -291,10 +276,8 @@ function safeFileExt(name = "") {
 }
 
 /**
- * Uploads a File to Storage bucket, under a folder per table.
- * @param {string} table - e.g. "guides" | "events" | ...
- * @param {File} file
- * @returns {object|null} { attachment_path, attachment_type, attachment_name }
+ * Upload ONE file, returns meta
+ * { attachment_path, attachment_type, attachment_name }
  */
 async function uploadAttachment(table, file) {
   if (!requireSupabase()) return null;
@@ -303,9 +286,8 @@ async function uploadAttachment(table, file) {
   const ext = safeFileExt(file.name);
   const ts = Date.now();
   const cleanName = (file.name || "file").replace(/[^\w.\-]+/g, "_");
-  const path = `${table}/${ts}-${cleanName}${ext && !cleanName.endsWith("." + ext) ? "" : ""}`;
+  const path = `${table}/${ts}-${cleanName}`;
 
-  // upload
   const { error } = await sb.storage
     .from(STORAGE_BUCKET)
     .upload(path, file, { upsert: true, contentType: file.type });
@@ -318,9 +300,26 @@ async function uploadAttachment(table, file) {
 
   return {
     attachment_path: path,
-    attachment_type: file.type || null,
-    attachment_name: file.name || null,
+    attachment_type: file.type || "",
+    attachment_name: file.name || "",
   };
+}
+
+/**
+ * Upload MULTIPLE files, up to MAX_ATTACHMENTS
+ * returns [{attachment_path, attachment_type, attachment_name}, ...]
+ */
+async function uploadAttachments(table, files, max = MAX_ATTACHMENTS) {
+  if (!requireSupabase()) return [];
+  const list = Array.from(files || []).slice(0, max);
+  const out = [];
+
+  for (const f of list) {
+    const meta = await uploadAttachment(table, f);
+    if (!meta) return [];
+    out.push(meta);
+  }
+  return out;
 }
 
 /** Returns a public URL (bucket must be public) */
@@ -337,18 +336,81 @@ async function deleteAttachmentByPath(path) {
   const { error } = await sb.storage.from(STORAGE_BUCKET).remove([path]);
   if (error) {
     console.warn("[deleteAttachmentByPath]", error);
-    // not fatal
     return false;
   }
   return true;
 }
 
 // ============================================================
-//  HELPERS
+//  ATTACHMENT ARRAY HELPERS (for all "guide-like" pages)
+//  DB columns:
+//   attachment_paths text[]
+//   attachment_types text[]
+//   attachment_names text[]
+// ============================================================
+function attachmentsFromRow(row) {
+  const paths = Array.isArray(row?.attachment_paths) ? row.attachment_paths : [];
+  const types = Array.isArray(row?.attachment_types) ? row.attachment_types : [];
+  const names = Array.isArray(row?.attachment_names) ? row.attachment_names : [];
+
+  return paths.slice(0, MAX_ATTACHMENTS).map((p, i) => ({
+    attachment_path: p,
+    attachment_type: types[i] || "",
+    attachment_name: names[i] || "",
+  }));
+}
+
+function attachmentsToRow(metas) {
+  const m = Array.isArray(metas) ? metas.slice(0, MAX_ATTACHMENTS) : [];
+  return {
+    attachment_paths: m.map(x => x.attachment_path),
+    attachment_types: m.map(x => x.attachment_type || ""),
+    attachment_names: m.map(x => x.attachment_name || ""),
+  };
+}
+
+function attachmentsHtml(row) {
+  const metas = attachmentsFromRow(row);
+  if (!metas.length) return "";
+
+  const imgMeta = metas.find(x => (x.attachment_type || "").startsWith("image/"));
+  let thumb = "";
+  if (imgMeta) {
+    const url = publicUrlForPath(imgMeta.attachment_path);
+    if (url) thumb = `<img src="${url}" class="guide-thumb" alt="attachment"/>`;
+  }
+
+  const links = metas.map(m => {
+    const url = publicUrlForPath(m.attachment_path);
+    if (!url) return "";
+    const name = m.attachment_name || "Attachment";
+    const isImg = (m.attachment_type || "").startsWith("image/");
+    return `<a href="${url}" target="_blank" class="guide-pdf-link">${isImg ? "🖼️" : "📄"} ${name}</a>`;
+  }).filter(Boolean).join(" ");
+
+  return `${thumb}${links ? `<div style="display:flex;gap:.4rem;flex-wrap:wrap;margin:.2rem 0 .1rem">${links}</div>` : ""}`;
+}
+
+function attachmentsViewHtml(row) {
+  const metas = attachmentsFromRow(row);
+  if (!metas.length) return "";
+
+  return metas.map(m => {
+    const url = publicUrlForPath(m.attachment_path);
+    if (!url) return "";
+    const name = m.attachment_name || "Attachment";
+    const isImg = (m.attachment_type || "").startsWith("image/");
+    return isImg
+      ? `<img src="${url}" style="max-width:100%;border-radius:4px;border:1px solid var(--border);margin-top:.6rem" alt="${name}"/>`
+      : `<div style="margin-top:.6rem"><a href="${url}" target="_blank" class="guide-pdf-link">📄 ${name}</a></div>`;
+  }).join("");
+}
+
+// ============================================================
+//  GENERIC HELPERS
 // ============================================================
 function fmt(n) { return Number(n).toLocaleString(); }
 function today() { return new Date().toISOString().split("T")[0]; }
-function nextId(arr) { return arr.length ? Math.max(...arr.map(x => x.id)) + 1 : 1; }
 
 function closeModal(id) { document.getElementById(id)?.classList.remove("open"); }
 function openModal(id) { document.getElementById(id)?.classList.add("open"); }
@@ -359,7 +421,6 @@ function openModal(id) { document.getElementById(id)?.classList.add("open"); }
 (function protectRestrictedPages() {
   const restricted = ["influence.html", "roster.html"];
   const current = location.pathname.split("/").pop();
-
   if (restricted.includes(current) && !isAuthed()) {
     location.href = "index.html";
   }
