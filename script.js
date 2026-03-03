@@ -1,9 +1,95 @@
 // ============================================================
+//  AUTH (simple password gate for GitHub Pages / static sites)
+//  NOTE: Not secure against someone who inspects your source.
+// ============================================================
+const AUTH = {
+  // IMPORTANT:
+  // Put the SHA-256 HEX of your password here (NOT the plain password).
+  // Generate it in the browser console with:
+  // (async()=>{const pw=prompt("PW"); const b=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(pw));
+  // console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""));})()
+  PASSWORD_HASH_HEX: "9bba5c53a0545e0c80184b946153c9f58387e3bd1d4ee35740f29ac2e718b019",
+
+  // How long login stays valid (ms). Default: 12 hours.
+  TTL_MS: 12 * 60 * 60 * 1000,
+
+  // Storage key
+  KEY: "nato_auth",
+};
+
+function nowMs() { return Date.now(); }
+
+function isAuthed() {
+  try {
+    const raw = localStorage.getItem(AUTH.KEY);
+    if (!raw) return false;
+    const obj = JSON.parse(raw);
+    return !!obj && obj.ok === true && typeof obj.until === "number" && obj.until > nowMs();
+  } catch {
+    return false;
+  }
+}
+
+function setAuthed() {
+  localStorage.setItem(
+    AUTH.KEY,
+    JSON.stringify({ ok: true, until: nowMs() + AUTH.TTL_MS })
+  );
+}
+
+function logout() {
+  localStorage.removeItem(AUTH.KEY);
+  location.reload();
+}
+
+async function sha256Hex(str) {
+  const enc = new TextEncoder().encode(str);
+  const buf = await crypto.subtle.digest("SHA-256", enc);
+  const arr = Array.from(new Uint8Array(buf));
+  return arr.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function loginWithPassword(pw) {
+  const hash = await sha256Hex(pw);
+  if (hash === AUTH.PASSWORD_HASH_HEX) {
+    setAuthed();
+    return true;
+  }
+  return false;
+}
+
+// Disable/hide UI elements that require auth
+function applyAuthUI() {
+  const authed = isAuthed();
+
+  // Hide-only elements
+  document.querySelectorAll("[data-requires-auth='true']").forEach(el => {
+    el.style.display = authed ? "" : "none";
+  });
+
+  // Disable-only elements
+  document.querySelectorAll("[data-disable-without-auth='true']").forEach(el => {
+    el.disabled = !authed;
+    el.style.opacity = authed ? "" : "0.45";
+    el.style.pointerEvents = authed ? "" : "none";
+    if (!authed) el.setAttribute("title", "Locked – login required");
+  });
+}
+
+// Optional helper: block actions in JS
+function requireAuthOrAlert() {
+  if (isAuthed()) return true;
+  alert("Locked. Please login on the Dashboard (index.html) to unlock this feature.");
+  return false;
+}
+
+// ============================================================
 //  CONFIG  –  Change guild name and pages here
 // ============================================================
 const CONFIG = {
-  guildName: "NATO [GBR]",
+  guildName: localStorage.getItem("nato_guildName") || "NATO [GBR]",
   pages: [
+    { label: "Dashboard",         href: "index.html"     },
     { label: "Pinboard",          href: "pinboard.html"  },
     { label: "Guides",            href: "guides.html"    },
     { label: "Influence Tracker", href: "influence.html" },
@@ -22,10 +108,12 @@ function buildNav(currentPage) {
   if (logoEl) logoEl.textContent = CONFIG.guildName;
 
   const ul = nav.querySelector("ul");
-  ul.innerHTML = CONFIG.pages.map(p => {
-    const active = currentPage === p.href ? ' class="active"' : '';
-    return `<li><a href="${p.href}"${active}>${p.label}</a></li>`;
-  }).join("");
+  if (ul) {
+    ul.innerHTML = CONFIG.pages.map(p => {
+      const active = currentPage === p.href ? ' class="active"' : '';
+      return `<li><a href="${p.href}"${active}>${p.label}</a></li>`;
+    }).join("");
+  }
 
   // add / update logout button
   let btn = nav.querySelector(".nav-logout");
@@ -44,12 +132,16 @@ function buildNav(currentPage) {
 //  DATA STORE  –  persists in localStorage
 // ============================================================
 const DB = {
-  get(key)        { try { return JSON.parse(localStorage.getItem("nato_" + key)) || []; } catch { return []; } },
-  set(key, value) { localStorage.setItem("nato_" + key, JSON.stringify(value)); },
+  get(key) {
+    try { return JSON.parse(localStorage.getItem("nato_" + key)) || []; }
+    catch { return []; }
+  },
+  set(key, value) {
+    localStorage.setItem("nato_" + key, JSON.stringify(value));
+  },
 };
 
 // ── Seed default data if empty ────────────────────────────
-
 if (!localStorage.getItem("nato_members")) {
   DB.set("members", [
     { id: 1, name: "CommanderX",   rank: "officer", class: "Paladin",   power: "4,800,000", joined: "2024-01-10", warnings: { mythic: 0, castle: 0 }, notes: "" },
@@ -96,83 +188,3 @@ function nextId(arr) { return arr.length ? Math.max(...arr.map(x => x.id)) + 1 :
 
 function closeModal(id) { document.getElementById(id).classList.remove("open"); }
 function openModal(id)  { document.getElementById(id).classList.add("open"); }
-
-// ============================================================
-//  AUTH (simple password gate for GitHub Pages / static sites)
-//  NOTE: Not secure against someone who inspects your source.
-// ============================================================
-const AUTH = {
-  // SHA-256 hash (hex) of your password.
-  // We'll generate it once in the browser console (see step 2 below).
-  PASSWORD_HASH_HEX: "tester",
-
-  // How long login stays valid (ms). Default: 12 hours.
-  TTL_MS: 12 * 60 * 60 * 1000,
-
-  // Storage keys
-  KEY: "nato_auth",
-};
-
-function nowMs() { return Date.now(); }
-
-function isAuthed() {
-  try {
-    const raw = localStorage.getItem(AUTH.KEY);
-    if (!raw) return false;
-    const obj = JSON.parse(raw);
-    return !!obj && obj.ok === true && typeof obj.until === "number" && obj.until > nowMs();
-  } catch {
-    return false;
-  }
-}
-
-function setAuthed() {
-  localStorage.setItem(AUTH.KEY, JSON.stringify({ ok: true, until: nowMs() + AUTH.TTL_MS }));
-}
-
-function logout() {
-  localStorage.removeItem(AUTH.KEY);
-  // Optional: refresh page so UI updates everywhere
-  location.reload();
-}
-
-async function sha256Hex(str) {
-  const enc = new TextEncoder().encode(str);
-  const buf = await crypto.subtle.digest("SHA-256", enc);
-  const arr = Array.from(new Uint8Array(buf));
-  return arr.map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
-async function loginWithPassword(pw) {
-  const hash = await sha256Hex(pw);
-  if (hash === AUTH.PASSWORD_HASH_HEX) {
-    setAuthed();
-    return true;
-  }
-  return false;
-}
-
-// Disable/hide UI elements that require auth
-function applyAuthUI() {
-  const authed = isAuthed();
-
-  // Elements that should be hidden if not authed
-  document.querySelectorAll("[data-requires-auth='true']").forEach(el => {
-    el.style.display = authed ? "" : "none";
-  });
-
-  // Elements that should be disabled if not authed
-  document.querySelectorAll("[data-disable-without-auth='true']").forEach(el => {
-    el.disabled = !authed;
-    el.style.opacity = authed ? "" : "0.45";
-    el.style.pointerEvents = authed ? "" : "none";
-    if (!authed) el.setAttribute("title", "Locked – login required");
-  });
-}
-
-// Optional helper: block actions in JS
-function requireAuthOrAlert() {
-  if (isAuthed()) return true;
-  alert("Locked. Please login on the Dashboard (index.html) to unlock this feature.");
-  return false;
-}
