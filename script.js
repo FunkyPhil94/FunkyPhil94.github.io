@@ -63,7 +63,7 @@ function requireAuthOrAlert() {
 // ============================================================
 //  CONSTANTS
 // ============================================================
-const AUTHORS = ["Pingwing", "Finnegan", "MonkeyGod", "GettoBird", "Kait_See", "Squirtle"];
+const AUTHORS = ["Pengwing", "Finnegan", "MonkeyGod", "GettoBird", "Kait_See", "Squirtle"];
 
 // Attachments bucket (Supabase Storage)
 const STORAGE_BUCKET = "attachments";
