@@ -24,7 +24,6 @@
     .warn-btn.sub { background:rgba(76,175,125,.15); color:var(--green); }
     .warn-btn.sub:hover { background:rgba(76,175,125,.3); }
 
-    /* R1–R5 rank colours */
     .rank-r5 { color:#f0cc72; }
     .rank-r4 { color:#7eb8f7; }
     .rank-r3 { color:#a78bfa; }
@@ -103,7 +102,7 @@
         </div>
         <div class="form-group">
           <label>Power</label>
-          <input type="number" id="mPower" min="0" step="1" placeholder="e.g. 4800000"/>
+          <input type="number" id="mPower" min="0" step="1" placeholder="e.g. 34000000"/>
         </div>
         <div class="form-group">
           <label>Rank</label>
@@ -162,18 +161,21 @@
     function warnClass(n) { return n===0 ? "warn-0" : n===1 ? "warn-1" : "warn-2p"; }
 
     function warnCell(memberId, col, count) {
+      const canEdit = isAuthed();
       return `<div class="warning-cell">
         <span class="warn-pip ${warnClass(count)}"></span>
         <span style="min-width:1.1rem;text-align:center;font-weight:600;font-size:.85rem">${count}</span>
-        <button class="warn-btn add" title="Add warning"    onclick="adjustWarn(${memberId},'${col}',1)">+</button>
-        <button class="warn-btn sub" title="Remove warning" onclick="adjustWarn(${memberId},'${col}',-1)">−</button>
+        ${canEdit ? `
+          <button class="warn-btn add" title="Add warning"    onclick="adjustWarn(${memberId},'${col}',1)">+</button>
+          <button class="warn-btn sub" title="Remove warning" onclick="adjustWarn(${memberId},'${col}',-1)">−</button>
+        ` : ``}
       </div>`;
     }
 
     async function fetchMembers() {
       const { data, error } = await sb
         .from(TABLE)
-        .select("*")
+        .select("id,name,rank,power,warnings_mythic,warnings_castle,notes,created_at")
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -184,7 +186,23 @@
       return data || [];
     }
 
+    function fmtNumber(n){
+      const x = Number(n);
+      if (!Number.isFinite(x)) return "–";
+      return x.toLocaleString("en-US");
+    }
+
+    function escapeHtml(s){
+      return String(s ?? "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#39;");
+    }
+
     function render() {
+      const canEdit = isAuthed();
       const search = (document.getElementById("searchInput").value || "").toLowerCase().trim();
       let members = (currentMembers || []).slice();
 
@@ -216,27 +234,21 @@
             return `<tr>
               <td>${escapeHtml(m.name || "")}${totalWarn>0?` <span style="color:var(--red);font-size:.75rem">⚠</span>`:""}</td>
               <td><span class="${rc}" style="font-size:.78rem;font-weight:700;letter-spacing:.06em">${escapeHtml(rl)}</span></td>
+              <td style="color:var(--text);font-weight:600">${fmtNumber(m.power)}</td>
               <td>${warnCell(m.id, "warnings_mythic", m.warnings_mythic||0)}</td>
               <td>${warnCell(m.id, "warnings_castle", m.warnings_castle||0)}</td>
               <td style="font-size:.78rem;color:var(--muted);max-width:160px">${escapeHtml(m.notes || "–")}</td>
               <td>
-                <div style="display:flex;gap:.4rem">
-                  <button class="btn btn-ghost"  style="padding:.3rem .6rem;font-size:.7rem" onclick="editMember(${m.id})">Edit</button>
-                  <button class="btn btn-danger" style="padding:.3rem .6rem;font-size:.7rem" onclick="deleteMember(${m.id})">✕</button>
-                </div>
+                ${canEdit ? `
+                  <div style="display:flex;gap:.4rem">
+                    <button class="btn btn-ghost"  style="padding:.3rem .6rem;font-size:.7rem" onclick="editMember(${m.id})">Edit</button>
+                    <button class="btn btn-danger" style="padding:.3rem .6rem;font-size:.7rem" onclick="deleteMember(${m.id})">✕</button>
+                  </div>
+                ` : ``}
               </td>
             </tr>`;
           }).join("")
-        : `<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:2rem">No members found.</td></tr>`;
-    }
-
-    function escapeHtml(s){
-      return String(s ?? "")
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;")
-        .replaceAll('"',"&quot;")
-        .replaceAll("'","&#39;");
+        : `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:2rem">No members found.</td></tr>`;
     }
 
     async function adjustWarn(id, col, delta) {
@@ -276,6 +288,7 @@
       const entry = {
         name: (document.getElementById("mName").value || "").trim() || "Unknown",
         rank: document.getElementById("mRank").value,
+        power: Number(document.getElementById("mPower").value) || 0,
         warnings_mythic: Number(document.getElementById("mWarnMythic").value) || 0,
         warnings_castle: Number(document.getElementById("mWarnCastle").value) || 0,
         notes: (document.getElementById("mNotes").value || "").trim(),
@@ -305,6 +318,7 @@
       document.getElementById("editMemberId").value = m.id;
       document.getElementById("mName").value = m.name || "";
       document.getElementById("mRank").value = m.rank || "r1";
+      document.getElementById("mPower").value = (m.power ?? 0);
       document.getElementById("mWarnMythic").value = m.warnings_mythic || 0;
       document.getElementById("mWarnCastle").value = m.warnings_castle || 0;
       document.getElementById("mNotes").value = m.notes || "";
@@ -332,6 +346,7 @@
       document.getElementById("editMemberId").value = "";
       document.getElementById("mName").value = "";
       document.getElementById("mRank").value = "r1";
+      document.getElementById("mPower").value = "";
       document.getElementById("mWarnMythic").value = 0;
       document.getElementById("mWarnCastle").value = 0;
       document.getElementById("mNotes").value = "";
