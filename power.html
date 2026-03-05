@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NATO [GBR] – Power</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css"/>
+
+  <style>
+    .toolbar {
+      display:flex; align-items:flex-end; justify-content:space-between;
+      gap:1rem; flex-wrap:wrap; margin-bottom:1.2rem;
+    }
+    .import-card {
+      display:grid; grid-template-columns: 1.2fr .8fr auto; gap:.8rem;
+      align-items:end;
+    }
+    @media (max-width: 780px){
+      .import-card { grid-template-columns: 1fr; }
+    }
+    .small-help { font-size:.78rem; color:var(--muted); line-height:1.5; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .member-row { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+    .chip {
+      border:1px solid var(--border);
+      background:var(--surface2);
+      border-radius:999px;
+      padding:.25rem .6rem;
+      font-size:.75rem;
+      color:var(--muted);
+    }
+    canvas { max-height: 380px; }
+  </style>
+</head>
+
+<body>
+  <nav id="mainNav"><a class="nav-logo" href="index.html">NATO [GBR]</a><ul></ul></nav>
+
+  <div class="page fade-up">
+    <div class="page-header" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+      <div>
+        <div class="page-label">Analytics</div>
+        <div class="page-title">Power</div>
+        <div class="page-divider"></div>
+      </div>
+    </div>
+
+    <!-- IMPORT -->
+    <div class="card" style="margin-bottom:1.2rem">
+      <div class="page-label">Import</div>
+      <div class="small-help" style="margin-top:.4rem">
+        Lade eine CSV hoch (<span class="mono">name,power</span>). Reihenfolge egal. Der Snapshot wird pro Member + Datum gespeichert (Upsert).
+      </div>
+
+      <div class="import-card" style="margin-top:1rem">
+        <div class="form-group" style="margin:0">
+          <label>CSV File</label>
+          <input id="csvFile" type="file" accept=".csv,text/csv" />
+        </div>
+
+        <div class="form-group" style="margin:0">
+          <label>Snapshot Date</label>
+          <input id="snapshotDate" type="date"/>
+          <div class="small-help">Wird automatisch aufs Datei-Datum gesetzt.</div>
+        </div>
+
+        <button class="btn btn-gold" id="importBtn" type="button" style="height:40px">Import CSV</button>
+      </div>
+
+      <div id="importResult" class="small-help" style="margin-top:.9rem;display:none"></div>
+    </div>
+
+    <!-- STATS -->
+    <div class="stat-grid" id="powerStats" style="margin-bottom:1.2rem"></div>
+
+    <!-- CHART -->
+    <div class="card" style="margin-bottom:1.2rem">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+        <div>
+          <div class="page-label">Curve</div>
+          <div class="small-help">Wähle ein Mitglied, um die Power-Historie zu sehen.</div>
+        </div>
+
+        <div class="form-group" style="margin:0;min-width:240px">
+          <label>Member</label>
+          <select id="memberSelect"></select>
+        </div>
+      </div>
+
+      <div style="margin-top:1rem">
+        <canvas id="powerChart"></canvas>
+      </div>
+    </div>
+
+    <!-- TABLE: LAST CHANGE -->
+    <div class="card">
+      <div class="page-label">Latest Change</div>
+      <div class="small-help" style="margin-top:.4rem">
+        Vergleich zwischen den letzten beiden Snapshots pro Member (sofern vorhanden).
+      </div>
+      <div class="table-wrap" style="margin-top:1rem">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Latest</th>
+              <th>Prev</th>
+              <th>Δ Abs</th>
+              <th>Δ %</th>
+              <th>Latest Date</th>
+            </tr>
+          </thead>
+          <tbody id="deltaBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ✅ Supabase MUST be before script.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="script.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <script>
+    buildNav("power.html");
+    applyAuthUI();
+
+    const MEMBERS_TABLE = "members";
+    const SNAP_TABLE = "power_snapshots";
+
+    const csvInput = document.getElementById("csvFile");
+    const dateInput = document.getElementById("snapshotDate");
+    const importBtn = document.getElementById("importBtn");
+    const importResult = document.getElementById("importResult");
+
+    const memberSelect = document.getElementById("memberSelect");
+    const powerStats = document.getElementById("powerStats");
+    const deltaBody = document.getElementById("deltaBody");
+
+    let members = [];              // [{id,name,rank,power...}]
+    let memberByName = new Map();  // lower(name)->member
+    let chart = null;
+
+    // --- Utils ---
+    function toISODateLocal(d){
+      // yyyy-mm-dd in local time
+      const x = new Date(d);
+      const yyyy = x.getFullYear();
+      const mm = String(x.getMonth()+1).padStart(2,"0");
+      const dd = String(x.getDate()).padStart(2,"0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function fmtInt(n){
+      const x = Number(n);
+      if (!Number.isFinite(x)) return "–";
+      return Math.round(x).toLocaleString("en-US");
+    }
+
+    function fmtPct(n){
+      const x = Number(n);
+      if (!Number.isFinite(x)) return "–";
+      return (x*100).toFixed(2) + "%";
+    }
+
+    function escapeHtml(s){
+      return String(s ?? "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#39;");
+    }
+
+    // CSV parser (simple, tolerant for your format)
+    function parseCSV(text){
+      // supports: name,power (header optional); delimiter comma or semicolon
+      const lines = String(text || "")
+        .replace(/\r\n/g,"\n")
+        .replace(/\r/g,"\n")
+        .split("\n")
+        .map(l => l.trim())
+        .filter(l => l.length);
+
+      if (!lines.length) return [];
+
+      // detect delimiter from first non-empty line
+      const first = lines[0];
+      const delim = (first.includes(";") && !first.includes(",")) ? ";" : ",";
+
+      const rows = lines.map(l => l.split(delim).map(x => x.trim()));
+
+      // header check
+      const head0 = (rows[0][0] || "").toLowerCase();
+      const head1 = (rows[0][1] || "").toLowerCase();
+      const hasHeader = (head0.includes("name") || head0.includes("player")) && (head1.includes("power") || head1.includes("stärke") || head1.includes("staerke"));
+
+      const body = hasHeader ? rows.slice(1) : rows;
+
+      const out = [];
+      for (const r of body){
+        const name = (r[0] || "").trim();
+        let powerRaw = (r[1] || "").trim();
+
+        if (!name) continue;
+
+        // allow: 34,000,000 or 34.000.000
+        powerRaw = powerRaw.replace(/[,\.\s]/g, "");
+        const power = Number(powerRaw);
+
+        if (!Number.isFinite(power)) continue;
+        out.push({ name, power });
+      }
+      return out;
+    }
+
+    // --- Auto-set datepicker on file pick (upload date = file lastModified) ---
+    csvInput.addEventListener("change", () => {
+      const f = csvInput.files && csvInput.files[0];
+      if (!f) return;
+      dateInput.value = toISODateLocal(new Date(f.lastModified));
+      importResult.style.display = "none";
+      importResult.innerHTML = "";
+    });
+
+    // --- Load members map ---
+    async function loadMembers(){
+      const { data, error } = await sb
+        .from(MEMBERS_TABLE)
+        .select("id,name,rank,power");
+
+      if (error){
+        console.error(error);
+        showToast("Fehler: Members konnten nicht geladen werden.", "error", 5000);
+        return [];
+      }
+
+      members = (data || []).slice().sort((a,b) => String(a.name||"").localeCompare(String(b.name||"")));
+      memberByName = new Map(members.map(m => [String(m.name||"").trim().toLowerCase(), m]));
+
+      // dropdown
+      memberSelect.innerHTML = members.map(m => `<option value="${m.id}">${escapeHtml(m.name||"")}</option>`).join("");
+      if (members[0]) memberSelect.value = members[0].id;
+
+      return members;
+    }
+
+    // --- Import CSV -> power_snapshots ---
+    importBtn.addEventListener("click", async () => {
+      if (!requireAuthOrAlert()) return;
+
+      const f = csvInput.files && csvInput.files[0];
+      if (!f) { showToast("Bitte eine CSV auswählen.", "error"); return; }
+
+      const snapshot_at = (dateInput.value || "").trim();
+      if (!snapshot_at) { showToast("Bitte Snapshot Date auswählen.", "error"); return; }
+
+      // ensure members map
+      if (!members.length) await loadMembers();
+      if (!members.length) return;
+
+      importBtn.disabled = true;
+      importBtn.style.opacity = "0.6";
+
+      try {
+        const text = await f.text();
+        const parsed = parseCSV(text);
+
+        if (!parsed.length){
+          showToast("CSV enthält keine gültigen Zeilen (name,power).", "error", 6000);
+          return;
+        }
+
+        const unmatched = [];
+        const upserts = [];
+
+        for (const row of parsed){
+          const key = String(row.name||"").trim().toLowerCase();
+          const m = memberByName.get(key);
+          if (!m){
+            unmatched.push(row.name);
+            continue;
+          }
+          upserts.push({
+            member_id: m.id,
+            snapshot_at,
+            power: row.power
+          });
+        }
+
+        if (!upserts.length){
+          showToast("Keine Zeilen konnten zu Members gematcht werden.", "error", 6000);
+          importResult.style.display = "";
+          importResult.innerHTML = `0 importiert. Unmatched: ${unmatched.length ? unmatched.map(escapeHtml).join(", ") : "—"}`;
+          return;
+        }
+
+        // Upsert batch
+        const { error } = await sb
+          .from(SNAP_TABLE)
+          .upsert(upserts, { onConflict: "member_id,snapshot_at" });
+
+        if (error){
+          console.error(error);
+          showToast("Import fehlgeschlagen (DB).", "error", 6000);
+          importResult.style.display = "";
+          importResult.innerHTML = `<span style="color:var(--red)">DB error:</span> ${escapeHtml(error.message || "unknown")}`;
+          return;
+        }
+
+        // Optional: update current members.power to latest snapshot (same date)
+        // (nur wenn du willst – kann man auch weglassen)
+        // await sb.from(MEMBERS_TABLE).upsert(upserts.map(x => ({ id: x.member_id, power: x.power })));
+
+        showToast(`Import ok: ${upserts.length} Zeilen (${snapshot_at}).`, "success", 4500);
+
+        importResult.style.display = "";
+        importResult.innerHTML = `
+          <div class="member-row">
+            <span class="chip">Imported: ${upserts.length}</span>
+            <span class="chip">Unmatched: ${unmatched.length}</span>
+            <span class="chip">Date: ${escapeHtml(snapshot_at)}</span>
+          </div>
+          ${unmatched.length ? `<div style="margin-top:.45rem"><span style="color:var(--red)">Unmatched:</span> ${unmatched.map(escapeHtml).join(", ")}</div>` : ``}
+        `;
+
+        // refresh UI
+        await refreshAll();
+
+      } finally {
+        importBtn.disabled = false;
+        importBtn.style.opacity = "";
+      }
+    });
+
+    // --- Chart / Data ---
+    memberSelect.addEventListener("change", () => renderChartForMember(Number(memberSelect.value)));
+
+    async function fetchSnapshotsForMember(memberId){
+      const { data, error } = await sb
+        .from(SNAP_TABLE)
+        .select("snapshot_at,power")
+        .eq("member_id", memberId)
+        .order("snapshot_at", { ascending: true });
+
+      if (error){
+        console.error(error);
+        showToast("Fehler: Snapshots konnten nicht geladen werden.", "error", 5000);
+        return [];
+      }
+      return data || [];
+    }
+
+    async function renderChartForMember(memberId){
+      const snaps = await fetchSnapshotsForMember(memberId);
+      const labels = snaps.map(s => s.snapshot_at);
+      const values = snaps.map(s => Number(s.power));
+
+      const m = members.find(x => x.id === memberId);
+      const title = m ? m.name : "Member";
+
+      const ctx = document.getElementById("powerChart").getContext("2d");
+      if (chart) chart.destroy();
+
+      chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: `Power – ${title}`,
+            data: values,
+            borderColor: "rgba(240,204,114,.95)",
+            backgroundColor: "rgba(240,204,114,.12)",
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            tension: 0.25,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: "#e5e7eb" } },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => ` ${fmtInt(ctx.parsed.y)}`
+              }
+            }
+          },
+          scales: {
+            x: { ticks: { color: "#9ca3af" }, grid: { color: "rgba(255,255,255,.06)" } },
+            y: { ticks: { color: "#9ca3af", callback: (v) => fmtInt(v) }, grid: { color: "rgba(255,255,255,.06)" } }
+          }
+        }
+      });
+    }
+
+    async function computeLatestDeltas(){
+      // Fetch latest two per member: simplest approach:
+      // - pull all snapshots, group in JS (ok for your scale)
+      // If it becomes huge later, we’ll optimize with a SQL view/RPC.
+      const { data, error } = await sb
+        .from(SNAP_TABLE)
+        .select("member_id,snapshot_at,power")
+        .order("snapshot_at", { ascending: true });
+
+      if (error){
+        console.error(error);
+        showToast("Fehler: Deltas konnten nicht geladen werden.", "error", 5000);
+        return [];
+      }
+
+      const byMember = new Map();
+      for (const r of (data||[])){
+        const arr = byMember.get(r.member_id) || [];
+        arr.push({ d: r.snapshot_at, p: Number(r.power) });
+        byMember.set(r.member_id, arr);
+      }
+
+      const out = [];
+      for (const m of members){
+        const arr = byMember.get(m.id) || [];
+        if (arr.length < 2) continue;
+        const prev = arr[arr.length - 2];
+        const last = arr[arr.length - 1];
+        const abs = last.p - prev.p;
+        const pct = prev.p > 0 ? abs / prev.p : null;
+        out.push({ name: m.name, last: last.p, prev: prev.p, abs, pct, date: last.d });
+      }
+
+      // sort biggest gains first
+      out.sort((a,b) => (b.abs ?? -Infinity) - (a.abs ?? -Infinity));
+      return out;
+    }
+
+    async function renderDeltaTable(){
+      const deltas = await computeLatestDeltas();
+      deltaBody.innerHTML = deltas.length
+        ? deltas.slice(0, 50).map(x => `
+          <tr>
+            <td>${escapeHtml(x.name)}</td>
+            <td style="font-weight:600">${fmtInt(x.last)}</td>
+            <td style="color:var(--muted)">${fmtInt(x.prev)}</td>
+            <td style="color:${x.abs>=0 ? 'var(--green)' : 'var(--red)'};font-weight:600">${x.abs>=0?'+':''}${fmtInt(x.abs)}</td>
+            <td style="color:var(--muted)">${x.pct===null?'–':fmtPct(x.pct)}</td>
+            <td style="color:var(--muted)">${escapeHtml(x.date)}</td>
+          </tr>
+        `).join("")
+        : `<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:1.6rem">No snapshot history yet.</td></tr>`;
+    }
+
+    async function renderStats(){
+      const { count, error } = await sb
+        .from(SNAP_TABLE)
+        .select("*", { count: "exact", head: true });
+
+      if (error){
+        console.error(error);
+        powerStats.innerHTML = `
+          <div class="stat-card"><div class="s-label">Members</div><div class="s-value">${members.length}</div></div>
+          <div class="stat-card"><div class="s-label">Snapshots</div><div class="s-value">–</div></div>
+        `;
+        return;
+      }
+
+      powerStats.innerHTML = `
+        <div class="stat-card"><div class="s-label">Members</div><div class="s-value">${members.length}</div></div>
+        <div class="stat-card"><div class="s-label">Snapshot Rows</div><div class="s-value">${count ?? 0}</div></div>
+      `;
+    }
+
+    async function refreshAll(){
+      await loadMembers();
+      await renderStats();
+      await renderDeltaTable();
+      if (members[0]) await renderChartForMember(Number(memberSelect.value || members[0].id));
+    }
+
+    // Init
+    (async function init(){
+      // optional: prefill date to today if no file chosen yet
+      dateInput.value = toISODateLocal(new Date());
+      await refreshAll();
+    })();
+  </script>
+</body>
+</html>
