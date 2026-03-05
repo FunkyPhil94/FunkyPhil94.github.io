@@ -70,9 +70,32 @@
     <div class="stat-grid" id="statGrid" style="margin-bottom:1.2rem"></div>
 
     <!-- LEADERS -->
-    <div class="card" id="leaderCard" style="margin-bottom:2rem; display:none">
+    <div class="card" id="leaderCard" style="margin-bottom:1.2rem; display:none">
       <div class="page-label">Leadership (R5 / R4)</div>
       <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.6rem" id="leaderNames"></div>
+    </div>
+
+    <!-- ✅ TIME CARD (between Leadership and Latest) -->
+    <div class="card" id="timeCard" style="margin-bottom:2rem">
+      <div class="page-label">Time</div>
+      <div style="display:flex;gap:1.2rem;flex-wrap:wrap;margin-top:.6rem">
+        <div style="min-width:240px">
+          <div style="font-size:.72rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.35rem">
+            Server Time (UTC)
+          </div>
+          <div id="utcTime" style="font-family:'Rajdhani',sans-serif;font-size:1.35rem;font-weight:700;letter-spacing:.04em">
+            —
+          </div>
+        </div>
+        <div style="min-width:240px">
+          <div style="font-size:.72rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.35rem">
+            Your Local Time
+          </div>
+          <div id="localTime" style="font-family:'Rajdhani',sans-serif;font-size:1.35rem;font-weight:700;letter-spacing:.04em">
+            —
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Announcements -->
@@ -111,7 +134,7 @@
     </div>
   </div>
 
-  <!-- Pin Modal (wenn du Pins weiterhin auch auf der Landing page erstellen willst) -->
+  <!-- Pin Modal -->
   <div class="modal-overlay" id="pinModal">
     <div class="modal">
       <h3 id="pinModalTitle">New Announcement</h3>
@@ -148,6 +171,49 @@
       high:   '<span class="badge badge-gold">High</span>',
       normal: '<span class="badge badge-muted">Normal</span>',
     };
+
+    // --- TIME (UTC + LOCAL) ---
+    let _timeTicker = null;
+
+    function pad2(n){ return String(n).padStart(2, "0"); }
+
+    function fmtHMS(h,m,s){ return `${pad2(h)}:${pad2(m)}:${pad2(s)}`; }
+
+    function renderTimes(){
+      const now = new Date();
+
+      // UTC
+      const uh = now.getUTCHours();
+      const um = now.getUTCMinutes();
+      const us = now.getUTCSeconds();
+      const uy = now.getUTCFullYear();
+      const uM = now.getUTCMonth()+1;
+      const ud = now.getUTCDate();
+      const utcStr = `${fmtHMS(uh,um,us)} · ${uy}-${pad2(uM)}-${pad2(ud)}`;
+
+      // Local
+      const lh = now.getHours();
+      const lm = now.getMinutes();
+      const ls = now.getSeconds();
+      const ly = now.getFullYear();
+      const lM = now.getMonth()+1;
+      const ld = now.getDate();
+      const localStr = `${fmtHMS(lh,lm,ls)} · ${ly}-${pad2(lM)}-${pad2(ld)}`;
+
+      const utcEl = document.getElementById("utcTime");
+      const locEl = document.getElementById("localTime");
+      if (utcEl) utcEl.textContent = utcStr;
+      if (locEl) locEl.textContent = localStr;
+    }
+
+    function startTimeTicker(){
+      if (_timeTicker) clearInterval(_timeTicker);
+      renderTimes();
+      _timeTicker = setInterval(renderTimes, 1000);
+    }
+
+    // start once
+    startTimeTicker();
 
     const pw  = document.getElementById("pwInput");
     const lb  = document.getElementById("loginBtn");
