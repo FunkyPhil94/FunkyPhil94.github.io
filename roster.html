@@ -14,34 +14,31 @@
     .warn-1  { background:rgba(201,168,76,.3);   border:1px solid var(--gold); }
     .warn-2p { background:rgba(224,82,82,.3);    border:1px solid var(--red); }
 
-    .warn-btn{
+    .warn-btn {
       width:20px; height:20px; border-radius:50%; border:none; cursor:pointer;
-      font-size:.72rem; font-weight:700; display:inline-flex; align-items:center; justify-content:center;
-      transition:all .15s; flex-shrink:0;
+      font-size:.72rem; font-weight:700; display:inline-flex; align-items:center;
+      justify-content:center; transition:all .15s; flex-shrink:0;
     }
     .warn-btn.add { background:rgba(224,82,82,.15); color:var(--red); }
     .warn-btn.add:hover { background:rgba(224,82,82,.3); }
     .warn-btn.sub { background:rgba(76,175,125,.15); color:var(--green); }
     .warn-btn.sub:hover { background:rgba(76,175,125,.3); }
 
+    /* R1–R5 rank colours */
     .rank-r5 { color:#f0cc72; }
     .rank-r4 { color:#7eb8f7; }
     .rank-r3 { color:#a78bfa; }
     .rank-r2 { color:#6ee7b7; }
     .rank-r1 { color:#6b7280; }
 
-    .search-bar{
+    .search-bar {
       background:var(--surface); border:1px solid var(--border); border-radius:3px;
       color:var(--text); font-family:'Inter',sans-serif; font-size:.88rem;
       padding:.55rem 1rem; outline:none; width:100%; max-width:320px;
       transition:border-color .2s;
     }
     .search-bar:focus { border-color:var(--gold); }
-
-    .toolbar{
-      display:flex; align-items:center; justify-content:space-between;
-      flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem;
-    }
+    .toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem; }
   </style>
 </head>
 
@@ -84,7 +81,7 @@
               <th title="Mythic Plunder warnings">⚔ Mythic</th>
               <th title="Castle Crashers GE warnings">🏰 Castle</th>
               <th>Notes</th>
-              <th style="width:80px"></th>
+              <th style="width:120px"></th>
             </tr>
           </thead>
           <tbody id="rosterBody"></tbody>
@@ -95,7 +92,7 @@
 
   <!-- Add / Edit Member Modal -->
   <div class="modal-overlay" id="memberModal">
-    <div class="modal" style="max-width:480px">
+    <div class="modal" style="max-width:520px">
       <h3 id="memberModalTitle">Add Member</h3>
       <input type="hidden" id="editMemberId"/>
 
@@ -108,16 +105,17 @@
           <label>Power</label>
           <input type="number" id="mPower" min="0" step="1" placeholder="e.g. 34000000"/>
         </div>
-        <div class="form-group">
-          <label>Rank</label>
-          <select id="mRank">
-            <option value="r5">R5 – Guild Leader</option>
-            <option value="r4">R4 – Vice Leader</option>
-            <option value="r3">R3 – Elite</option>
-            <option value="r2">R2 – Member</option>
-            <option value="r1" selected>R1 – Recruit</option>
-          </select>
-        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Rank</label>
+        <select id="mRank">
+          <option value="r5">R5 – Guild Leader</option>
+          <option value="r4">R4 – Vice Leader</option>
+          <option value="r3">R3 – Elite</option>
+          <option value="r2">R2 – Member</option>
+          <option value="r1" selected>R1 – Recruit</option>
+        </select>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
@@ -138,20 +136,16 @@
 
       <div class="modal-actions">
         <button class="btn btn-ghost" onclick="closeModal('memberModal');resetMemberForm()">Cancel</button>
-        <button class="btn btn-gold" onclick="saveMember()">Save</button>
+        <button class="btn btn-gold"  onclick="saveMember()">Save</button>
       </div>
     </div>
   </div>
 
-  <!-- MUST be before script.js -->
+  <!-- Supabase client MUST be before script.js -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="script.js"></script>
 
   <script>
-    // ---------- Page init ----------
-    buildNav("roster.html");
-    applyAuthUI();
-
     const TABLE = "members";
 
     const RANK_LABEL = { r5:"R5 – Leader", r4:"R4 – Vice", r3:"R3 – Elite", r2:"R2 – Member", r1:"R1 – Recruit" };
@@ -160,8 +154,6 @@
 
     let rankFilter = "";
     let currentMembers = [];
-
-    function setFilter(f) { rankFilter = f; render(); }
 
     function escapeHtml(s){
       return String(s ?? "")
@@ -172,32 +164,52 @@
         .replaceAll("'","&#39;");
     }
 
-    function fmtInt(n){
+    function fmtPower(n){
       const x = Number(n);
       if (!Number.isFinite(x)) return "–";
       return x.toLocaleString("en-US");
     }
 
+    function setFilter(f) { rankFilter = f; render(); }
+
     function warnClass(n) { return n===0 ? "warn-0" : n===1 ? "warn-1" : "warn-2p"; }
 
-    function warnCell(memberId, col, count) {
-      // Warn buttons are hidden for non-authed via applyAuthUI() using data-requires-auth
+    function warnCell(memberId, col, count, canEdit) {
       return `<div class="warning-cell">
         <span class="warn-pip ${warnClass(count)}"></span>
         <span style="min-width:1.1rem;text-align:center;font-weight:600;font-size:.85rem">${count}</span>
-        <button class="warn-btn add" data-requires-auth="true" title="Add warning" onclick="adjustWarn(${memberId},'${col}',1)">+</button>
-        <button class="warn-btn sub" data-requires-auth="true" title="Remove warning" onclick="adjustWarn(${memberId},'${col}',-1)">−</button>
+        ${canEdit ? `
+          <button class="warn-btn add" title="Add warning"    onclick="adjustWarn(${memberId},'${col}',1)">+</button>
+          <button class="warn-btn sub" title="Remove warning" onclick="adjustWarn(${memberId},'${col}',-1)">−</button>
+        ` : ``}
       </div>`;
     }
 
-    async function fetchMembers() {
-      if (!window.sb) {
-        console.warn("Supabase client 'sb' not available. Check CDN order (supabase -> script.js).");
-        showToast("Supabase nicht geladen (CDN Reihenfolge prüfen).", "error", 6000);
-        return [];
+    function getSbOrInit() {
+      // prefer global sb from script.js if available
+      if (window.sb) return window.sb;
+
+      // fallback: init here if script.js didn't
+      if (typeof supabase === "undefined" || !supabase?.createClient) {
+        showToast("Supabase nicht geladen (CDN Reihenfolge prüfen).", "error", 7000);
+        console.error("Supabase library missing. Ensure CDN is before script.js and before this inline script.");
+        return null;
       }
 
-      const { data, error } = await sb
+      // IMPORTANT: keep same values as in script.js
+      const SUPABASE_URL = "https://ztvimtaecxxtltpnxxrg.supabase.co";
+      const SUPABASE_ANON_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0dmltdGFlY3h4dGx0cG54eHJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NjE4MzEsImV4cCI6MjA4ODEzNzgzMX0.W9c_Sy6dcNHwjr3hYSjBmh5vDyY1KBQbeYsw4wG5gGw";
+
+      window.sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      return window.sb;
+    }
+
+    async function fetchMembers() {
+      const sbClient = getSbOrInit();
+      if (!sbClient) return [];
+
+      const { data, error } = await sbClient
         .from(TABLE)
         .select("id,name,rank,power,warnings_mythic,warnings_castle,notes,created_at")
         .order("created_at", { ascending: false });
@@ -211,6 +223,8 @@
     }
 
     function render() {
+      const canEdit = isAuthed();
+
       const search = (document.getElementById("searchInput").value || "").toLowerCase().trim();
       let members = (currentMembers || []).slice();
 
@@ -219,58 +233,60 @@
       if (rankFilter === "warned") {
         members = members.filter(m => (m.warnings_mythic||0) > 0 || (m.warnings_castle||0) > 0);
       } else if (rankFilter) {
-        members = members.filter(m => (m.rank || "") === rankFilter);
+        members = members.filter(m => (m.rank || "").toLowerCase() === rankFilter);
       }
 
-      members.sort((a,b) => (rankOrder[a.rank] ?? 99) - (rankOrder[b.rank] ?? 99));
+      members.sort((a,b) => (rankOrder[(a.rank||"").toLowerCase()] ?? 99) - (rankOrder[(b.rank||"").toLowerCase()] ?? 99));
 
       const all = currentMembers || [];
       const warnedCount = all.filter(m => (m.warnings_mythic||0) > 0 || (m.warnings_castle||0) > 0).length;
+      const r45 = all.filter(m => (m.rank||"").toLowerCase()==="r5" || (m.rank||"").toLowerCase()==="r4").length;
 
       document.getElementById("rosterStats").innerHTML = `
         <div class="stat-card"><div class="s-label">Total Members</div><div class="s-value">${all.length}</div></div>
-        <div class="stat-card"><div class="s-label">R4 / R5</div><div class="s-value">${all.filter(m=>m.rank==='r5'||m.rank==='r4').length}</div></div>
+        <div class="stat-card"><div class="s-label">R4 / R5</div><div class="s-value">${r45}</div></div>
         <div class="stat-card"><div class="s-label">With Warnings</div><div class="s-value" style="color:var(--red)">${warnedCount}</div></div>
       `;
 
-      const tbody = document.getElementById("rosterBody");
-
-      tbody.innerHTML = members.length
+      document.getElementById("rosterBody").innerHTML = members.length
         ? members.map(m => {
-            const rc = RANK_CLASS[m.rank] || "rank-r1";
-            const rl = RANK_LABEL[m.rank] || String(m.rank || "").toUpperCase();
+            const rankKey = (m.rank||"r1").toLowerCase();
+            const rc = RANK_CLASS[rankKey] || "rank-r1";
+            const rl = RANK_LABEL[rankKey] || String(m.rank || "").toUpperCase();
             const totalWarn = (m.warnings_mythic||0) + (m.warnings_castle||0);
 
             return `<tr>
               <td>${escapeHtml(m.name || "")}${totalWarn>0?` <span style="color:var(--red);font-size:.75rem">⚠</span>`:""}</td>
               <td><span class="${rc}" style="font-size:.78rem;font-weight:700;letter-spacing:.06em">${escapeHtml(rl)}</span></td>
-              <td style="color:var(--text);font-weight:600">${fmtInt(m.power)}</td>
-              <td>${warnCell(m.id, "warnings_mythic", m.warnings_mythic||0)}</td>
-              <td>${warnCell(m.id, "warnings_castle", m.warnings_castle||0)}</td>
-              <td style="font-size:.78rem;color:var(--muted);max-width:160px">${escapeHtml(m.notes || "–")}</td>
+              <td style="color:var(--text);font-weight:600">${fmtPower(m.power)}</td>
+              <td>${warnCell(m.id, "warnings_mythic", m.warnings_mythic||0, canEdit)}</td>
+              <td>${warnCell(m.id, "warnings_castle", m.warnings_castle||0, canEdit)}</td>
+              <td style="font-size:.78rem;color:var(--muted);max-width:220px">${escapeHtml(m.notes || "–")}</td>
               <td>
-                <div style="display:flex;gap:.4rem">
-                  <button class="btn btn-ghost" data-requires-auth="true" style="padding:.3rem .6rem;font-size:.7rem" onclick="editMember(${m.id})">Edit</button>
-                  <button class="btn btn-danger" data-requires-auth="true" style="padding:.3rem .6rem;font-size:.7rem" onclick="deleteMember(${m.id})">✕</button>
-                </div>
+                ${canEdit ? `
+                  <div style="display:flex;gap:.4rem">
+                    <button class="btn btn-ghost"  style="padding:.3rem .6rem;font-size:.7rem" onclick="editMember(${m.id})">Edit</button>
+                    <button class="btn btn-danger" style="padding:.3rem .6rem;font-size:.7rem" onclick="deleteMember(${m.id})">✕</button>
+                  </div>
+                ` : ``}
               </td>
             </tr>`;
           }).join("")
         : `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:2rem">No members found.</td></tr>`;
-
-      // Ensure auth-based hiding applies to newly rendered buttons
-      applyAuthUI();
     }
 
     async function adjustWarn(id, col, delta) {
       if (!requireAuthOrAlert()) return;
+
+      const sbClient = getSbOrInit();
+      if (!sbClient) return;
 
       const m = currentMembers.find(x => x.id === id);
       if (!m) return;
 
       const nextVal = Math.max(0, (m[col] || 0) + delta);
 
-      const { error } = await sb
+      const { error } = await sbClient
         .from(TABLE)
         .update({ [col]: nextVal })
         .eq("id", id);
@@ -294,31 +310,26 @@
     async function saveMember() {
       if (!requireAuthOrAlert()) return;
 
+      const sbClient = getSbOrInit();
+      if (!sbClient) return;
+
       const id = document.getElementById("editMemberId").value;
 
-      const powerRaw = document.getElementById("mPower").value;
-      const powerVal = powerRaw === "" ? null : Number(powerRaw);
+      const powerValRaw = (document.getElementById("mPower").value || "").trim();
+      const powerVal = powerValRaw === "" ? null : Number(powerValRaw);
 
       const entry = {
         name: (document.getElementById("mName").value || "").trim() || "Unknown",
-        rank: document.getElementById("mRank").value,
-        power: (powerVal === null) ? null : (Number.isFinite(powerVal) ? powerVal : null),
+        rank: (document.getElementById("mRank").value || "r1").toLowerCase(),
+        power: Number.isFinite(powerVal) ? powerVal : null,
         warnings_mythic: Number(document.getElementById("mWarnMythic").value) || 0,
         warnings_castle: Number(document.getElementById("mWarnCastle").value) || 0,
         notes: (document.getElementById("mNotes").value || "").trim(),
       };
 
-      let error = null;
+      if (id) entry.id = Number(id);
 
-      // SAFER: update for edit, insert for new (kein upsert-Fehlverhalten)
-      if (id) {
-        const res = await sb.from(TABLE).update(entry).eq("id", Number(id));
-        error = res.error;
-      } else {
-        const res = await sb.from(TABLE).insert(entry);
-        error = res.error;
-      }
-
+      const { error } = await sbClient.from(TABLE).upsert(entry);
       if (error) {
         console.error(error);
         showToast("Fehler beim Speichern des Members.", "error", 4500);
@@ -339,7 +350,7 @@
 
       document.getElementById("editMemberId").value = m.id;
       document.getElementById("mName").value = m.name || "";
-      document.getElementById("mRank").value = m.rank || "r1";
+      document.getElementById("mRank").value = (m.rank || "r1").toLowerCase();
       document.getElementById("mPower").value = (m.power ?? "");
       document.getElementById("mWarnMythic").value = m.warnings_mythic || 0;
       document.getElementById("mWarnCastle").value = m.warnings_castle || 0;
@@ -353,8 +364,10 @@
       if (!requireAuthOrAlert()) return;
       if (!confirm("Remove this member from the roster?")) return;
 
-      const { error } = await sb.from(TABLE).delete().eq("id", id);
+      const sbClient = getSbOrInit();
+      if (!sbClient) return;
 
+      const { error } = await sbClient.from(TABLE).delete().eq("id", id);
       if (error) {
         console.error(error);
         showToast("Fehler beim Löschen.", "error", 4500);
@@ -383,10 +396,15 @@
     async function loadAndRender() {
       currentMembers = await fetchMembers();
       render();
+      applyAuthUI();
     }
 
-    // start
-    loadAndRender();
+    // init
+    (async function init(){
+      buildNav("roster.html");
+      applyAuthUI();
+      await loadAndRender();
+    })();
   </script>
 </body>
 </html>
