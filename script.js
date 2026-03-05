@@ -125,29 +125,33 @@ function showToast(message, type, durationMs) {
 }
 
 // ============================================================
-//  SUPABASE
-//  WICHTIG: Der Supabase CDN Script muss VOR script.js geladen werden:
+//  SUPABASE (Scoped Init)
+//  WICHTIG: CDN Script muss VOR script.js geladen werden:
 //  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 // ============================================================
-const SUPABASE_URL = "https://ztvimtaecxxtltpnxxrg.supabase.co";
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0dmltdGFlY3h4dGx0cG54eHJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NjE4MzEsImV4cCI6MjA4ODEzNzgzMX0.W9c_Sy6dcNHwjr3hYSjBmh5vDyY1KBQbeYsw4wG5gGw";
+(function initSupabaseScoped() {
+  // ❗️WICHTIG: Diese consts sind jetzt NICHT mehr global => kein "already declared" mehr
+  const SUPABASE_URL = "https://ztvimtaecxxtltpnxxrg.supabase.co";
+  const SUPABASE_ANON_KEY =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0dmltdGFlY3h4dGx0cG54eHJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NjE4MzEsImV4cCI6MjA4ODEzNzgzMX0.W9c_Sy6dcNHwjr3hYSjBmh5vDyY1KBQbeYsw4wG5gGw";
 
-let sb = null;
-try {
-  if (typeof supabase !== "undefined" && supabase?.createClient) {
-    sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  } else {
-    console.warn("[script.js] Supabase library not loaded. Add CDN script tag before script.js.");
+  try {
+    if (typeof supabase !== "undefined" && supabase?.createClient) {
+      // ✅ global verfügbar machen
+      window.sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } else {
+      console.warn("[script.js] Supabase library not loaded. Add CDN script tag before script.js.");
+      window.sb = null;
+    }
+  } catch (e) {
+    console.warn("[script.js] Supabase init failed:", e);
+    window.sb = null;
   }
-} catch (e) {
-  console.warn("[script.js] Supabase init failed:", e);
-  sb = null;
-}
+})();
 
 function requireSupabase() {
-  if (sb) return true;
-  showToast("Supabase nicht geladen (CDN Script fehlt).", "error", 5000);
+  if (window.sb) return true;
+  showToast("Supabase nicht geladen (CDN Script fehlt / Reihenfolge falsch).", "error", 6000);
   return false;
 }
 
@@ -208,6 +212,7 @@ function buildNav(currentPage) {
 async function dbList(table, options = {}) {
   if (!requireSupabase()) return [];
 
+  const sb = window.sb;
   const orderBy = options.orderBy || "date";
   const ascending = options.ascending ?? false;
   const limit = options.limit ?? null;
@@ -234,6 +239,8 @@ async function dbList(table, options = {}) {
 
 async function dbGet(table, id) {
   if (!requireSupabase()) return null;
+  const sb = window.sb;
+
   const { data, error } = await sb.from(table).select("*").eq("id", id).maybeSingle();
   if (error) {
     console.error("[dbGet]", table, error);
@@ -245,6 +252,7 @@ async function dbGet(table, id) {
 
 async function dbUpsert(table, row) {
   if (!requireSupabase()) return { ok: false, data: null };
+  const sb = window.sb;
 
   const { data, error } = await sb.from(table).upsert(row).select().maybeSingle();
   if (error) {
@@ -257,6 +265,8 @@ async function dbUpsert(table, row) {
 
 async function dbDelete(table, id) {
   if (!requireSupabase()) return false;
+  const sb = window.sb;
+
   const { error } = await sb.from(table).delete().eq("id", id);
   if (error) {
     console.error("[dbDelete]", table, error);
@@ -281,9 +291,9 @@ function safeFileExt(name = "") {
  */
 async function uploadAttachment(table, file) {
   if (!requireSupabase()) return null;
+  const sb = window.sb;
   if (!file) return null;
 
-  const ext = safeFileExt(file.name);
   const ts = Date.now();
   const cleanName = (file.name || "file").replace(/[^\w.\-]+/g, "_");
   const path = `${table}/${ts}-${cleanName}`;
@@ -324,13 +334,14 @@ async function uploadAttachments(table, files, max = MAX_ATTACHMENTS) {
 
 /** Returns a public URL (bucket must be public) */
 function publicUrlForPath(path) {
-  if (!sb || !path) return null;
-  const { data } = sb.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+  if (!window.sb || !path) return null;
+  const { data } = window.sb.storage.from(STORAGE_BUCKET).getPublicUrl(path);
   return data?.publicUrl || null;
 }
 
 async function deleteAttachmentByPath(path) {
   if (!requireSupabase()) return false;
+  const sb = window.sb;
   if (!path) return true;
 
   const { error } = await sb.storage.from(STORAGE_BUCKET).remove([path]);
@@ -342,7 +353,7 @@ async function deleteAttachmentByPath(path) {
 }
 
 // ============================================================
-//  ATTACHMENT ARRAY HELPERS (for all "guide-like" pages)
+//  ATTACHMENT ARRAY HELPERS
 //  DB columns:
 //   attachment_paths text[]
 //   attachment_types text[]
