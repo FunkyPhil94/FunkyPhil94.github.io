@@ -30,14 +30,14 @@
     .rank-r2 { color:#6ee7b7; }
     .rank-r1 { color:#6b7280; }
 
-    .search-bar {
+    .search-bar{
       background:var(--surface); border:1px solid var(--border); border-radius:3px;
       color:var(--text); font-family:'Inter',sans-serif; font-size:.88rem;
       padding:.55rem 1rem; outline:none; width:100%; max-width:320px;
       transition:border-color .2s;
     }
-    .search-bar:focus { border-color:var(--gold); }
-    .toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem; }
+    .search-bar:focus{ border-color:var(--gold); }
+    .toolbar{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem; }
   </style>
 </head>
 
@@ -101,7 +101,7 @@
           <input type="text" id="mName" placeholder="e.g. DarkBlade"/>
         </div>
         <div class="form-group">
-          <label>Power</label>
+          <label>Power (Fallback)</label>
           <input type="number" id="mPower" min="0" step="1" placeholder="e.g. 34000000"/>
         </div>
       </div>
@@ -145,11 +145,12 @@
   <script src="script.js"></script>
 
   <script>
-    // ---- Page init ----
     buildNav("roster.html");
     applyAuthUI();
 
-    const TABLE = "members";
+    // READ from view, WRITE to base table
+    const TABLE_WRITE = "members";
+    const VIEW_READ   = "members_with_power";
 
     const RANK_LABEL = { r5:"R5 – Leader", r4:"R4 – Vice", r3:"R3 – Elite", r2:"R2 – Member", r1:"R1 – Recruit" };
     const RANK_CLASS = { r5:"rank-r5", r4:"rank-r4", r3:"rank-r3", r2:"rank-r2", r1:"rank-r1" };
@@ -161,7 +162,7 @@
     function getSb() {
       if (window.sb) return window.sb;
       showToast("Supabase nicht geladen (CDN vor script.js prüfen).", "error", 7000);
-      console.error("Supabase client 'sb' missing. Ensure CDN is loaded BEFORE script.js and script.js sets window.sb.");
+      console.error("Supabase client 'sb' missing.");
       return null;
     }
 
@@ -195,14 +196,15 @@
       </div>`;
     }
 
+    // ✅ Only fetch what the table uses
     async function fetchMembers() {
       const sbClient = getSb();
       if (!sbClient) return [];
 
       const { data, error } = await sbClient
-        .from(TABLE)
-        .select("id,name,rank,power,warnings_mythic,warnings_castle,notes,created_at")
-        .order("created_at", { ascending: false });
+        .from(VIEW_READ)
+        .select("id,name,rank,power,warnings_mythic,warnings_castle,notes")
+        .order("name", { ascending: true });
 
       if (error) {
         console.error(error);
@@ -279,8 +281,9 @@
 
       const nextVal = Math.max(0, (Number(m[col]) || 0) + delta);
 
+      // ✅ write to base table
       const { error } = await sbClient
-        .from(TABLE)
+        .from(TABLE_WRITE)
         .update({ [col]: nextVal })
         .eq("id", id);
 
@@ -318,22 +321,19 @@
       const payload = {
         name,
         rank,
-        power,
+        power, // fallback, wird überschrieben wenn Snapshot existiert
         warnings_mythic: Number(document.getElementById("mWarnMythic").value) || 0,
         warnings_castle: Number(document.getElementById("mWarnCastle").value) || 0,
         notes: (document.getElementById("mNotes").value || "").trim(),
       };
 
-      // ✅ IMPORTANT: bei identity-id NICHT upsert mit id für neue Zeilen
       let error = null;
 
       if (id) {
-        // update existing
-        const res = await sbClient.from(TABLE).update(payload).eq("id", Number(id));
+        const res = await sbClient.from(TABLE_WRITE).update(payload).eq("id", Number(id));
         error = res.error;
       } else {
-        // insert new (ohne id)
-        const res = await sbClient.from(TABLE).insert(payload);
+        const res = await sbClient.from(TABLE_WRITE).insert(payload);
         error = res.error;
       }
 
@@ -358,7 +358,10 @@
       document.getElementById("editMemberId").value = m.id;
       document.getElementById("mName").value = m.name || "";
       document.getElementById("mRank").value = String(m.rank || "r1").toLowerCase();
+
+      // Hinweis: m.power ist aktuell (View). Als Fallback-Startwert ist das ok zum Editieren.
       document.getElementById("mPower").value = (m.power ?? "");
+
       document.getElementById("mWarnMythic").value = m.warnings_mythic || 0;
       document.getElementById("mWarnCastle").value = m.warnings_castle || 0;
       document.getElementById("mNotes").value = m.notes || "";
@@ -374,7 +377,7 @@
       const sbClient = getSb();
       if (!sbClient) return;
 
-      const { error } = await sbClient.from(TABLE).delete().eq("id", id);
+      const { error } = await sbClient.from(TABLE_WRITE).delete().eq("id", id);
       if (error) {
         console.error(error);
         showToast("Fehler beim Löschen.", "error", 4500);
@@ -406,7 +409,6 @@
       applyAuthUI();
     }
 
-    // initial load
     loadAndRender();
   </script>
 </body>
