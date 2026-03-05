@@ -292,21 +292,49 @@
         warnings_mythic: Number(document.getElementById("mWarnMythic").value) || 0,
         warnings_castle: Number(document.getElementById("mWarnCastle").value) || 0,
         notes: (document.getElementById("mNotes").value || "").trim(),
+      };async function saveMember() {
+
+      if (!requireAuthOrAlert()) return;
+    
+      const id = document.getElementById("editMemberId").value;
+    
+      const entry = {
+        name: document.getElementById("mName").value.trim() || "Unknown",
+        rank: document.getElementById("mRank").value,
+        power: Number(document.getElementById("mPower").value) || 0,
+        warnings_mythic: Number(document.getElementById("mWarnMythic").value) || 0,
+        warnings_castle: Number(document.getElementById("mWarnCastle").value) || 0,
+        notes: document.getElementById("mNotes").value.trim()
       };
-
-      if (id) entry.id = Number(id);
-
-      const { error } = await sb.from(TABLE).upsert(entry);
-      if (error) {
-        console.error(error);
-        showToast("Fehler beim Speichern des Members.", "error", 4500);
+    
+      let result;
+    
+      if (id) {
+    
+        // UPDATE
+        result = await sb
+          .from(TABLE)
+          .update(entry)
+          .eq("id", Number(id));
+    
+      } else {
+    
+        // INSERT
+        result = await sb
+          .from(TABLE)
+          .insert(entry);
+    
+      }
+    
+      if (result.error) {
+        console.error(result.error);
+        showToast("Database error: " + result.error.message, "error");
         return;
       }
-
+    
       closeModal("memberModal");
       resetMemberForm();
       await loadAndRender();
-      showToast("Saved.", "success");
     }
 
     function editMember(id) {
