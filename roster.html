@@ -24,7 +24,6 @@
     .warn-btn.sub { background:rgba(76,175,125,.15); color:var(--green); }
     .warn-btn.sub:hover { background:rgba(76,175,125,.3); }
 
-    /* R1–R5 rank colours */
     .rank-r5 { color:#f0cc72; }
     .rank-r4 { color:#7eb8f7; }
     .rank-r3 { color:#a78bfa; }
@@ -146,6 +145,17 @@
   <script src="script.js"></script>
 
   <script>
+    // =======================
+    // SUPABASE (init here to be 100% safe)
+    // =======================
+    const SUPABASE_URL = "https://ztvimtaecxxtltpnxxrg.supabase.co";
+    const SUPABASE_ANON_KEY =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0dmltdGFlY3h4dGx0cG54eHJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NjE4MzEsImV4cCI6MjA4ODEzNzgzMX0.W9c_Sy6dcNHwjr3hYSjBmh5vDyY1KBQbeYsw4wG5gGw";
+
+    const sbClient = (typeof supabase !== "undefined" && supabase?.createClient)
+      ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : null;
+
     const TABLE = "members";
 
     const RANK_LABEL = { r5:"R5 – Leader", r4:"R4 – Vice", r3:"R3 – Elite", r2:"R2 – Member", r1:"R1 – Recruit" };
@@ -171,7 +181,6 @@
     }
 
     function setFilter(f) { rankFilter = f; render(); }
-
     function warnClass(n) { return n===0 ? "warn-0" : n===1 ? "warn-1" : "warn-2p"; }
 
     function warnCell(memberId, col, count, canEdit) {
@@ -185,29 +194,11 @@
       </div>`;
     }
 
-    function getSbOrInit() {
-      // prefer global sb from script.js if available
-      if (window.sb) return window.sb;
-
-      // fallback: init here if script.js didn't
-      if (typeof supabase === "undefined" || !supabase?.createClient) {
-        showToast("Supabase nicht geladen (CDN Reihenfolge prüfen).", "error", 7000);
-        console.error("Supabase library missing. Ensure CDN is before script.js and before this inline script.");
-        return null;
-      }
-
-      // IMPORTANT: keep same values as in script.js
-      const SUPABASE_URL = "https://ztvimtaecxxtltpnxxrg.supabase.co";
-      const SUPABASE_ANON_KEY =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0dmltdGFlY3h4dGx0cG54eHJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NjE4MzEsImV4cCI6MjA4ODEzNzgzMX0.W9c_Sy6dcNHwjr3hYSjBmh5vDyY1KBQbeYsw4wG5gGw";
-
-      window.sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      return window.sb;
-    }
-
     async function fetchMembers() {
-      const sbClient = getSbOrInit();
-      if (!sbClient) return [];
+      if (!sbClient) {
+        showToast("Supabase nicht geladen (CDN Reihenfolge prüfen).", "error", 7000);
+        return [];
+      }
 
       const { data, error } = await sbClient
         .from(TABLE)
@@ -277,8 +268,6 @@
 
     async function adjustWarn(id, col, delta) {
       if (!requireAuthOrAlert()) return;
-
-      const sbClient = getSbOrInit();
       if (!sbClient) return;
 
       const m = currentMembers.find(x => x.id === id);
@@ -309,30 +298,42 @@
 
     async function saveMember() {
       if (!requireAuthOrAlert()) return;
-
-      const sbClient = getSbOrInit();
       if (!sbClient) return;
 
-      const id = document.getElementById("editMemberId").value;
+      const idRaw = (document.getElementById("editMemberId").value || "").trim();
+      const id = idRaw ? Number(idRaw) : null;
 
-      const powerValRaw = (document.getElementById("mPower").value || "").trim();
-      const powerVal = powerValRaw === "" ? null : Number(powerValRaw);
+      const powerRaw = (document.getElementById("mPower").value || "").trim();
+      const powerNum = powerRaw === "" ? null : Number(powerRaw);
 
-      const entry = {
+      const payload = {
         name: (document.getElementById("mName").value || "").trim() || "Unknown",
         rank: (document.getElementById("mRank").value || "r1").toLowerCase(),
-        power: Number.isFinite(powerVal) ? powerVal : null,
+        power: Number.isFinite(powerNum) ? powerNum : null,
         warnings_mythic: Number(document.getElementById("mWarnMythic").value) || 0,
         warnings_castle: Number(document.getElementById("mWarnCastle").value) || 0,
         notes: (document.getElementById("mNotes").value || "").trim(),
       };
 
-      if (id) entry.id = Number(id);
+      // IMPORTANT:
+      // - new row: INSERT (no id)
+      // - edit row: UPDATE by id
+      let error = null;
 
-      const { error } = await sbClient.from(TABLE).upsert(entry);
+      if (id) {
+        ({ error } = await sbClient
+          .from(TABLE)
+          .update(payload)
+          .eq("id", id));
+      } else {
+        ({ error } = await sbClient
+          .from(TABLE)
+          .insert(payload));
+      }
+
       if (error) {
         console.error(error);
-        showToast("Fehler beim Speichern des Members.", "error", 4500);
+        showToast("Fehler beim Speichern des Members (RLS/DB prüfen).", "error", 6000);
         return;
       }
 
@@ -363,8 +364,6 @@
     async function deleteMember(id) {
       if (!requireAuthOrAlert()) return;
       if (!confirm("Remove this member from the roster?")) return;
-
-      const sbClient = getSbOrInit();
       if (!sbClient) return;
 
       const { error } = await sbClient.from(TABLE).delete().eq("id", id);
@@ -399,7 +398,6 @@
       applyAuthUI();
     }
 
-    // init
     (async function init(){
       buildNav("roster.html");
       applyAuthUI();
