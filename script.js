@@ -163,9 +163,6 @@ const CONFIG = {
   pages: [
     { label: "Pinboard", href: "pinboard.html" },
     { label: "Guides", href: "guides.html" },
-    { label: "Events", href: "events.html" },
-    { label: "Relic", href: "relic.html" },
-    { label: "Heroes", href: "heroes.html" },
     { label: "Rules", href: "rules.html" },
 
     // only for logged-in users
