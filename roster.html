@@ -135,26 +135,19 @@
 
       <div class="modal-actions">
         <button class="btn btn-ghost" onclick="closeModal('memberModal');resetMemberForm()">Cancel</button>
-        <button class="btn btn-gold"  onclick="saveMember()">Save</button>
+        <button class="btn btn-gold" onclick="saveMember()">Save</button>
       </div>
     </div>
   </div>
 
-  <!-- Supabase client MUST be before script.js -->
+  <!-- ✅ Supabase CDN MUST be before script.js -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="script.js"></script>
 
   <script>
-    // =======================
-    // SUPABASE (init here to be 100% safe)
-    // =======================
-    const SUPABASE_URL = "https://ztvimtaecxxtltpnxxrg.supabase.co";
-    const SUPABASE_ANON_KEY =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0dmltdGFlY3h4dGx0cG54eHJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NjE4MzEsImV4cCI6MjA4ODEzNzgzMX0.W9c_Sy6dcNHwjr3hYSjBmh5vDyY1KBQbeYsw4wG5gGw";
-
-    const sbClient = (typeof supabase !== "undefined" && supabase?.createClient)
-      ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-      : null;
+    // ---- Page init ----
+    buildNav("roster.html");
+    applyAuthUI();
 
     const TABLE = "members";
 
@@ -164,6 +157,13 @@
 
     let rankFilter = "";
     let currentMembers = [];
+
+    function getSb() {
+      if (window.sb) return window.sb;
+      showToast("Supabase nicht geladen (CDN vor script.js prüfen).", "error", 7000);
+      console.error("Supabase client 'sb' missing. Ensure CDN is loaded BEFORE script.js and script.js sets window.sb.");
+      return null;
+    }
 
     function escapeHtml(s){
       return String(s ?? "")
@@ -181,6 +181,7 @@
     }
 
     function setFilter(f) { rankFilter = f; render(); }
+
     function warnClass(n) { return n===0 ? "warn-0" : n===1 ? "warn-1" : "warn-2p"; }
 
     function warnCell(memberId, col, count, canEdit) {
@@ -188,17 +189,15 @@
         <span class="warn-pip ${warnClass(count)}"></span>
         <span style="min-width:1.1rem;text-align:center;font-weight:600;font-size:.85rem">${count}</span>
         ${canEdit ? `
-          <button class="warn-btn add" title="Add warning"    onclick="adjustWarn(${memberId},'${col}',1)">+</button>
+          <button class="warn-btn add" title="Add warning" onclick="adjustWarn(${memberId},'${col}',1)">+</button>
           <button class="warn-btn sub" title="Remove warning" onclick="adjustWarn(${memberId},'${col}',-1)">−</button>
         ` : ``}
       </div>`;
     }
 
     async function fetchMembers() {
-      if (!sbClient) {
-        showToast("Supabase nicht geladen (CDN Reihenfolge prüfen).", "error", 7000);
-        return [];
-      }
+      const sbClient = getSb();
+      if (!sbClient) return [];
 
       const { data, error } = await sbClient
         .from(TABLE)
@@ -224,14 +223,17 @@
       if (rankFilter === "warned") {
         members = members.filter(m => (m.warnings_mythic||0) > 0 || (m.warnings_castle||0) > 0);
       } else if (rankFilter) {
-        members = members.filter(m => (m.rank || "").toLowerCase() === rankFilter);
+        members = members.filter(m => (String(m.rank||"").toLowerCase() === rankFilter));
       }
 
-      members.sort((a,b) => (rankOrder[(a.rank||"").toLowerCase()] ?? 99) - (rankOrder[(b.rank||"").toLowerCase()] ?? 99));
+      members.sort((a,b) => (rankOrder[String(a.rank||"").toLowerCase()] ?? 99) - (rankOrder[String(b.rank||"").toLowerCase()] ?? 99));
 
       const all = currentMembers || [];
       const warnedCount = all.filter(m => (m.warnings_mythic||0) > 0 || (m.warnings_castle||0) > 0).length;
-      const r45 = all.filter(m => (m.rank||"").toLowerCase()==="r5" || (m.rank||"").toLowerCase()==="r4").length;
+      const r45 = all.filter(m => {
+        const r = String(m.rank||"").toLowerCase();
+        return r==="r5" || r==="r4";
+      }).length;
 
       document.getElementById("rosterStats").innerHTML = `
         <div class="stat-card"><div class="s-label">Total Members</div><div class="s-value">${all.length}</div></div>
@@ -241,7 +243,7 @@
 
       document.getElementById("rosterBody").innerHTML = members.length
         ? members.map(m => {
-            const rankKey = (m.rank||"r1").toLowerCase();
+            const rankKey = String(m.rank||"r1").toLowerCase();
             const rc = RANK_CLASS[rankKey] || "rank-r1";
             const rl = RANK_LABEL[rankKey] || String(m.rank || "").toUpperCase();
             const totalWarn = (m.warnings_mythic||0) + (m.warnings_castle||0);
@@ -256,7 +258,7 @@
               <td>
                 ${canEdit ? `
                   <div style="display:flex;gap:.4rem">
-                    <button class="btn btn-ghost"  style="padding:.3rem .6rem;font-size:.7rem" onclick="editMember(${m.id})">Edit</button>
+                    <button class="btn btn-ghost" style="padding:.3rem .6rem;font-size:.7rem" onclick="editMember(${m.id})">Edit</button>
                     <button class="btn btn-danger" style="padding:.3rem .6rem;font-size:.7rem" onclick="deleteMember(${m.id})">✕</button>
                   </div>
                 ` : ``}
@@ -268,12 +270,14 @@
 
     async function adjustWarn(id, col, delta) {
       if (!requireAuthOrAlert()) return;
+
+      const sbClient = getSb();
       if (!sbClient) return;
 
       const m = currentMembers.find(x => x.id === id);
       if (!m) return;
 
-      const nextVal = Math.max(0, (m[col] || 0) + delta);
+      const nextVal = Math.max(0, (Number(m[col]) || 0) + delta);
 
       const { error } = await sbClient
         .from(TABLE)
@@ -298,42 +302,44 @@
 
     async function saveMember() {
       if (!requireAuthOrAlert()) return;
+
+      const sbClient = getSb();
       if (!sbClient) return;
 
-      const idRaw = (document.getElementById("editMemberId").value || "").trim();
-      const id = idRaw ? Number(idRaw) : null;
+      const id = (document.getElementById("editMemberId").value || "").trim();
+
+      const name = (document.getElementById("mName").value || "").trim() || "Unknown";
+      const rank = (document.getElementById("mRank").value || "r1").toLowerCase();
 
       const powerRaw = (document.getElementById("mPower").value || "").trim();
       const powerNum = powerRaw === "" ? null : Number(powerRaw);
+      const power = Number.isFinite(powerNum) ? powerNum : null;
 
       const payload = {
-        name: (document.getElementById("mName").value || "").trim() || "Unknown",
-        rank: (document.getElementById("mRank").value || "r1").toLowerCase(),
-        power: Number.isFinite(powerNum) ? powerNum : null,
+        name,
+        rank,
+        power,
         warnings_mythic: Number(document.getElementById("mWarnMythic").value) || 0,
         warnings_castle: Number(document.getElementById("mWarnCastle").value) || 0,
         notes: (document.getElementById("mNotes").value || "").trim(),
       };
 
-      // IMPORTANT:
-      // - new row: INSERT (no id)
-      // - edit row: UPDATE by id
+      // ✅ IMPORTANT: bei identity-id NICHT upsert mit id für neue Zeilen
       let error = null;
 
       if (id) {
-        ({ error } = await sbClient
-          .from(TABLE)
-          .update(payload)
-          .eq("id", id));
+        // update existing
+        const res = await sbClient.from(TABLE).update(payload).eq("id", Number(id));
+        error = res.error;
       } else {
-        ({ error } = await sbClient
-          .from(TABLE)
-          .insert(payload));
+        // insert new (ohne id)
+        const res = await sbClient.from(TABLE).insert(payload);
+        error = res.error;
       }
 
       if (error) {
         console.error(error);
-        showToast("Fehler beim Speichern des Members (RLS/DB prüfen).", "error", 6000);
+        showToast("Fehler beim Speichern des Members.", "error", 5500);
         return;
       }
 
@@ -351,7 +357,7 @@
 
       document.getElementById("editMemberId").value = m.id;
       document.getElementById("mName").value = m.name || "";
-      document.getElementById("mRank").value = (m.rank || "r1").toLowerCase();
+      document.getElementById("mRank").value = String(m.rank || "r1").toLowerCase();
       document.getElementById("mPower").value = (m.power ?? "");
       document.getElementById("mWarnMythic").value = m.warnings_mythic || 0;
       document.getElementById("mWarnCastle").value = m.warnings_castle || 0;
@@ -364,6 +370,8 @@
     async function deleteMember(id) {
       if (!requireAuthOrAlert()) return;
       if (!confirm("Remove this member from the roster?")) return;
+
+      const sbClient = getSb();
       if (!sbClient) return;
 
       const { error } = await sbClient.from(TABLE).delete().eq("id", id);
@@ -398,11 +406,8 @@
       applyAuthUI();
     }
 
-    (async function init(){
-      buildNav("roster.html");
-      applyAuthUI();
-      await loadAndRender();
-    })();
+    // initial load
+    loadAndRender();
   </script>
 </body>
 </html>
