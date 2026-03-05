@@ -164,7 +164,8 @@ const CONFIG = {
     { label: "Pinboard", href: "pinboard.html" },
     { label: "Guides", href: "guides.html" },
     { label: "Rules", href: "rules.html" },
-
+    { label: "Power", href: "power.html" },
+    
     // only for logged-in users
     { label: "Influence Tracker", href: "influence.html", requiresAuth: true },
     { label: "Member Roster", href: "roster.html", requiresAuth: true },
