@@ -167,7 +167,6 @@ const CONFIG = {
     { label: "Power", href: "power.html" },
     
     // only for logged-in users
-    { label: "Influence Tracker", href: "influence.html", requiresAuth: true },
     { label: "Member Roster", href: "roster.html", requiresAuth: true },
   ],
 };
@@ -428,7 +427,7 @@ function openModal(id) { document.getElementById(id)?.classList.add("open"); }
 //  PROTECT RESTRICTED PAGES (Influence/Roster only for authed)
 // ============================================================
 (function protectRestrictedPages() {
-  const restricted = ["influence.html", "roster.html"];
+  const restricted = ["roster.html"];
   const current = location.pathname.split("/").pop();
   if (restricted.includes(current) && !isAuthed()) {
     location.href = "index.html";
