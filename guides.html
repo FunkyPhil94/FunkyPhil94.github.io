@@ -41,6 +41,64 @@
     /* View modal content */
     #viewBody { font-size:.9rem; line-height:1.75; color:var(--muted); white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; }
     #viewAttachment { margin-top:1.2rem; }
+
+    /* ===== Subcategory tiles (Events/Relic/Heroes) ===== */
+    .subcats{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      gap:1rem;
+      margin: 1.25rem 0 1.6rem;
+    }
+    .subcat-card{
+      position:relative;
+      border-radius:6px;
+      overflow:hidden;
+      border:1px solid var(--border);
+      min-height:140px;
+      text-decoration:none;
+      background:
+        linear-gradient(135deg, rgba(201,168,76,.18), rgba(17,21,32,.92)),
+        var(--bg);
+      background-size:cover;
+      background-position:center;
+      transition:transform .18s ease, border-color .18s ease;
+    }
+    .subcat-card:hover{
+      transform:translateY(-2px);
+      border-color:rgba(201,168,76,.35);
+    }
+    .subcat-overlay{
+      position:absolute; inset:0;
+      background:linear-gradient(180deg, rgba(10,12,16,.10) 0%, rgba(10,12,16,.78) 100%);
+    }
+    .subcat-content{
+      position:relative;
+      padding:1.1rem 1.1rem;
+      display:flex;
+      flex-direction:column;
+      gap:.25rem;
+    }
+    .subcat-kicker{
+      font-size:.68rem;
+      letter-spacing:.18em;
+      text-transform:uppercase;
+      color:rgba(232,234,240,.55);
+      font-weight:600;
+    }
+    .subcat-title{
+      font-family:'Rajdhani',sans-serif;
+      font-size:1.25rem;
+      font-weight:800;
+      letter-spacing:.04em;
+      text-transform:uppercase;
+      color:var(--gold-light);
+      line-height:1.1;
+    }
+    .subcat-desc{
+      font-size:.82rem;
+      color:rgba(232,234,240,.75);
+      margin-top:.1rem;
+    }
   </style>
 </head>
 
@@ -55,6 +113,36 @@
         <div class="page-divider"></div>
       </div>
       <button class="btn btn-gold" data-requires-auth="true" onclick="openItemModal()">+ New Guide</button>
+    </div>
+
+    <!-- Subcategories (Events / Relic / Heroes) -->
+    <div class="subcats">
+      <a class="subcat-card" href="events.html" style="--bg:url('https://images.unsplash.com/photo-1520975916090-3105956dac38?auto=format&fit=crop&w=1400&q=60')">
+        <div class="subcat-overlay"></div>
+        <div class="subcat-content">
+          <div class="subcat-kicker">Guides</div>
+          <div class="subcat-title">Events</div>
+          <div class="subcat-desc">Planung, Termine, Uploads</div>
+        </div>
+      </a>
+
+      <a class="subcat-card" href="relic.html" style="--bg:url('https://images.unsplash.com/photo-1518544887879-3b3b1e42dc71?auto=format&fit=crop&w=1400&q=60')">
+        <div class="subcat-overlay"></div>
+        <div class="subcat-content">
+          <div class="subcat-kicker">Guides</div>
+          <div class="subcat-title">Relic</div>
+          <div class="subcat-desc">Relic Notes, Builds & Tipps</div>
+        </div>
+      </a>
+
+      <a class="subcat-card" href="heroes.html" style="--bg:url('https://images.unsplash.com/photo-1520975661595-6453be3f7070?auto=format&fit=crop&w=1400&q=60')">
+        <div class="subcat-overlay"></div>
+        <div class="subcat-content">
+          <div class="subcat-kicker">Guides</div>
+          <div class="subcat-title">Heroes</div>
+          <div class="subcat-desc">Hero Notes, Synergien, Setups</div>
+        </div>
+      </a>
     </div>
 
     <div class="guide-filters" id="filterBar"></div>
