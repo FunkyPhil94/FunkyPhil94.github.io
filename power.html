@@ -32,6 +32,27 @@
       color:var(--muted);
     }
     canvas { max-height: 380px; }
+
+    .sortbar{
+      display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; margin-top:.8rem;
+    }
+    .sortbtn{
+      padding:.35rem .7rem;
+      border:1px solid var(--border);
+      background:var(--surface2);
+      color:var(--muted);
+      border-radius:3px;
+      font-size:.72rem;
+      cursor:pointer;
+      transition:all .15s;
+      user-select:none;
+    }
+    .sortbtn:hover{ border-color:rgba(201,168,76,.35); color:var(--text); }
+    .sortbtn.active{
+      border-color:var(--gold);
+      color:var(--gold);
+      background:rgba(201,168,76,.08);
+    }
   </style>
 </head>
 
@@ -47,11 +68,12 @@
       </div>
     </div>
 
-    <!-- IMPORT -->
-    <div class="card" style="margin-bottom:1.2rem">
+    <!-- IMPORT (nur sichtbar wenn eingeloggt) -->
+    <div class="card" id="importCard" data-requires-auth="true" style="margin-bottom:1.2rem">
       <div class="page-label">Import</div>
       <div class="small-help" style="margin-top:.4rem">
-        Lade eine CSV hoch (<span class="mono">name,power</span>). Reihenfolge egal. Der Snapshot wird pro Member + Datum gespeichert (Upsert).
+        Lade eine CSV hoch (<span class="mono">name,power</span>). Reihenfolge egal.
+        Snapshot wird pro Member + Datum gespeichert (Upsert).
       </div>
 
       <div class="import-card" style="margin-top:1rem">
@@ -94,22 +116,30 @@
       </div>
     </div>
 
-    <!-- TABLE: LAST CHANGE -->
+    <!-- TABLE: MONTH CHANGE -->
     <div class="card">
-      <div class="page-label">Latest Change</div>
-      <div class="small-help" style="margin-top:.4rem">
-        Vergleich zwischen den letzten beiden Snapshots pro Member (sofern vorhanden).
+      <div class="page-label">Latest Change (Current Month)</div>
+      <div class="small-help" id="monthHint" style="margin-top:.4rem"></div>
+
+      <div class="sortbar">
+        <span class="chip" id="sortInfo">Sort: Δ Abs ↓</span>
+        <button class="sortbtn active" id="sortAbsDesc">Δ Abs ↓</button>
+        <button class="sortbtn" id="sortAbsAsc">Δ Abs ↑</button>
+        <button class="sortbtn" id="sortPctDesc">Δ % ↓</button>
+        <button class="sortbtn" id="sortPctAsc">Δ % ↑</button>
       </div>
+
       <div class="table-wrap" style="margin-top:1rem">
         <table>
           <thead>
             <tr>
               <th>Name</th>
-              <th>Latest</th>
-              <th>Prev</th>
+              <th>Month Start</th>
+              <th>Month End</th>
               <th>Δ Abs</th>
               <th>Δ %</th>
-              <th>Latest Date</th>
+              <th>First Date</th>
+              <th>Last Date</th>
             </tr>
           </thead>
           <tbody id="deltaBody"></tbody>
@@ -140,14 +170,47 @@
     const memberSelect = document.getElementById("memberSelect");
     const powerStats = document.getElementById("powerStats");
     const deltaBody = document.getElementById("deltaBody");
+    const monthHint = document.getElementById("monthHint");
 
-    let members = [];              // [{id,name,rank,power...}]
-    let memberByName = new Map();  // lower(name)->member
+    const sortInfo = document.getElementById("sortInfo");
+    const btnAbsDesc = document.getElementById("sortAbsDesc");
+    const btnAbsAsc  = document.getElementById("sortAbsAsc");
+    const btnPctDesc = document.getElementById("sortPctDesc");
+    const btnPctAsc  = document.getElementById("sortPctAsc");
+
+    let members = [];
+    let memberByName = new Map();
     let chart = null;
+
+    // month deltas cache
+    let monthDeltas = [];
+    let sortMode = "abs_desc"; // abs_desc | abs_asc | pct_desc | pct_asc
+
+    function setSort(mode){
+      sortMode = mode;
+      [btnAbsDesc,btnAbsAsc,btnPctDesc,btnPctAsc].forEach(b => b.classList.remove("active"));
+      if (mode==="abs_desc") btnAbsDesc.classList.add("active");
+      if (mode==="abs_asc")  btnAbsAsc.classList.add("active");
+      if (mode==="pct_desc") btnPctDesc.classList.add("active");
+      if (mode==="pct_asc")  btnPctAsc.classList.add("active");
+
+      const label =
+        mode==="abs_desc" ? "Sort: Δ Abs ↓" :
+        mode==="abs_asc"  ? "Sort: Δ Abs ↑" :
+        mode==="pct_desc" ? "Sort: Δ % ↓" :
+                            "Sort: Δ % ↑";
+      sortInfo.textContent = label;
+
+      renderDeltaTable();
+    }
+
+    btnAbsDesc.addEventListener("click", () => setSort("abs_desc"));
+    btnAbsAsc.addEventListener("click",  () => setSort("abs_asc"));
+    btnPctDesc.addEventListener("click", () => setSort("pct_desc"));
+    btnPctAsc.addEventListener("click",  () => setSort("pct_asc"));
 
     // --- Utils ---
     function toISODateLocal(d){
-      // yyyy-mm-dd in local time
       const x = new Date(d);
       const yyyy = x.getFullYear();
       const mm = String(x.getMonth()+1).padStart(2,"0");
@@ -176,9 +239,8 @@
         .replaceAll("'","&#39;");
     }
 
-    // CSV parser (simple, tolerant for your format)
+    // CSV parser (tolerant)
     function parseCSV(text){
-      // supports: name,power (header optional); delimiter comma or semicolon
       const lines = String(text || "")
         .replace(/\r\n/g,"\n")
         .replace(/\r/g,"\n")
@@ -188,16 +250,15 @@
 
       if (!lines.length) return [];
 
-      // detect delimiter from first non-empty line
       const first = lines[0];
       const delim = (first.includes(";") && !first.includes(",")) ? ";" : ",";
 
       const rows = lines.map(l => l.split(delim).map(x => x.trim()));
 
-      // header check
       const head0 = (rows[0][0] || "").toLowerCase();
       const head1 = (rows[0][1] || "").toLowerCase();
-      const hasHeader = (head0.includes("name") || head0.includes("player")) && (head1.includes("power") || head1.includes("stärke") || head1.includes("staerke"));
+      const hasHeader = (head0.includes("name") || head0.includes("player")) &&
+                        (head1.includes("power") || head1.includes("stärke") || head1.includes("staerke"));
 
       const body = hasHeader ? rows.slice(1) : rows;
 
@@ -205,29 +266,26 @@
       for (const r of body){
         const name = (r[0] || "").trim();
         let powerRaw = (r[1] || "").trim();
-
         if (!name) continue;
-
-        // allow: 34,000,000 or 34.000.000
         powerRaw = powerRaw.replace(/[,\.\s]/g, "");
         const power = Number(powerRaw);
-
         if (!Number.isFinite(power)) continue;
         out.push({ name, power });
       }
       return out;
     }
 
-    // --- Auto-set datepicker on file pick (upload date = file lastModified) ---
-    csvInput.addEventListener("change", () => {
-      const f = csvInput.files && csvInput.files[0];
-      if (!f) return;
-      dateInput.value = toISODateLocal(new Date(f.lastModified));
-      importResult.style.display = "none";
-      importResult.innerHTML = "";
-    });
+    // --- file pick -> set date to file lastModified ---
+    if (csvInput){
+      csvInput.addEventListener("change", () => {
+        const f = csvInput.files && csvInput.files[0];
+        if (!f) return;
+        dateInput.value = toISODateLocal(new Date(f.lastModified));
+        importResult.style.display = "none";
+        importResult.innerHTML = "";
+      });
+    }
 
-    // --- Load members map ---
     async function loadMembers(){
       const { data, error } = await sb
         .from(MEMBERS_TABLE)
@@ -242,103 +300,11 @@
       members = (data || []).slice().sort((a,b) => String(a.name||"").localeCompare(String(b.name||"")));
       memberByName = new Map(members.map(m => [String(m.name||"").trim().toLowerCase(), m]));
 
-      // dropdown
       memberSelect.innerHTML = members.map(m => `<option value="${m.id}">${escapeHtml(m.name||"")}</option>`).join("");
       if (members[0]) memberSelect.value = members[0].id;
 
       return members;
     }
-
-    // --- Import CSV -> power_snapshots ---
-    importBtn.addEventListener("click", async () => {
-      if (!requireAuthOrAlert()) return;
-
-      const f = csvInput.files && csvInput.files[0];
-      if (!f) { showToast("Bitte eine CSV auswählen.", "error"); return; }
-
-      const snapshot_at = (dateInput.value || "").trim();
-      if (!snapshot_at) { showToast("Bitte Snapshot Date auswählen.", "error"); return; }
-
-      // ensure members map
-      if (!members.length) await loadMembers();
-      if (!members.length) return;
-
-      importBtn.disabled = true;
-      importBtn.style.opacity = "0.6";
-
-      try {
-        const text = await f.text();
-        const parsed = parseCSV(text);
-
-        if (!parsed.length){
-          showToast("CSV enthält keine gültigen Zeilen (name,power).", "error", 6000);
-          return;
-        }
-
-        const unmatched = [];
-        const upserts = [];
-
-        for (const row of parsed){
-          const key = String(row.name||"").trim().toLowerCase();
-          const m = memberByName.get(key);
-          if (!m){
-            unmatched.push(row.name);
-            continue;
-          }
-          upserts.push({
-            member_id: m.id,
-            snapshot_at,
-            power: row.power
-          });
-        }
-
-        if (!upserts.length){
-          showToast("Keine Zeilen konnten zu Members gematcht werden.", "error", 6000);
-          importResult.style.display = "";
-          importResult.innerHTML = `0 importiert. Unmatched: ${unmatched.length ? unmatched.map(escapeHtml).join(", ") : "—"}`;
-          return;
-        }
-
-        // Upsert batch
-        const { error } = await sb
-          .from(SNAP_TABLE)
-          .upsert(upserts, { onConflict: "member_id,snapshot_at" });
-
-        if (error){
-          console.error(error);
-          showToast("Import fehlgeschlagen (DB).", "error", 6000);
-          importResult.style.display = "";
-          importResult.innerHTML = `<span style="color:var(--red)">DB error:</span> ${escapeHtml(error.message || "unknown")}`;
-          return;
-        }
-
-        // Optional: update current members.power to latest snapshot (same date)
-        // (nur wenn du willst – kann man auch weglassen)
-        // await sb.from(MEMBERS_TABLE).upsert(upserts.map(x => ({ id: x.member_id, power: x.power })));
-
-        showToast(`Import ok: ${upserts.length} Zeilen (${snapshot_at}).`, "success", 4500);
-
-        importResult.style.display = "";
-        importResult.innerHTML = `
-          <div class="member-row">
-            <span class="chip">Imported: ${upserts.length}</span>
-            <span class="chip">Unmatched: ${unmatched.length}</span>
-            <span class="chip">Date: ${escapeHtml(snapshot_at)}</span>
-          </div>
-          ${unmatched.length ? `<div style="margin-top:.45rem"><span style="color:var(--red)">Unmatched:</span> ${unmatched.map(escapeHtml).join(", ")}</div>` : ``}
-        `;
-
-        // refresh UI
-        await refreshAll();
-
-      } finally {
-        importBtn.disabled = false;
-        importBtn.style.opacity = "";
-      }
-    });
-
-    // --- Chart / Data ---
-    memberSelect.addEventListener("change", () => renderChartForMember(Number(memberSelect.value)));
 
     async function fetchSnapshotsForMember(memberId){
       const { data, error } = await sb
@@ -386,11 +352,7 @@
           maintainAspectRatio: false,
           plugins: {
             legend: { labels: { color: "#e5e7eb" } },
-            tooltip: {
-              callbacks: {
-                label: (ctx) => ` ${fmtInt(ctx.parsed.y)}`
-              }
-            }
+            tooltip: { callbacks: { label: (ctx) => ` ${fmtInt(ctx.parsed.y)}` } }
           },
           scales: {
             x: { ticks: { color: "#9ca3af" }, grid: { color: "rgba(255,255,255,.06)" } },
@@ -400,18 +362,53 @@
       });
     }
 
-    async function computeLatestDeltas(){
-      // Fetch latest two per member: simplest approach:
-      // - pull all snapshots, group in JS (ok for your scale)
-      // If it becomes huge later, we’ll optimize with a SQL view/RPC.
+    memberSelect.addEventListener("change", () => renderChartForMember(Number(memberSelect.value)));
+
+    async function renderStats(){
+      const { count, error } = await sb
+        .from(SNAP_TABLE)
+        .select("*", { count: "exact", head: true });
+
+      if (error){
+        console.error(error);
+        powerStats.innerHTML = `
+          <div class="stat-card"><div class="s-label">Members</div><div class="s-value">${members.length}</div></div>
+          <div class="stat-card"><div class="s-label">Snapshot Rows</div><div class="s-value">–</div></div>
+        `;
+        return;
+      }
+
+      powerStats.innerHTML = `
+        <div class="stat-card"><div class="s-label">Members</div><div class="s-value">${members.length}</div></div>
+        <div class="stat-card"><div class="s-label">Snapshot Rows</div><div class="s-value">${count ?? 0}</div></div>
+      `;
+    }
+
+    function monthRangeUTC0(){
+      const now = new Date();
+      const y = now.getUTCFullYear();
+      const m = now.getUTCMonth(); // 0-based
+      const start = new Date(Date.UTC(y, m, 1));
+      const end = new Date(Date.UTC(y, m+1, 1)); // exclusive
+      return { startISO: toISODateLocal(start), endISO: toISODateLocal(end), y, m };
+    }
+
+    async function computeCurrentMonthDeltas(){
+      const { startISO, endISO, y, m } = monthRangeUTC0();
+
+      const monthName = new Date(Date.UTC(y, m, 1)).toLocaleString("en-US", { month:"long", year:"numeric", timeZone:"UTC" });
+      monthHint.textContent = `From ${startISO} to ${toISODateLocal(new Date(Date.UTC(y, m+1, 0)))} (UTC 0).`;
+
       const { data, error } = await sb
         .from(SNAP_TABLE)
         .select("member_id,snapshot_at,power")
+        .gte("snapshot_at", startISO)
+        .lt("snapshot_at", endISO)
         .order("snapshot_at", { ascending: true });
 
       if (error){
         console.error(error);
-        showToast("Fehler: Deltas konnten nicht geladen werden.", "error", 5000);
+        showToast("Fehler: Monats-Auswertung konnte nicht geladen werden.", "error", 5000);
         return [];
       }
 
@@ -423,68 +420,147 @@
       }
 
       const out = [];
-      for (const m of members){
-        const arr = byMember.get(m.id) || [];
-        if (arr.length < 2) continue;
-        const prev = arr[arr.length - 2];
-        const last = arr[arr.length - 1];
-        const abs = last.p - prev.p;
-        const pct = prev.p > 0 ? abs / prev.p : null;
-        out.push({ name: m.name, last: last.p, prev: prev.p, abs, pct, date: last.d });
+      for (const mm of members){
+        const arr = byMember.get(mm.id) || [];
+        if (arr.length < 2) continue; // need start+end (or at least 2 points)
+        const first = arr[0];
+        const last  = arr[arr.length - 1];
+        const abs = last.p - first.p;
+        const pct = first.p > 0 ? abs / first.p : null;
+        out.push({
+          name: mm.name,
+          first: first.p,
+          last: last.p,
+          abs,
+          pct,
+          firstDate: first.d,
+          lastDate: last.d
+        });
       }
-
-      // sort biggest gains first
-      out.sort((a,b) => (b.abs ?? -Infinity) - (a.abs ?? -Infinity));
       return out;
     }
 
-    async function renderDeltaTable(){
-      const deltas = await computeLatestDeltas();
-      deltaBody.innerHTML = deltas.length
-        ? deltas.slice(0, 50).map(x => `
-          <tr>
-            <td>${escapeHtml(x.name)}</td>
-            <td style="font-weight:600">${fmtInt(x.last)}</td>
-            <td style="color:var(--muted)">${fmtInt(x.prev)}</td>
-            <td style="color:${x.abs>=0 ? 'var(--green)' : 'var(--red)'};font-weight:600">${x.abs>=0?'+':''}${fmtInt(x.abs)}</td>
-            <td style="color:var(--muted)">${x.pct===null?'–':fmtPct(x.pct)}</td>
-            <td style="color:var(--muted)">${escapeHtml(x.date)}</td>
-          </tr>
-        `).join("")
-        : `<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:1.6rem">No snapshot history yet.</td></tr>`;
+    function sortedMonthDeltas(list){
+      const arr = (list || []).slice();
+      if (sortMode === "abs_desc") arr.sort((a,b) => (b.abs ?? -Infinity) - (a.abs ?? -Infinity));
+      if (sortMode === "abs_asc")  arr.sort((a,b) => (a.abs ??  Infinity) - (b.abs ??  Infinity));
+      if (sortMode === "pct_desc") arr.sort((a,b) => ((b.pct ?? -Infinity)) - ((a.pct ?? -Infinity)));
+      if (sortMode === "pct_asc")  arr.sort((a,b) => ((a.pct ??  Infinity)) - ((b.pct ??  Infinity)));
+      return arr;
     }
 
-    async function renderStats(){
-      const { count, error } = await sb
-        .from(SNAP_TABLE)
-        .select("*", { count: "exact", head: true });
+    function renderDeltaTable(){
+      const deltas = sortedMonthDeltas(monthDeltas);
 
-      if (error){
-        console.error(error);
-        powerStats.innerHTML = `
-          <div class="stat-card"><div class="s-label">Members</div><div class="s-value">${members.length}</div></div>
-          <div class="stat-card"><div class="s-label">Snapshots</div><div class="s-value">–</div></div>
-        `;
-        return;
-      }
+      deltaBody.innerHTML = deltas.length
+        ? deltas.map(x => `
+          <tr>
+            <td>${escapeHtml(x.name)}</td>
+            <td style="color:var(--muted)">${fmtInt(x.first)}</td>
+            <td style="font-weight:600">${fmtInt(x.last)}</td>
+            <td style="color:${x.abs>=0 ? 'var(--green)' : 'var(--red)'};font-weight:700">
+              ${x.abs>=0?'+':''}${fmtInt(x.abs)}
+            </td>
+            <td style="color:var(--muted)">${x.pct===null?'–':fmtPct(x.pct)}</td>
+            <td style="color:var(--muted)">${escapeHtml(x.firstDate)}</td>
+            <td style="color:var(--muted)">${escapeHtml(x.lastDate)}</td>
+          </tr>
+        `).join("")
+        : `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:1.6rem">No snapshot history for the current month yet.</td></tr>`;
+    }
 
-      powerStats.innerHTML = `
-        <div class="stat-card"><div class="s-label">Members</div><div class="s-value">${members.length}</div></div>
-        <div class="stat-card"><div class="s-label">Snapshot Rows</div><div class="s-value">${count ?? 0}</div></div>
-      `;
+    // --- Import ---
+    if (importBtn){
+      importBtn.addEventListener("click", async () => {
+        if (!requireAuthOrAlert()) return;
+
+        const f = csvInput.files && csvInput.files[0];
+        if (!f) { showToast("Bitte eine CSV auswählen.", "error"); return; }
+
+        const snapshot_at = (dateInput.value || "").trim();
+        if (!snapshot_at) { showToast("Bitte Snapshot Date auswählen.", "error"); return; }
+
+        if (!members.length) await loadMembers();
+        if (!members.length) return;
+
+        importBtn.disabled = true;
+        importBtn.style.opacity = "0.6";
+
+        try {
+          const text = await f.text();
+          const parsed = parseCSV(text);
+
+          if (!parsed.length){
+            showToast("CSV enthält keine gültigen Zeilen (name,power).", "error", 6000);
+            return;
+          }
+
+          const unmatched = [];
+          const upserts = [];
+
+          for (const row of parsed){
+            const key = String(row.name||"").trim().toLowerCase();
+            const m = memberByName.get(key);
+            if (!m){
+              unmatched.push(row.name);
+              continue;
+            }
+            upserts.push({ member_id: m.id, snapshot_at, power: row.power });
+          }
+
+          if (!upserts.length){
+            showToast("Keine Zeilen konnten zu Members gematcht werden.", "error", 6000);
+            importResult.style.display = "";
+            importResult.innerHTML = `0 importiert. Unmatched: ${unmatched.length ? unmatched.map(escapeHtml).join(", ") : "—"}`;
+            return;
+          }
+
+          const { error } = await sb
+            .from(SNAP_TABLE)
+            .upsert(upserts, { onConflict: "member_id,snapshot_at" });
+
+          if (error){
+            console.error(error);
+            showToast("Import fehlgeschlagen (DB).", "error", 6000);
+            importResult.style.display = "";
+            importResult.innerHTML = `<span style="color:var(--red)">DB error:</span> ${escapeHtml(error.message || "unknown")}`;
+            return;
+          }
+
+          showToast(`Import ok: ${upserts.length} Zeilen (${snapshot_at}).`, "success", 4500);
+
+          importResult.style.display = "";
+          importResult.innerHTML = `
+            <div class="member-row">
+              <span class="chip">Imported: ${upserts.length}</span>
+              <span class="chip">Unmatched: ${unmatched.length}</span>
+              <span class="chip">Date: ${escapeHtml(snapshot_at)}</span>
+            </div>
+            ${unmatched.length ? `<div style="margin-top:.45rem"><span style="color:var(--red)">Unmatched:</span> ${unmatched.map(escapeHtml).join(", ")}</div>` : ``}
+          `;
+
+          await refreshAll();
+
+        } finally {
+          importBtn.disabled = false;
+          importBtn.style.opacity = "";
+        }
+      });
     }
 
     async function refreshAll(){
       await loadMembers();
       await renderStats();
-      await renderDeltaTable();
+
+      monthDeltas = await computeCurrentMonthDeltas();
+      renderDeltaTable();
+
       if (members[0]) await renderChartForMember(Number(memberSelect.value || members[0].id));
     }
 
-    // Init
     (async function init(){
-      // optional: prefill date to today if no file chosen yet
       dateInput.value = toISODateLocal(new Date());
+      setSort("abs_desc");
       await refreshAll();
     })();
   </script>
