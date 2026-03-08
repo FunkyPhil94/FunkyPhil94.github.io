@@ -165,7 +165,7 @@ const CONFIG = {
     { label: "Guides", href: "guides.html" },
     { label: "Rules", href: "rules.html" },
     { label: "Power", href: "power.html" },
-{ label: "Guild Events", href: "guild_events.html" },
+    { label: "Guild Events", href: "guild_events.html" },
     
     // only for logged-in users
     { label: "Member Roster", href: "roster.html", requiresAuth: true },
