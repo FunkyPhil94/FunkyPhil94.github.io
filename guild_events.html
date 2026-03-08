@@ -10,493 +10,501 @@
 <link rel="stylesheet" href="style.css"/>
 
 <style>
-
 .import-card{
-display:grid;
-grid-template-columns:1.2fr .8fr auto;
-gap:.8rem;
-align-items:end;
+  display:grid;
+  grid-template-columns:1.2fr .8fr auto;
+  gap:.8rem;
+  align-items:end;
 }
-
 @media(max-width:900px){
-.import-card{grid-template-columns:1fr;}
+  .import-card{grid-template-columns:1fr;}
 }
 
 .small-help{
-font-size:.8rem;
-color:var(--muted);
+  font-size:.8rem;
+  color:var(--muted);
 }
 
 .member-row{
-display:flex;
-gap:.5rem;
-flex-wrap:wrap;
-align-items:center;
+  display:flex;
+  gap:.5rem;
+  flex-wrap:wrap;
+  align-items:center;
 }
 
 .chip{
-border:1px solid var(--border);
-background:var(--surface2);
-border-radius:999px;
-padding:.25rem .6rem;
-font-size:.75rem;
-color:var(--muted);
+  border:1px solid var(--border);
+  background:var(--surface2);
+  border-radius:999px;
+  padding:.25rem .6rem;
+  font-size:.75rem;
+  color:var(--muted);
 }
 
-.points-zero{color:var(--muted);}
-.points-pos{font-weight:600;}
+.points-zero{ color:var(--muted); }
+.points-pos{ font-weight:600; }
 
-canvas{max-height:380px;}
+canvas{ max-height:380px; }
 
+.sortable-th{
+  cursor:pointer;
+  user-select:none;
+  transition:color .15s;
+  white-space:nowrap;
+}
+.sortable-th:hover{
+  color:var(--gold);
+}
+.sort-indicator{
+  margin-left:.25rem;
+  color:var(--gold);
+  font-size:.7rem;
+}
 </style>
 </head>
 
 <body>
 
 <nav id="mainNav">
-<a class="nav-logo" href="index.html">NATO [GBR]</a>
-<ul></ul>
+  <a class="nav-logo" href="index.html">NATO [GBR]</a>
+  <ul></ul>
 </nav>
 
 <div class="page fade-up">
 
-<div class="page-header">
-<div>
-<div class="page-label">Analytics</div>
-<div class="page-title">Guild Events</div>
-<div class="page-divider"></div>
-</div>
-</div>
+  <div class="page-header">
+    <div>
+      <div class="page-label">Analytics</div>
+      <div class="page-title">Guild Events</div>
+      <div class="page-divider"></div>
+    </div>
+  </div>
 
+  <!-- EVENT SELECT -->
+  <div class="card" style="margin-bottom:1.2rem">
+    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+      <div>
+        <div class="page-label">Event</div>
+        <div class="small-help">Select guild event and timeframe</div>
+      </div>
 
-<!-- EVENT SELECT -->
+      <div class="form-group" style="min-width:260px;margin:0">
+        <label>Event</label>
+        <select id="eventSelect">
+          <option value="guild_arms_race">Guild Arms Race (2026-03-07 → 2026-03-15)</option>
+        </select>
+      </div>
+    </div>
 
-<div class="card" style="margin-bottom:1.2rem">
+    <div class="member-row" style="margin-top:.8rem">
+      <span class="chip" id="eventRange">Range: –</span>
+      <span class="chip" id="sortInfo">Sort: Total ↓</span>
+    </div>
+  </div>
 
-<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+  <!-- IMPORT -->
+  <div class="card" data-requires-auth="true" style="margin-bottom:1.2rem">
+    <div class="page-label">Upload Event Points</div>
 
-<div>
-<div class="page-label">Event</div>
-<div class="small-help">Select guild event and timeframe</div>
-</div>
+    <div class="small-help" style="margin-top:.4rem">
+      CSV format: <b>name,points</b>
+    </div>
 
-<div class="form-group" style="min-width:260px;margin:0">
-<label>Event</label>
-<select id="eventSelect">
+    <div class="import-card" style="margin-top:1rem">
+      <div class="form-group" style="margin:0">
+        <label>CSV File</label>
+        <input type="file" id="csvFile" accept=".csv"/>
+      </div>
 
-<option value="guild_arms_race">
-Guild Arms Race (2026-03-07 → 2026-03-15)
-</option>
+      <div class="form-group" style="margin:0">
+        <label>Event Date</label>
+        <input type="date" id="eventDate"/>
+      </div>
 
-</select>
-</div>
+      <button class="btn btn-gold" id="uploadBtn" type="button">Import CSV</button>
+    </div>
+  </div>
 
-</div>
+  <!-- STATS -->
+  <div class="stat-grid" id="eventStats" style="margin-bottom:1.2rem"></div>
 
-<div class="member-row" style="margin-top:.8rem">
-<span class="chip" id="eventRange">Range: –</span>
-</div>
+  <!-- CHART -->
+  <div class="card" style="margin-bottom:1.2rem">
+    <div style="display:flex;justify-content:space-between">
+      <div>
+        <div class="page-label">Daily Guild Points</div>
+        <div class="small-help">Total points earned per day</div>
+      </div>
+    </div>
 
-</div>
+    <div style="margin-top:1rem">
+      <canvas id="eventChart"></canvas>
+    </div>
+  </div>
 
+  <!-- TABLE -->
+  <div class="card">
+    <div class="page-label">Member Participation</div>
 
-<!-- IMPORT -->
-
-<div class="card" data-requires-auth="true" style="margin-bottom:1.2rem">
-
-<div class="page-label">Upload Event Points</div>
-
-<div class="small-help" style="margin-top:.4rem">
-CSV format: <b>name,points</b>
-</div>
-
-<div class="import-card" style="margin-top:1rem">
-
-<div class="form-group" style="margin:0">
-<label>CSV File</label>
-<input type="file" id="csvFile" accept=".csv"/>
-</div>
-
-<div class="form-group" style="margin:0">
-<label>Event Date</label>
-<input type="date" id="eventDate"/>
-</div>
-
-<button class="btn btn-gold" id="uploadBtn">Import CSV</button>
-
-</div>
-
-</div>
-
-
-<!-- STATS -->
-
-<div class="stat-grid" id="eventStats" style="margin-bottom:1.2rem"></div>
-
-
-<!-- CHART -->
-
-<div class="card" style="margin-bottom:1.2rem">
-
-<div style="display:flex;justify-content:space-between">
-
-<div>
-<div class="page-label">Daily Guild Points</div>
-<div class="small-help">Total points earned per day</div>
-</div>
+    <div class="table-wrap" style="margin-top:1rem">
+      <table>
+        <thead id="pointsHead"></thead>
+        <tbody id="pointsBody"></tbody>
+      </table>
+    </div>
+  </div>
 
 </div>
-
-<div style="margin-top:1rem">
-<canvas id="eventChart"></canvas>
-</div>
-
-</div>
-
-
-<!-- TABLE -->
-
-<div class="card">
-
-<div class="page-label">Member Participation</div>
-
-<div class="table-wrap" style="margin-top:1rem">
-
-<table>
-
-<thead id="pointsHead"></thead>
-
-<tbody id="pointsBody"></tbody>
-
-</table>
-
-</div>
-
-</div>
-
-</div>
-
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="script.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-
 <script>
-
 buildNav("guild_events.html");
 applyAuthUI();
 
 const EVENTS = {
-
-guild_arms_race:{
-start:"2026-03-07",
-end:"2026-03-15"
-}
-
+  guild_arms_race: {
+    start: "2026-03-07",
+    end: "2026-03-15",
+    label: "Guild Arms Race"
+  }
 };
 
-const MEMBERS_TABLE="members";
-const EVENT_TABLE="guild_event_points";
+const MEMBERS_TABLE = "members";
+const EVENT_TABLE = "guild_event_points";
 
-let members=[];
-let chart=null;
+let members = [];
+let chart = null;
+let currentRows = [];
+let currentDays = [];
 
-const eventSelect=document.getElementById("eventSelect");
-const eventRange=document.getElementById("eventRange");
+let sortState = {
+  key: "total",
+  dir: "desc" // asc | desc
+};
 
-const pointsHead=document.getElementById("pointsHead");
-const pointsBody=document.getElementById("pointsBody");
+const eventSelect = document.getElementById("eventSelect");
+const eventRange = document.getElementById("eventRange");
+const sortInfo = document.getElementById("sortInfo");
 
-const stats=document.getElementById("eventStats");
+const pointsHead = document.getElementById("pointsHead");
+const pointsBody = document.getElementById("pointsBody");
+const stats = document.getElementById("eventStats");
 
 function iso(d){
-return d.toISOString().slice(0,10);
+  return d.toISOString().slice(0,10);
 }
 
 function addDays(d,n){
-const x=new Date(d);
-x.setDate(x.getDate()+n);
-return x;
+  const x = new Date(d);
+  x.setDate(x.getDate()+n);
+  return x;
 }
 
 function dateRange(start,end){
+  const arr = [];
+  let d = new Date(start);
 
-const arr=[];
-let d=new Date(start);
-
-while(iso(d)<=end){
-
-arr.push(iso(d));
-d=addDays(d,1);
-
-}
-
-return arr;
-
-}
-
-async function loadMembers(){
-
-const {data}=await sb
-.from(MEMBERS_TABLE)
-.select("id,name")
-.order("name");
-
-members=data||[];
-
+  while(iso(d) <= end){
+    arr.push(iso(d));
+    d = addDays(d,1);
+  }
+  return arr;
 }
 
 function fmt(n){
+  return Number(n || 0).toLocaleString("en-US");
+}
 
-return Number(n||0).toLocaleString("en-US");
+function escapeHtml(s){
+  return String(s ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#39;");
+}
 
+function updateSortInfo(){
+  const dir = sortState.dir === "desc" ? "↓" : "↑";
+  const label = sortState.key === "total" ? "Total" : sortState.key.slice(5); // MM-DD
+  sortInfo.textContent = `Sort: ${label} ${dir}`;
+}
+
+function setSort(key){
+  if (sortState.key === key){
+    sortState.dir = sortState.dir === "desc" ? "asc" : "desc";
+  } else {
+    sortState.key = key;
+    sortState.dir = "desc";
+  }
+
+  updateSortInfo();
+  renderTable(currentRows, currentDays);
+}
+
+function sortRows(rows){
+  const arr = [...rows];
+  const factor = sortState.dir === "desc" ? -1 : 1;
+
+  arr.sort((a,b) => {
+    let av, bv;
+
+    if (sortState.key === "total"){
+      av = Number(a.total || 0);
+      bv = Number(b.total || 0);
+    } else {
+      av = Number(a.days[sortState.key] || 0);
+      bv = Number(b.days[sortState.key] || 0);
+    }
+
+    if (av < bv) return -1 * factor;
+    if (av > bv) return  1 * factor;
+
+    return a.name.localeCompare(b.name);
+  });
+
+  return arr;
+}
+
+function sortIndicatorFor(key){
+  if (sortState.key !== key) return "";
+  return `<span class="sort-indicator">${sortState.dir === "desc" ? "▼" : "▲"}</span>`;
+}
+
+async function loadMembers(){
+  const { data, error } = await sb
+    .from(MEMBERS_TABLE)
+    .select("id,name")
+    .order("name");
+
+  if (error){
+    console.error(error);
+    showToast("Members konnten nicht geladen werden.", "error");
+    members = [];
+    return;
+  }
+
+  members = data || [];
 }
 
 async function fetchPoints(eventKey,start,end){
+  const { data, error } = await sb
+    .from(EVENT_TABLE)
+    .select("*")
+    .eq("event_key", eventKey)
+    .gte("event_date", start)
+    .lte("event_date", end);
 
-const {data}=await sb
-.from(EVENT_TABLE)
-.select("*")
-.eq("event_key",eventKey)
-.gte("event_date",start)
-.lte("event_date",end);
+  if (error){
+    console.error(error);
+    showToast("Event points konnten nicht geladen werden.", "error");
+    return [];
+  }
 
-return data||[];
-
-}
-
-async function render(){
-
-const eventKey=eventSelect.value;
-const conf=EVENTS[eventKey];
-
-eventRange.innerText=`Range: ${conf.start} → ${conf.end}`;
-
-const days=dateRange(conf.start,conf.end);
-
-const data=await fetchPoints(eventKey,conf.start,conf.end);
-
-const byMember={};
-
-members.forEach(m=>{
-
-byMember[m.id]={
-
-name:m.name,
-total:0,
-days:{}
-
-};
-
-days.forEach(d=>byMember[m.id].days[d]=0);
-
-});
-
-data.forEach(r=>{
-
-if(!byMember[r.member_id])return;
-
-byMember[r.member_id].days[r.event_date]=r.points;
-byMember[r.member_id].total+=r.points;
-
-});
-
-const rows=Object.values(byMember);
-
-renderStats(rows,days);
-renderChart(rows,days);
-renderTable(rows,days);
-
+  return data || [];
 }
 
 function renderStats(rows,days){
+  let total = 0;
+  let active = 0;
 
-let total=0;
-let active=0;
+  rows.forEach(r => {
+    total += r.total;
+    if (r.total > 0) active++;
+  });
 
-rows.forEach(r=>{
+  const dayTotals = days.map(day => rows.reduce((sum, r) => sum + (r.days[day] || 0), 0));
+  const bestDayVal = dayTotals.length ? Math.max(...dayTotals) : 0;
+  const bestDayIdx = dayTotals.findIndex(x => x === bestDayVal);
+  const bestDay = bestDayIdx >= 0 ? days[bestDayIdx] : "–";
 
-total+=r.total;
+  stats.innerHTML = `
+    <div class="stat-card">
+      <div class="s-label">Members</div>
+      <div class="s-value">${rows.length}</div>
+    </div>
 
-if(r.total>0)active++;
+    <div class="stat-card">
+      <div class="s-label">Active</div>
+      <div class="s-value">${active}</div>
+    </div>
 
-});
+    <div class="stat-card">
+      <div class="s-label">Total Points</div>
+      <div class="s-value">${fmt(total)}</div>
+    </div>
 
-stats.innerHTML=`
-
-<div class="stat-card">
-<div class="s-label">Members</div>
-<div class="s-value">${rows.length}</div>
-</div>
-
-<div class="stat-card">
-<div class="s-label">Active</div>
-<div class="s-value">${active}</div>
-</div>
-
-<div class="stat-card">
-<div class="s-label">Total Points</div>
-<div class="s-value">${fmt(total)}</div>
-</div>
-
-`;
-
+    <div class="stat-card">
+      <div class="s-label">Best Day</div>
+      <div class="s-value" style="font-size:1.4rem">${bestDay === "–" ? "–" : bestDay.slice(5)}</div>
+    </div>
+  `;
 }
 
 function renderChart(rows,days){
+  const totals = days.map(day => {
+    let sum = 0;
+    rows.forEach(r => sum += r.days[day]);
+    return sum;
+  });
 
-const totals=days.map(day=>{
+  const ctx = document.getElementById("eventChart");
 
-let sum=0;
+  if (chart) chart.destroy();
 
-rows.forEach(r=>sum+=r.days[day]);
-
-return sum;
-
-});
-
-const ctx=document.getElementById("eventChart");
-
-if(chart)chart.destroy();
-
-chart=new Chart(ctx,{
-
-type:"bar",
-
-data:{
-
-labels:days.map(d=>d.slice(5)),
-
-datasets:[{
-
-label:"Guild Points",
-
-data:totals,
-
-backgroundColor:"rgba(201,168,76,.7)"
-
-}]
-
-},
-
-options:{
-
-plugins:{legend:{display:false}},
-
-scales:{
-
-x:{ticks:{color:"#aaa"}},
-y:{ticks:{color:"#aaa"}}
-
-}
-
-}
-
-});
-
+  chart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: days.map(d => d.slice(5)),
+      datasets: [{
+        label: "Guild Points",
+        data: totals,
+        backgroundColor: "rgba(201,168,76,.7)",
+        borderColor: "rgba(201,168,76,1)",
+        borderWidth: 1
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        x: { ticks: { color:"#aaa" } },
+        y: { ticks: { color:"#aaa" } }
+      }
+    }
+  });
 }
 
 function renderTable(rows,days){
+  currentRows = rows;
+  currentDays = days;
 
-pointsHead.innerHTML=`
-<tr>
-<th>Name</th>
-${days.map(d=>`<th>${d.slice(5)}</th>`).join("")}
-<th>Total</th>
-</tr>
-`;
+  const sorted = sortRows(rows);
 
-pointsBody.innerHTML=rows.map(r=>`
+  pointsHead.innerHTML = `
+    <tr>
+      <th>Name</th>
+      ${days.map(d => `
+        <th class="sortable-th" onclick="setSort('${d}')">
+          ${d.slice(5)}${sortIndicatorFor(d)}
+        </th>
+      `).join("")}
+      <th class="sortable-th" onclick="setSort('total')">
+        Total${sortIndicatorFor("total")}
+      </th>
+    </tr>
+  `;
 
-<tr>
+  pointsBody.innerHTML = sorted.map(r => `
+    <tr>
+      <td>${escapeHtml(r.name)}</td>
 
-<td>${r.name}</td>
+      ${days.map(d => {
+        const val = Number(r.days[d] || 0);
+        return `<td class="${val ? "points-pos" : "points-zero"}">${fmt(val)}</td>`;
+      }).join("")}
 
-${days.map(d=>{
-
-const val=r.days[d];
-
-return `<td class="${val?`points-pos`:`points-zero`}">${fmt(val)}</td>`;
-
-}).join("")}
-
-<td style="font-weight:700">${fmt(r.total)}</td>
-
-</tr>
-
-`).join("");
-
+      <td style="font-weight:700">${fmt(r.total)}</td>
+    </tr>
+  `).join("");
 }
 
+async function render(){
+  const eventKey = eventSelect.value;
+  const conf = EVENTS[eventKey];
 
-document.getElementById("uploadBtn").onclick=async()=>{
+  eventRange.innerText = `Range: ${conf.start} → ${conf.end}`;
 
-if(!requireAuthOrAlert())return;
+  const days = dateRange(conf.start, conf.end);
+  const data = await fetchPoints(eventKey, conf.start, conf.end);
 
-const file=document.getElementById("csvFile").files[0];
-const date=document.getElementById("eventDate").value;
-const eventKey=eventSelect.value;
+  const byMember = {};
 
-if(!file||!date)return showToast("Missing file/date","error");
+  members.forEach(m => {
+    byMember[m.id] = {
+      name: m.name,
+      total: 0,
+      days: {}
+    };
 
-const text=await file.text();
+    days.forEach(d => byMember[m.id].days[d] = 0);
+  });
 
-const rows=text.split("\n").slice(1);
+  data.forEach(r => {
+    if (!byMember[r.member_id]) return;
+    byMember[r.member_id].days[r.event_date] = Number(r.points || 0);
+    byMember[r.member_id].total += Number(r.points || 0);
+  });
 
-const map={};
+  const rows = Object.values(byMember);
 
-rows.forEach(r=>{
+  renderStats(rows, days);
+  renderChart(rows, days);
+  renderTable(rows, days);
+}
 
-const [name,points]=r.split(",");
+document.getElementById("uploadBtn").onclick = async () => {
+  if (!requireAuthOrAlert()) return;
 
-if(!name)return;
+  const file = document.getElementById("csvFile").files[0];
+  const date = document.getElementById("eventDate").value;
+  const eventKey = eventSelect.value;
 
-map[name.trim().toLowerCase()]=Number(points)||0;
+  if (!file || !date){
+    showToast("Missing file/date", "error");
+    return;
+  }
 
-});
+  const text = await file.text();
+  const lines = text.trim().split(/\r?\n/);
 
-const upserts=[];
+  const rows = lines.slice(1);
+  const map = {};
 
-members.forEach(m=>{
+  rows.forEach(r => {
+    const [name, points] = r.split(",");
+    if (!name) return;
+    map[name.trim().toLowerCase()] = Number((points || "").trim()) || 0;
+  });
 
-const p=map[m.name.toLowerCase()]||0;
+  const upserts = [];
 
-upserts.push({
+  members.forEach(m => {
+    const p = map[m.name.toLowerCase()] || 0;
+    upserts.push({
+      event_key: eventKey,
+      event_date: date,
+      member_id: m.id,
+      points: p
+    });
+  });
 
-event_key:eventKey,
-event_date:date,
-member_id:m.id,
-points:p
+  const { error } = await sb
+    .from(EVENT_TABLE)
+    .upsert(upserts, { onConflict: "event_key,event_date,member_id" });
 
-});
+  if (error){
+    console.error(error);
+    showToast("Import failed", "error");
+    return;
+  }
 
-});
-
-await sb
-.from(EVENT_TABLE)
-.upsert(upserts,{onConflict:"event_key,event_date,member_id"});
-
-showToast("Event points imported","success");
-
-render();
-
+  showToast("Event points imported", "success");
+  render();
 };
 
+eventSelect.onchange = render;
 
-eventSelect.onchange=render;
-
-
-(async()=>{
-
-await loadMembers();
-
-document.getElementById("eventDate").value=new Date().toISOString().slice(0,10);
-
-render();
-
+(async () => {
+  await loadMembers();
+  document.getElementById("eventDate").value = new Date().toISOString().slice(0,10);
+  updateSortInfo();
+  render();
 })();
-
 </script>
 
 </body>
