@@ -54,6 +54,10 @@
       color:var(--gold);
       background:rgba(201,168,76,.08);
     }
+
+    .points-cell-zero{ color:var(--muted); }
+    .points-cell-pos{ color:var(--text); font-weight:600; }
+    .section-hidden{ display:none; }
   </style>
 </head>
 
@@ -69,9 +73,9 @@
       </div>
     </div>
 
-    <!-- IMPORT (nur sichtbar wenn eingeloggt) -->
+    <!-- POWER IMPORT -->
     <div class="card" id="importCard" data-requires-auth="true" style="margin-bottom:1.2rem">
-      <div class="page-label">Import</div>
+      <div class="page-label">Power Import</div>
       <div class="small-help" style="margin-top:.4rem">
         Lade eine CSV hoch (<span class="mono">name,power</span>). Reihenfolge egal.
         Snapshot wird pro Member + Datum gespeichert (Upsert).
@@ -157,6 +161,73 @@
       </div>
     </div>
 
+    <!-- ARMS RACE POINTS -->
+    <div id="armsRaceSection" class="section-hidden">
+      <div class="card" data-requires-auth="true" style="margin-bottom:1.2rem">
+        <div class="page-label">Guild Event Points Import</div>
+        <div class="small-help" style="margin-top:.4rem">
+          CSV Format: <span class="mono">name,points</span>. Nicht enthaltene Member werden automatisch mit <strong>0</strong> Punkten gespeichert.
+        </div>
+
+        <div class="import-card" style="margin-top:1rem">
+          <div class="form-group" style="margin:0">
+            <label>CSV File</label>
+            <input id="eventCsvFile" type="file" accept=".csv,text/csv"/>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+            <div class="form-group" style="margin:0">
+              <label>Event Key</label>
+              <select id="eventKey">
+                <option value="guild_arms_race">Guild Arms Race</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin:0">
+              <label>Event Date</label>
+              <input id="eventDate" type="date"/>
+            </div>
+          </div>
+
+          <button class="btn btn-gold" id="eventImportBtn" type="button" style="height:40px">Import Points</button>
+        </div>
+
+        <div id="eventImportResult" class="small-help" style="margin-top:.9rem;display:none"></div>
+      </div>
+
+      <div class="stat-grid" id="eventPointsStats" style="margin-bottom:1.2rem"></div>
+
+      <div class="card" style="margin-bottom:1.2rem">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+          <div>
+            <div class="page-label">Guild Arms Race Points</div>
+            <div class="small-help">Gesamtpunkte der Gilde pro Tag im Eventzeitraum.</div>
+          </div>
+          <div class="member-row">
+            <span class="chip" id="eventRangeInfo">Event Range: –</span>
+          </div>
+        </div>
+
+        <div style="margin-top:1rem">
+          <canvas id="eventPointsChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:1.2rem">
+        <div class="page-label">Member Participation</div>
+        <div class="small-help" style="margin-top:.4rem">
+          Zeigt pro Tag die Punkte je Member sowie die Gesamtsumme im Event.
+        </div>
+
+        <div class="table-wrap" style="margin-top:1rem">
+          <table>
+            <thead id="eventPointsHead"></thead>
+            <tbody id="eventPointsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- TABLE -->
     <div class="card">
       <div class="page-label">Latest Change (Selected Range)</div>
@@ -199,6 +270,7 @@
 
     const MEMBERS_TABLE = "members";
     const SNAP_TABLE = "power_snapshots";
+    const EVENT_POINTS_TABLE = "guild_event_points";
 
     const csvInput = document.getElementById("csvFile");
     const dateInput = document.getElementById("snapshotDate");
@@ -220,12 +292,24 @@
     const btnPctDesc = document.getElementById("sortPctDesc");
     const btnPctAsc  = document.getElementById("sortPctAsc");
 
+    const armsRaceSection = document.getElementById("armsRaceSection");
+    const eventCsvFile = document.getElementById("eventCsvFile");
+    const eventDate = document.getElementById("eventDate");
+    const eventKey = document.getElementById("eventKey");
+    const eventImportBtn = document.getElementById("eventImportBtn");
+    const eventImportResult = document.getElementById("eventImportResult");
+    const eventPointsStats = document.getElementById("eventPointsStats");
+    const eventRangeInfo = document.getElementById("eventRangeInfo");
+    const eventPointsHead = document.getElementById("eventPointsHead");
+    const eventPointsBody = document.getElementById("eventPointsBody");
+
     let members = [];
     let memberByName = new Map();
     let memberIds = [];
 
     let chart = null;
     let rangeChart = null;
+    let eventPointsChart = null;
 
     let rangeDeltas = [];
     let sortMode = "abs_desc";
@@ -282,7 +366,7 @@
         .replaceAll("'","&#39;");
     }
 
-    function parseCSV(text){
+    function parseCSV(text, valueColumnNameHints = ["power"]){
       const lines = String(text || "")
         .replace(/\r\n/g,"\n")
         .replace(/\r/g,"\n")
@@ -294,25 +378,24 @@
 
       const first = lines[0];
       const delim = (first.includes(";") && !first.includes(",")) ? ";" : ",";
-
       const rows = lines.map(l => l.split(delim).map(x => x.trim()));
 
       const head0 = (rows[0][0] || "").toLowerCase();
       const head1 = (rows[0][1] || "").toLowerCase();
       const hasHeader = (head0.includes("name") || head0.includes("player")) &&
-                        (head1.includes("power") || head1.includes("stärke") || head1.includes("staerke"));
+        valueColumnNameHints.some(h => head1.includes(h));
 
       const body = hasHeader ? rows.slice(1) : rows;
-
       const out = [];
+
       for (const r of body){
         const name = (r[0] || "").trim();
-        let powerRaw = (r[1] || "").trim();
+        let valueRaw = (r[1] || "").trim();
         if (!name) continue;
-        powerRaw = powerRaw.replace(/[,\.\s]/g, "");
-        const power = Number(powerRaw);
-        if (!Number.isFinite(power)) continue;
-        out.push({ name, power });
+        valueRaw = valueRaw.replace(/[,\.\s]/g, "");
+        const value = Number(valueRaw);
+        if (!Number.isFinite(value)) continue;
+        out.push({ name, value });
       }
       return out;
     }
@@ -349,25 +432,21 @@
       if (preset === "arms_race"){
         return { start: "2026-03-07", end: "2026-03-15", label: "Guild Arms Race (2026-03-07 → 2026-03-15)" };
       }
-
       if (preset === "last_7_days"){
         const end = todayISO;
         const start = addDaysUTC(end, -6);
         return { start, end, label: `Last 7 Days (${start} → ${end})` };
       }
-
       if (preset === "last_14_days"){
         const end = todayISO;
         const start = addDaysUTC(end, -13);
         return { start, end, label: `Last 14 Days (${start} → ${end})` };
       }
-
       if (preset === "last_30_days"){
         const end = todayISO;
         const start = addDaysUTC(end, -29);
         return { start, end, label: `Last 30 Days (${start} → ${end})` };
       }
-
       if (preset === "current_month"){
         const y = today.getUTCFullYear();
         const m = today.getUTCMonth();
@@ -375,7 +454,6 @@
         const end = toISODateLocal(today);
         return { start, end, label: `Current Month (${start} → ${end})` };
       }
-
       if (preset === "last_month"){
         const y = today.getUTCFullYear();
         const m = today.getUTCMonth();
@@ -383,8 +461,16 @@
         const end = toISODateUTC(new Date(Date.UTC(y, m, 0)));
         return { start, end, label: `Last Month (${start} → ${end})` };
       }
-
       return { start: "2026-03-07", end: "2026-03-15", label: "Guild Arms Race (2026-03-07 → 2026-03-15)" };
+    }
+
+    function isArmsRaceSelected(){
+      return rangePreset.value === "arms_race";
+    }
+
+    function updateArmsRaceVisibility(){
+      armsRaceSection.style.display = isArmsRaceSelected() ? "" : "none";
+      applyAuthUI();
     }
 
     if (csvInput){
@@ -394,6 +480,16 @@
         dateInput.value = toISODateLocal(new Date(f.lastModified));
         importResult.style.display = "none";
         importResult.innerHTML = "";
+      });
+    }
+
+    if (eventCsvFile){
+      eventCsvFile.addEventListener("change", () => {
+        const f = eventCsvFile.files && eventCsvFile.files[0];
+        if (!f) return;
+        eventDate.value = toISODateLocal(new Date(f.lastModified));
+        eventImportResult.style.display = "none";
+        eventImportResult.innerHTML = "";
       });
     }
 
@@ -471,11 +567,7 @@
           maintainAspectRatio: false,
           plugins: {
             legend: { labels: { color: "#e5e7eb" } },
-            tooltip: {
-              callbacks: {
-                label: (ctx) => ` ${fmtInt(ctx.parsed.y)}`
-              }
-            }
+            tooltip: { callbacks: { label: (ctx) => ` ${fmtInt(ctx.parsed.y)}` } }
           },
           scales: {
             x: { ticks: { color: "#9ca3af" }, grid: { color: "rgba(255,255,255,.06)" } },
@@ -506,10 +598,8 @@
 
     function buildRangeSeries(snaps, startISO, endISO){
       const days = buildDateRange(startISO, endISO);
-
       let lastKnown = null;
 
-      // 1) letzter Snapshot am/vor Start
       for (const s of snaps){
         if (s.snapshot_at <= startISO){
           lastKnown = Number(s.power);
@@ -518,7 +608,6 @@
         }
       }
 
-      // 2) falls keiner vorhanden: erster Snapshot im Zeitraum als initialer Wert
       if (lastKnown === null){
         const firstInRange = snaps.find(s => s.snapshot_at >= startISO && s.snapshot_at <= endISO);
         if (firstInRange) lastKnown = Number(firstInRange.power);
@@ -542,8 +631,7 @@
 
     async function renderRangeChart(){
       const memberId = Number(rangeMemberSelect.value);
-      const preset = rangePreset.value;
-      const range = getPresetRange(preset);
+      const range = getPresetRange(rangePreset.value);
 
       rangeInfo.textContent = `Range: ${range.label}`;
 
@@ -579,24 +667,11 @@
           maintainAspectRatio: false,
           plugins: {
             legend: { labels: { color: "#e5e7eb" } },
-            tooltip: {
-              callbacks: {
-                label: (ctx) => ` ${fmtInt(ctx.parsed.y)}`
-              }
-            }
+            tooltip: { callbacks: { label: (ctx) => ` ${fmtInt(ctx.parsed.y)}` } }
           },
           scales: {
-            x: {
-              ticks: { color: "#9ca3af" },
-              grid: { color: "rgba(255,255,255,.06)" }
-            },
-            y: {
-              ticks: {
-                color: "#9ca3af",
-                callback: (v) => fmtInt(v)
-              },
-              grid: { color: "rgba(255,255,255,.06)" }
-            }
+            x: { ticks: { color: "#9ca3af" }, grid: { color: "rgba(255,255,255,.06)" } },
+            y: { ticks: { color: "#9ca3af", callback: (v) => fmtInt(v) }, grid: { color: "rgba(255,255,255,.06)" } }
           }
         }
       });
@@ -604,9 +679,11 @@
 
     rangeMemberSelect.addEventListener("change", renderRangeChart);
     rangePreset.addEventListener("change", async () => {
+      updateArmsRaceVisibility();
       await renderRangeChart();
       rangeDeltas = await computeSelectedRangeDeltas();
       renderDeltaTable();
+      await renderArmsRaceSection();
     });
 
     async function renderStats(){
@@ -658,34 +735,23 @@
 
         const inRange = snaps.filter(s => s.d >= range.start && s.d <= range.end);
 
-        // Start: letzter Snapshot am/vor Start, sonst erster im Zeitraum
         let startSnap = null;
         for (const s of snaps){
-          if (s.d <= range.start){
-            startSnap = s;
-          } else {
-            break;
-          }
+          if (s.d <= range.start) startSnap = s;
+          else break;
         }
-        if (!startSnap && inRange.length){
-          startSnap = inRange[0];
-        }
+        if (!startSnap && inRange.length) startSnap = inRange[0];
 
-        // Ende: letzter Snapshot am/vor Ende
         let endSnap = null;
         for (const s of snaps){
-          if (s.d <= range.end){
-            endSnap = s;
-          } else {
-            break;
-          }
+          if (s.d <= range.end) endSnap = s;
+          else break;
         }
 
         if (!startSnap || !endSnap) continue;
 
         const startPower = startSnap.p;
         const endPower = endSnap.p;
-
         if (!Number.isFinite(startPower) || !Number.isFinite(endPower)) continue;
 
         const abs = endPower - startPower;
@@ -723,9 +789,7 @@
             <td>${escapeHtml(x.name)}</td>
             <td style="color:var(--muted)">${fmtInt(x.first)}</td>
             <td style="font-weight:600">${fmtInt(x.last)}</td>
-            <td style="color:${x.abs>=0 ? 'var(--green)' : 'var(--red)'};font-weight:700">
-              ${x.abs>=0?'+':''}${fmtInt(x.abs)}
-            </td>
+            <td style="color:${x.abs>=0 ? 'var(--green)' : 'var(--red)'};font-weight:700">${x.abs>=0?'+':''}${fmtInt(x.abs)}</td>
             <td style="color:var(--muted)">${x.pct===null?'–':fmtPct(x.pct)}</td>
             <td style="color:var(--muted)">${escapeHtml(x.firstDate)}</td>
             <td style="color:var(--muted)">${escapeHtml(x.lastDate)}</td>
@@ -752,7 +816,7 @@
 
         try {
           const text = await f.text();
-          const parsed = parseCSV(text);
+          const parsed = parseCSV(text, ["power", "stärke", "staerke"]);
 
           if (!parsed.length){
             showToast("CSV enthält keine gültigen Zeilen (name,power).", "error", 6000);
@@ -772,7 +836,7 @@
             upserts.push({
               member_id: m.id,
               snapshot_at,
-              power: row.power
+              power: row.value
             });
           }
 
@@ -808,12 +872,224 @@
           `;
 
           await refreshAll();
-
         } finally {
           importBtn.disabled = false;
           importBtn.style.opacity = "";
         }
       });
+    }
+
+    if (eventImportBtn){
+      eventImportBtn.addEventListener("click", async () => {
+        if (!requireAuthOrAlert()) return;
+
+        const f = eventCsvFile.files && eventCsvFile.files[0];
+        if (!f) { showToast("Bitte eine CSV auswählen.", "error"); return; }
+
+        const event_date = (eventDate.value || "").trim();
+        if (!event_date) { showToast("Bitte Event Date auswählen.", "error"); return; }
+
+        const event_key = (eventKey.value || "").trim();
+        if (!event_key) { showToast("Bitte Event Key auswählen.", "error"); return; }
+
+        if (!members.length) await loadMembers();
+        if (!members.length) return;
+
+        eventImportBtn.disabled = true;
+        eventImportBtn.style.opacity = "0.6";
+
+        try {
+          const text = await f.text();
+          const parsed = parseCSV(text, ["points", "punkte"]);
+
+          if (!parsed.length){
+            showToast("CSV enthält keine gültigen Zeilen (name,points).", "error", 6000);
+            return;
+          }
+
+          const csvMap = new Map();
+          const unmatched = [];
+
+          for (const row of parsed){
+            const key = String(row.name || "").trim().toLowerCase();
+            const member = memberByName.get(key);
+            if (!member){
+              unmatched.push(row.name);
+              continue;
+            }
+            csvMap.set(Number(member.id), Math.max(0, Math.round(Number(row.value) || 0)));
+          }
+
+          const upserts = members.map(m => ({
+            event_key,
+            event_date,
+            member_id: m.id,
+            points: csvMap.has(Number(m.id)) ? csvMap.get(Number(m.id)) : 0
+          }));
+
+          const { error } = await sb
+            .from(EVENT_POINTS_TABLE)
+            .upsert(upserts, { onConflict: "event_key,event_date,member_id" });
+
+          if (error){
+            console.error(error);
+            showToast("Event-Punkte Import fehlgeschlagen.", "error", 6000);
+            eventImportResult.style.display = "";
+            eventImportResult.innerHTML = `<span style="color:var(--red)">DB error:</span> ${escapeHtml(error.message || "unknown")}`;
+            return;
+          }
+
+          eventImportResult.style.display = "";
+          eventImportResult.innerHTML = `
+            <div class="member-row">
+              <span class="chip">Imported / updated: ${upserts.length}</span>
+              <span class="chip">Date: ${escapeHtml(event_date)}</span>
+              <span class="chip">Event: ${escapeHtml(event_key)}</span>
+            </div>
+            ${unmatched.length ? `<div style="margin-top:.45rem"><span style="color:var(--red)">Unmatched:</span> ${unmatched.map(escapeHtml).join(", ")}</div>` : ``}
+          `;
+
+          showToast("Event points importiert.", "success", 4000);
+          await renderArmsRaceSection();
+        } finally {
+          eventImportBtn.disabled = false;
+          eventImportBtn.style.opacity = "";
+        }
+      });
+    }
+
+    async function fetchEventPoints(event_key, startISO, endISO){
+      const { data, error } = await sb
+        .from(EVENT_POINTS_TABLE)
+        .select("event_key,event_date,member_id,points")
+        .eq("event_key", event_key)
+        .gte("event_date", startISO)
+        .lte("event_date", endISO)
+        .order("event_date", { ascending: true });
+
+      if (error){
+        console.error(error);
+        showToast("Event points konnten nicht geladen werden.", "error", 5000);
+        return [];
+      }
+
+      return (data || []).filter(x => memberIds.includes(Number(x.member_id)));
+    }
+
+    function renderEventPointsStats(rows, days){
+      const total = rows.reduce((sum, r) => sum + r.total, 0);
+      const activeCount = rows.filter(r => r.total > 0).length;
+
+      const dayTotals = days.map(day => rows.reduce((sum, r) => sum + (r.byDay[day] || 0), 0));
+      const bestDayVal = dayTotals.length ? Math.max(...dayTotals) : 0;
+      const bestDayIdx = dayTotals.findIndex(x => x === bestDayVal);
+      const bestDay = bestDayIdx >= 0 ? days[bestDayIdx] : "–";
+
+      eventPointsStats.innerHTML = `
+        <div class="stat-card"><div class="s-label">Tracked Members</div><div class="s-value">${rows.length}</div></div>
+        <div class="stat-card"><div class="s-label">Active Members</div><div class="s-value">${activeCount}</div></div>
+        <div class="stat-card"><div class="s-label">Total Points</div><div class="s-value">${fmtInt(total)}</div></div>
+        <div class="stat-card"><div class="s-label">Best Day</div><div class="s-value" style="font-size:1.4rem">${bestDay === "–" ? "–" : bestDay.slice(5)}</div></div>
+      `;
+    }
+
+    function renderEventPointsChart(days, rows){
+      const totals = days.map(day => rows.reduce((sum, r) => sum + (r.byDay[day] || 0), 0));
+
+      const ctx = document.getElementById("eventPointsChart").getContext("2d");
+      if (eventPointsChart) eventPointsChart.destroy();
+
+      eventPointsChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: days.map(d => d.slice(5)),
+          datasets: [{
+            label: "Guild Points / Day",
+            data: totals,
+            backgroundColor: "rgba(201,168,76,.55)",
+            borderColor: "rgba(201,168,76,.95)",
+            borderWidth: 1.2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: "#e5e7eb" } },
+            tooltip: { callbacks: { label: (ctx) => ` ${fmtInt(ctx.parsed.y)}` } }
+          },
+          scales: {
+            x: { ticks: { color: "#9ca3af" }, grid: { color: "rgba(255,255,255,.06)" } },
+            y: { ticks: { color: "#9ca3af", callback: (v) => fmtInt(v) }, grid: { color: "rgba(255,255,255,.06)" } }
+          }
+        }
+      });
+    }
+
+    function renderEventPointsTable(days, rows){
+      eventPointsHead.innerHTML = `
+        <tr>
+          <th>Name</th>
+          ${days.map(d => `<th>${d.slice(5)}</th>`).join("")}
+          <th>Total</th>
+        </tr>
+      `;
+
+      eventPointsBody.innerHTML = rows.length
+        ? rows.map(r => `
+          <tr>
+            <td>${escapeHtml(r.name)}</td>
+            ${days.map(day => {
+              const val = Number(r.byDay[day] || 0);
+              return `<td class="${val > 0 ? 'points-cell-pos' : 'points-cell-zero'}">${fmtInt(val)}</td>`;
+            }).join("")}
+            <td style="font-weight:700">${fmtInt(r.total)}</td>
+          </tr>
+        `).join("")
+        : `<tr><td colspan="${days.length + 2}" style="color:var(--muted);text-align:center;padding:1.6rem">No event points found.</td></tr>`;
+    }
+
+    async function renderArmsRaceSection(){
+      if (!isArmsRaceSelected()){
+        armsRaceSection.style.display = "none";
+        return;
+      }
+
+      armsRaceSection.style.display = "";
+      applyAuthUI();
+
+      const range = getPresetRange("arms_race");
+      const days = buildDateRange(range.start, range.end);
+      const event_key = eventKey.value || "guild_arms_race";
+      eventRangeInfo.textContent = `Event Range: ${range.start} → ${range.end}`;
+
+      const data = await fetchEventPoints(event_key, range.start, range.end);
+
+      const byMember = new Map();
+      for (const m of members){
+        const dayMap = Object.fromEntries(days.map(d => [d, 0]));
+        byMember.set(Number(m.id), {
+          member_id: Number(m.id),
+          name: m.name,
+          byDay: dayMap,
+          total: 0
+        });
+      }
+
+      for (const row of data){
+        const memberRow = byMember.get(Number(row.member_id));
+        if (!memberRow) continue;
+        memberRow.byDay[row.event_date] = Number(row.points || 0);
+      }
+
+      const rows = Array.from(byMember.values()).map(r => ({
+        ...r,
+        total: days.reduce((sum, day) => sum + (Number(r.byDay[day]) || 0), 0)
+      })).sort((a,b) => b.total - a.total || a.name.localeCompare(b.name));
+
+      renderEventPointsStats(rows, days);
+      renderEventPointsChart(days, rows);
+      renderEventPointsTable(days, rows);
     }
 
     async function refreshAll(){
@@ -823,15 +1099,21 @@
       rangeDeltas = await computeSelectedRangeDeltas();
       renderDeltaTable();
 
+      updateArmsRaceVisibility();
+
       if (members[0]){
         await renderChartForMember(Number(memberSelect.value || members[0].id));
         await renderRangeChart();
       }
+
+      await renderArmsRaceSection();
     }
 
     (async function init(){
       if (dateInput) dateInput.value = toISODateLocal(new Date());
+      if (eventDate) eventDate.value = toISODateLocal(new Date());
       setSort("abs_desc");
+      updateArmsRaceVisibility();
       await refreshAll();
     })();
   </script>
