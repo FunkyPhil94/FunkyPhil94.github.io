@@ -156,10 +156,10 @@
       </div>
     </div>
 
-    <!-- TABLE: MONTH CHANGE -->
+    <!-- TABLE -->
     <div class="card">
-      <div class="page-label">Latest Change (Current Month)</div>
-      <div class="small-help" id="monthHint" style="margin-top:.4rem"></div>
+      <div class="page-label">Latest Change (Selected Range)</div>
+      <div class="small-help" id="rangeTableHint" style="margin-top:.4rem"></div>
 
       <div class="sortbar">
         <span class="chip" id="sortInfo">Sort: Δ Abs ↓</span>
@@ -174,8 +174,8 @@
           <thead>
             <tr>
               <th>Name</th>
-              <th>Month Start</th>
-              <th>Month End</th>
+              <th>Range Start</th>
+              <th>Range End</th>
               <th>Δ Abs</th>
               <th>Δ %</th>
               <th>First Date</th>
@@ -188,11 +188,8 @@
     </div>
   </div>
 
-  <!-- ✅ Supabase MUST be before script.js -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="script.js"></script>
-
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
   <script>
@@ -214,7 +211,7 @@
 
     const powerStats = document.getElementById("powerStats");
     const deltaBody = document.getElementById("deltaBody");
-    const monthHint = document.getElementById("monthHint");
+    const rangeTableHint = document.getElementById("rangeTableHint");
 
     const sortInfo = document.getElementById("sortInfo");
     const btnAbsDesc = document.getElementById("sortAbsDesc");
@@ -402,7 +399,8 @@
     async function loadMembers(){
       const { data, error } = await sb
         .from(MEMBERS_TABLE)
-        .select("id,name,rank,power");
+        .select("id,name,rank,power")
+        .order("name", { ascending: true });
 
       if (error){
         console.error(error);
@@ -410,7 +408,7 @@
         return [];
       }
 
-      members = (data || []).slice().sort((a,b) => String(a.name||"").localeCompare(String(b.name||"")));
+      members = data || [];
       memberByName = new Map(members.map(m => [String(m.name||"").trim().toLowerCase(), m]));
       memberIds = members.map(m => Number(m.id));
 
@@ -596,7 +594,11 @@
     }
 
     rangeMemberSelect.addEventListener("change", renderRangeChart);
-    rangePreset.addEventListener("change", renderRangeChart);
+    rangePreset.addEventListener("change", async () => {
+      await renderRangeChart();
+      monthDeltas = await computeSelectedRangeDeltas();
+      renderDeltaTable();
+    });
 
     async function renderStats(){
       const { count, error } = await sb
@@ -618,60 +620,71 @@
       `;
     }
 
-    function monthRangeUTC0(){
-      const now = new Date();
-      const y = now.getUTCFullYear();
-      const m = now.getUTCMonth();
-      const start = new Date(Date.UTC(y, m, 1));
-      const end = new Date(Date.UTC(y, m+1, 1));
-      return { startISO: toISODateLocal(start), endISO: toISODateLocal(end), y, m };
-    }
-
-    async function computeCurrentMonthDeltas(){
-      const { startISO, endISO, y, m } = monthRangeUTC0();
-
-      monthHint.textContent = `From ${startISO} to ${toISODateLocal(new Date(Date.UTC(y, m+1, 0)))} (UTC 0).`;
+    async function computeSelectedRangeDeltas(){
+      const range = getPresetRange(rangePreset.value);
+      rangeTableHint.textContent = `From ${range.start} to ${range.end} (UTC 0).`;
 
       const { data, error } = await sb
         .from(SNAP_TABLE)
         .select("member_id,snapshot_at,power")
-        .gte("snapshot_at", startISO)
-        .lt("snapshot_at", endISO)
+        .lte("snapshot_at", range.end)
         .order("snapshot_at", { ascending: true });
 
       if (error){
         console.error(error);
-        showToast("Fehler: Monats-Auswertung konnte nicht geladen werden.", "error", 5000);
+        showToast("Fehler: Range-Auswertung konnte nicht geladen werden.", "error", 5000);
         return [];
       }
 
       const filtered = (data || []).filter(r => memberIds.includes(Number(r.member_id)));
-
-      const byMember = new Map();
-      for (const r of filtered){
-        const arr = byMember.get(r.member_id) || [];
-        arr.push({ d: r.snapshot_at, p: Number(r.power) });
-        byMember.set(r.member_id, arr);
-      }
-
       const out = [];
+
       for (const mm of members){
-        const arr = byMember.get(mm.id) || [];
-        if (arr.length < 2) continue;
-        const first = arr[0];
-        const last  = arr[arr.length - 1];
-        const abs = last.p - first.p;
-        const pct = first.p > 0 ? abs / first.p : null;
+        const snaps = filtered
+          .filter(x => Number(x.member_id) === Number(mm.id))
+          .map(x => ({ d: x.snapshot_at, p: Number(x.power) }))
+          .sort((a,b) => a.d.localeCompare(b.d));
+
+        if (!snaps.length) continue;
+
+        let startPower = null;
+        let startDate = null;
+
+        for (const s of snaps){
+          if (s.d <= range.start){
+            startPower = s.p;
+            startDate = s.d;
+          } else {
+            break;
+          }
+        }
+
+        const inRange = snaps.filter(s => s.d >= range.start && s.d <= range.end);
+
+        let endPower = startPower;
+        let endDate = startDate;
+
+        for (const s of inRange){
+          endPower = s.p;
+          endDate = s.d;
+        }
+
+        if (!Number.isFinite(startPower) || !Number.isFinite(endPower)) continue;
+
+        const abs = endPower - startPower;
+        const pct = startPower > 0 ? abs / startPower : null;
+
         out.push({
           name: mm.name,
-          first: first.p,
-          last: last.p,
+          first: startPower,
+          last: endPower,
           abs,
           pct,
-          firstDate: first.d,
-          lastDate: last.d
+          firstDate: startDate || range.start,
+          lastDate: endDate || range.end
         });
       }
+
       return out;
     }
 
@@ -701,7 +714,7 @@
             <td style="color:var(--muted)">${escapeHtml(x.lastDate)}</td>
           </tr>
         `).join("")
-        : `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:1.6rem">No snapshot history for the current month yet.</td></tr>`;
+        : `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:1.6rem">No snapshot history for the selected range yet.</td></tr>`;
     }
 
     if (importBtn){
@@ -790,7 +803,7 @@
       await loadMembers();
       await renderStats();
 
-      monthDeltas = await computeCurrentMonthDeltas();
+      monthDeltas = await computeSelectedRangeDeltas();
       renderDeltaTable();
 
       if (members[0]){
@@ -800,7 +813,7 @@
     }
 
     (async function init(){
-      dateInput.value = toISODateLocal(new Date());
+      if (dateInput) dateInput.value = toISODateLocal(new Date());
       setSort("abs_desc");
       await refreshAll();
     })();
