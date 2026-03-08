@@ -10,20 +10,33 @@
   <link rel="icon" href="/favicon.ico"/>
 
   <style>
-    .toolbar {
-      display:flex; align-items:flex-end; justify-content:space-between;
-      gap:1rem; flex-wrap:wrap; margin-bottom:1.2rem;
-    }
     .import-card {
-      display:grid; grid-template-columns: 1.2fr .8fr auto; gap:.8rem;
+      display:grid;
+      grid-template-columns: 1.2fr .8fr auto;
+      gap:.8rem;
       align-items:end;
     }
-    @media (max-width: 780px){
+    @media (max-width: 900px){
       .import-card { grid-template-columns: 1fr; }
     }
-    .small-help { font-size:.78rem; color:var(--muted); line-height:1.5; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    .member-row { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+
+    .small-help {
+      font-size:.78rem;
+      color:var(--muted);
+      line-height:1.5;
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    .member-row {
+      display:flex;
+      gap:.5rem;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+
     .chip {
       border:1px solid var(--border);
       background:var(--surface2);
@@ -32,11 +45,17 @@
       font-size:.75rem;
       color:var(--muted);
     }
-    canvas { max-height: 380px; }
+
+    canvas { max-height:380px; }
 
     .sortbar{
-      display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; margin-top:.8rem;
+      display:flex;
+      gap:.5rem;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-top:.8rem;
     }
+
     .sortbtn{
       padding:.35rem .7rem;
       border:1px solid var(--border);
@@ -48,16 +67,20 @@
       transition:all .15s;
       user-select:none;
     }
-    .sortbtn:hover{ border-color:rgba(201,168,76,.35); color:var(--text); }
+    .sortbtn:hover{
+      border-color:rgba(201,168,76,.35);
+      color:var(--text);
+    }
     .sortbtn.active{
       border-color:var(--gold);
       color:var(--gold);
       background:rgba(201,168,76,.08);
     }
 
-    .points-cell-zero{ color:var(--muted); }
-    .points-cell-pos{ color:var(--text); font-weight:600; }
-    .section-hidden{ display:none; }
+    .points-cell-zero { color:var(--muted); }
+    .points-cell-pos  { color:var(--text); font-weight:600; }
+
+    .hidden-block { display:none; }
   </style>
 </head>
 
@@ -74,7 +97,7 @@
     </div>
 
     <!-- POWER IMPORT -->
-    <div class="card" id="importCard" data-requires-auth="true" style="margin-bottom:1.2rem">
+    <div class="card" data-requires-auth="true" style="margin-bottom:1.2rem">
       <div class="page-label">Power Import</div>
       <div class="small-help" style="margin-top:.4rem">
         Lade eine CSV hoch (<span class="mono">name,power</span>). Reihenfolge egal.
@@ -84,7 +107,7 @@
       <div class="import-card" style="margin-top:1rem">
         <div class="form-group" style="margin:0">
           <label>CSV File</label>
-          <input id="csvFile" type="file" accept=".csv,text/csv" />
+          <input id="csvFile" type="file" accept=".csv,text/csv"/>
         </div>
 
         <div class="form-group" style="margin:0">
@@ -138,7 +161,7 @@
             <select id="rangeMemberSelect"></select>
           </div>
 
-          <div class="form-group" style="margin:0;min-width:240px">
+          <div class="form-group" style="margin:0;min-width:260px">
             <label>Date Range</label>
             <select id="rangePreset">
               <option value="arms_race">Guild Arms Race (2026-03-07 → 2026-03-15)</option>
@@ -161,10 +184,10 @@
       </div>
     </div>
 
-    <!-- ARMS RACE SECTION -->
-    <div id="armsRaceSection" class="section-hidden">
+    <!-- ARMS RACE -->
+    <div id="armsRaceSection" class="hidden-block">
 
-      <!-- EVENT KEY: IMMER SICHTBAR, WENN ARMS RACE AKTIV -->
+      <!-- EVENT KEY ALWAYS VISIBLE -->
       <div class="card" style="margin-bottom:1.2rem">
         <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap">
           <div>
@@ -181,8 +204,8 @@
         </div>
       </div>
 
-      <!-- EVENT POINTS IMPORT: NUR EINGELOGGT -->
-      <div class="card" id="eventImportCard" data-requires-auth="true" style="margin-bottom:1.2rem">
+      <!-- UPLOAD ONLY AUTH -->
+      <div class="card" data-requires-auth="true" style="margin-bottom:1.2rem">
         <div class="page-label">Guild Event Points Import</div>
         <div class="small-help" style="margin-top:.4rem">
           CSV Format: <span class="mono">name,points</span>. Nicht enthaltene Member werden automatisch mit <strong>0</strong> Punkten gespeichert.
@@ -238,7 +261,7 @@
       </div>
     </div>
 
-    <!-- TABLE -->
+    <!-- DELTA TABLE -->
     <div class="card">
       <div class="page-label">Latest Change (Selected Range)</div>
       <div class="small-help" id="rangeTableHint" style="margin-top:.4rem"></div>
@@ -303,9 +326,9 @@
     const btnPctAsc  = document.getElementById("sortPctAsc");
 
     const armsRaceSection = document.getElementById("armsRaceSection");
+    const eventKey = document.getElementById("eventKey");
     const eventCsvFile = document.getElementById("eventCsvFile");
     const eventDate = document.getElementById("eventDate");
-    const eventKey = document.getElementById("eventKey");
     const eventImportBtn = document.getElementById("eventImportBtn");
     const eventImportResult = document.getElementById("eventImportResult");
     const eventPointsStats = document.getElementById("eventPointsStats");
@@ -326,33 +349,29 @@
 
     function setSort(mode){
       sortMode = mode;
-      [btnAbsDesc,btnAbsAsc,btnPctDesc,btnPctAsc].forEach(b => b.classList.remove("active"));
-      if (mode==="abs_desc") btnAbsDesc.classList.add("active");
-      if (mode==="abs_asc")  btnAbsAsc.classList.add("active");
-      if (mode==="pct_desc") btnPctDesc.classList.add("active");
-      if (mode==="pct_asc")  btnPctAsc.classList.add("active");
+      [btnAbsDesc, btnAbsAsc, btnPctDesc, btnPctAsc].forEach(b => b.classList.remove("active"));
+      if (mode === "abs_desc") btnAbsDesc.classList.add("active");
+      if (mode === "abs_asc")  btnAbsAsc.classList.add("active");
+      if (mode === "pct_desc") btnPctDesc.classList.add("active");
+      if (mode === "pct_asc")  btnPctAsc.classList.add("active");
 
-      const label =
-        mode==="abs_desc" ? "Sort: Δ Abs ↓" :
-        mode==="abs_asc"  ? "Sort: Δ Abs ↑" :
-        mode==="pct_desc" ? "Sort: Δ % ↓" :
-                            "Sort: Δ % ↑";
-      sortInfo.textContent = label;
+      sortInfo.textContent =
+        mode === "abs_desc" ? "Sort: Δ Abs ↓" :
+        mode === "abs_asc"  ? "Sort: Δ Abs ↑" :
+        mode === "pct_desc" ? "Sort: Δ % ↓" :
+                              "Sort: Δ % ↑";
 
       renderDeltaTable();
     }
 
     btnAbsDesc.addEventListener("click", () => setSort("abs_desc"));
-    btnAbsAsc.addEventListener("click",  () => setSort("abs_asc"));
+    btnAbsAsc.addEventListener("click", () => setSort("abs_asc"));
     btnPctDesc.addEventListener("click", () => setSort("pct_desc"));
-    btnPctAsc.addEventListener("click",  () => setSort("pct_asc"));
+    btnPctAsc.addEventListener("click", () => setSort("pct_asc"));
 
     function toISODateLocal(d){
       const x = new Date(d);
-      const yyyy = x.getFullYear();
-      const mm = String(x.getMonth()+1).padStart(2,"0");
-      const dd = String(x.getDate()).padStart(2,"0");
-      return `${yyyy}-${mm}-${dd}`;
+      return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`;
     }
 
     function fmtInt(n){
@@ -364,7 +383,7 @@
     function fmtPct(n){
       const x = Number(n);
       if (!Number.isFinite(x)) return "–";
-      return (x*100).toFixed(2) + "%";
+      return (x * 100).toFixed(2) + "%";
     }
 
     function escapeHtml(s){
@@ -376,24 +395,22 @@
         .replaceAll("'","&#39;");
     }
 
-    function parseCSV(text, valueColumnNameHints = ["power"]){
+    function parseCSV(text, valueHints){
       const lines = String(text || "")
-        .replace(/\r\n/g,"\n")
-        .replace(/\r/g,"\n")
+        .replace(/\r\n/g, "\n")
+        .replace(/\r/g, "\n")
         .split("\n")
-        .map(l => l.trim())
-        .filter(l => l.length);
+        .map(x => x.trim())
+        .filter(Boolean);
 
       if (!lines.length) return [];
 
-      const first = lines[0];
-      const delim = (first.includes(";") && !first.includes(",")) ? ";" : ",";
+      const delim = (lines[0].includes(";") && !lines[0].includes(",")) ? ";" : ",";
       const rows = lines.map(l => l.split(delim).map(x => x.trim()));
 
       const head0 = (rows[0][0] || "").toLowerCase();
       const head1 = (rows[0][1] || "").toLowerCase();
-      const hasHeader = (head0.includes("name") || head0.includes("player")) &&
-        valueColumnNameHints.some(h => head1.includes(h));
+      const hasHeader = (head0.includes("name") || head0.includes("player")) && valueHints.some(h => head1.includes(h));
 
       const body = hasHeader ? rows.slice(1) : rows;
       const out = [];
@@ -416,7 +433,7 @@
     }
 
     function toISODateUTC(d){
-      return d.toISOString().slice(0,10);
+      return d.toISOString().slice(0, 10);
     }
 
     function addDaysUTC(iso, days){
@@ -460,9 +477,11 @@
       if (preset === "current_month"){
         const y = today.getUTCFullYear();
         const m = today.getUTCMonth();
-        const start = toISODateUTC(new Date(Date.UTC(y, m, 1)));
-        const end = toISODateLocal(today);
-        return { start, end, label: `Current Month (${start} → ${end})` };
+        return {
+          start: toISODateUTC(new Date(Date.UTC(y, m, 1))),
+          end: todayISO,
+          label: `Current Month (${toISODateUTC(new Date(Date.UTC(y, m, 1)))} → ${todayISO})`
+        };
       }
       if (preset === "last_month"){
         const y = today.getUTCFullYear();
@@ -483,25 +502,21 @@
       applyAuthUI();
     }
 
-    if (csvInput){
-      csvInput.addEventListener("change", () => {
-        const f = csvInput.files && csvInput.files[0];
-        if (!f) return;
-        dateInput.value = toISODateLocal(new Date(f.lastModified));
-        importResult.style.display = "none";
-        importResult.innerHTML = "";
-      });
-    }
+    csvInput?.addEventListener("change", () => {
+      const f = csvInput.files?.[0];
+      if (!f) return;
+      dateInput.value = toISODateLocal(new Date(f.lastModified));
+      importResult.style.display = "none";
+      importResult.innerHTML = "";
+    });
 
-    if (eventCsvFile){
-      eventCsvFile.addEventListener("change", () => {
-        const f = eventCsvFile.files && eventCsvFile.files[0];
-        if (!f) return;
-        eventDate.value = toISODateLocal(new Date(f.lastModified));
-        eventImportResult.style.display = "none";
-        eventImportResult.innerHTML = "";
-      });
-    }
+    eventCsvFile?.addEventListener("change", () => {
+      const f = eventCsvFile.files?.[0];
+      if (!f) return;
+      eventDate.value = toISODateLocal(new Date(f.lastModified));
+      eventImportResult.style.display = "none";
+      eventImportResult.innerHTML = "";
+    });
 
     async function loadMembers(){
       const { data, error } = await sb
@@ -516,18 +531,17 @@
       }
 
       members = data || [];
-      memberByName = new Map(members.map(m => [String(m.name||"").trim().toLowerCase(), m]));
+      memberByName = new Map(members.map(m => [String(m.name || "").trim().toLowerCase(), m]));
       memberIds = members.map(m => Number(m.id));
 
-      const memberOptions = members.map(m => `<option value="${m.id}">${escapeHtml(m.name||"")}</option>`).join("");
-      memberSelect.innerHTML = memberOptions;
-      rangeMemberSelect.innerHTML = memberOptions;
+      const opts = members.map(m => `<option value="${m.id}">${escapeHtml(m.name || "")}</option>`).join("");
+      memberSelect.innerHTML = opts;
+      rangeMemberSelect.innerHTML = opts;
 
       if (members[0]){
         memberSelect.value = members[0].id;
         rangeMemberSelect.value = members[0].id;
       }
-
       return members;
     }
 
@@ -551,7 +565,7 @@
       const labels = snaps.map(s => s.snapshot_at);
       const values = snaps.map(s => Number(s.power));
 
-      const m = members.find(x => x.id === memberId);
+      const m = members.find(x => Number(x.id) === Number(memberId));
       const title = m ? m.name : "Member";
 
       const ctx = document.getElementById("powerChart").getContext("2d");
@@ -577,11 +591,11 @@
           maintainAspectRatio: false,
           plugins: {
             legend: { labels: { color: "#e5e7eb" } },
-            tooltip: { callbacks: { label: (ctx) => ` ${fmtInt(ctx.parsed.y)}` } }
+            tooltip: { callbacks: { label: ctx => ` ${fmtInt(ctx.parsed.y)}` } }
           },
           scales: {
             x: { ticks: { color: "#9ca3af" }, grid: { color: "rgba(255,255,255,.06)" } },
-            y: { ticks: { color: "#9ca3af", callback: (v) => fmtInt(v) }, grid: { color: "rgba(255,255,255,.06)" } }
+            y: { ticks: { color: "#9ca3af", callback: v => fmtInt(v) }, grid: { color: "rgba(255,255,255,.06)" } }
           }
         }
       });
@@ -602,7 +616,6 @@
         showToast("Fehler: Range-Snapshots konnten nicht geladen werden.", "error", 5000);
         return [];
       }
-
       return (data || []).filter(x => memberIds.includes(Number(x.member_id)));
     }
 
@@ -611,11 +624,8 @@
       let lastKnown = null;
 
       for (const s of snaps){
-        if (s.snapshot_at <= startISO){
-          lastKnown = Number(s.power);
-        } else {
-          break;
-        }
+        if (s.snapshot_at <= startISO) lastKnown = Number(s.power);
+        else break;
       }
 
       if (lastKnown === null){
@@ -630,29 +640,22 @@
         }
       }
 
-      const series = [];
-      for (const day of days){
+      return days.map(day => {
         if (byDate.has(day)) lastKnown = byDate.get(day);
-        series.push({ date: day, power: lastKnown });
-      }
-
-      return series;
+        return { date: day, power: lastKnown };
+      });
     }
 
     async function renderRangeChart(){
       const memberId = Number(rangeMemberSelect.value);
       const range = getPresetRange(rangePreset.value);
-
       rangeInfo.textContent = `Range: ${range.label}`;
 
       const snaps = await fetchSnapshotsInRangeWithFallback(memberId, range.start, range.end);
       const series = buildRangeSeries(snaps, range.start, range.end);
 
-      const m = members.find(x => Number(x.id) === memberId);
+      const m = members.find(x => Number(x.id) === Number(memberId));
       const title = m ? m.name : "Member";
-
-      const labels = series.map(x => x.date.slice(5));
-      const values = series.map(x => x.power);
 
       const ctx = document.getElementById("rangeChart").getContext("2d");
       if (rangeChart) rangeChart.destroy();
@@ -660,10 +663,10 @@
       rangeChart = new Chart(ctx, {
         type: "line",
         data: {
-          labels,
+          labels: series.map(x => x.date.slice(5)),
           datasets: [{
             label: `Range Power – ${title}`,
-            data: values,
+            data: series.map(x => x.power),
             borderColor: "rgba(61,127,255,.95)",
             backgroundColor: "rgba(61,127,255,.12)",
             pointRadius: 3,
@@ -677,11 +680,11 @@
           maintainAspectRatio: false,
           plugins: {
             legend: { labels: { color: "#e5e7eb" } },
-            tooltip: { callbacks: { label: (ctx) => ` ${fmtInt(ctx.parsed.y)}` } }
+            tooltip: { callbacks: { label: ctx => ` ${fmtInt(ctx.parsed.y)}` } }
           },
           scales: {
             x: { ticks: { color: "#9ca3af" }, grid: { color: "rgba(255,255,255,.06)" } },
-            y: { ticks: { color: "#9ca3af", callback: (v) => fmtInt(v) }, grid: { color: "rgba(255,255,255,.06)" } }
+            y: { ticks: { color: "#9ca3af", callback: v => fmtInt(v) }, grid: { color: "rgba(255,255,255,.06)" } }
           }
         }
       });
@@ -697,10 +700,7 @@
     });
 
     async function renderStats(){
-      const { count, error } = await sb
-        .from(SNAP_TABLE)
-        .select("*", { count: "exact", head: true });
-
+      const { count, error } = await sb.from(SNAP_TABLE).select("*", { count: "exact", head: true });
       if (error){
         console.error(error);
         powerStats.innerHTML = `
@@ -760,17 +760,13 @@
 
         if (!startSnap || !endSnap) continue;
 
-        const startPower = startSnap.p;
-        const endPower = endSnap.p;
-        if (!Number.isFinite(startPower) || !Number.isFinite(endPower)) continue;
-
-        const abs = endPower - startPower;
-        const pct = startPower > 0 ? abs / startPower : null;
+        const abs = endSnap.p - startSnap.p;
+        const pct = startSnap.p > 0 ? abs / startSnap.p : null;
 
         out.push({
           name: mm.name,
-          first: startPower,
-          last: endPower,
+          first: startSnap.p,
+          last: endSnap.p,
           abs,
           pct,
           firstDate: startSnap.d,
@@ -784,23 +780,22 @@
     function sortedRangeDeltas(list){
       const arr = (list || []).slice();
       if (sortMode === "abs_desc") arr.sort((a,b) => (b.abs ?? -Infinity) - (a.abs ?? -Infinity));
-      if (sortMode === "abs_asc")  arr.sort((a,b) => (a.abs ??  Infinity) - (b.abs ??  Infinity));
-      if (sortMode === "pct_desc") arr.sort((a,b) => ((b.pct ?? -Infinity)) - ((a.pct ?? -Infinity)));
-      if (sortMode === "pct_asc")  arr.sort((a,b) => ((a.pct ??  Infinity)) - ((b.pct ??  Infinity)));
+      if (sortMode === "abs_asc")  arr.sort((a,b) => (a.abs ?? Infinity) - (b.abs ?? Infinity));
+      if (sortMode === "pct_desc") arr.sort((a,b) => (b.pct ?? -Infinity) - (a.pct ?? -Infinity));
+      if (sortMode === "pct_asc")  arr.sort((a,b) => (a.pct ?? Infinity) - (b.pct ?? Infinity));
       return arr;
     }
 
     function renderDeltaTable(){
       const deltas = sortedRangeDeltas(rangeDeltas);
-
       deltaBody.innerHTML = deltas.length
         ? deltas.map(x => `
           <tr>
             <td>${escapeHtml(x.name)}</td>
             <td style="color:var(--muted)">${fmtInt(x.first)}</td>
             <td style="font-weight:600">${fmtInt(x.last)}</td>
-            <td style="color:${x.abs>=0 ? 'var(--green)' : 'var(--red)'};font-weight:700">${x.abs>=0?'+':''}${fmtInt(x.abs)}</td>
-            <td style="color:var(--muted)">${x.pct===null?'–':fmtPct(x.pct)}</td>
+            <td style="color:${x.abs >= 0 ? 'var(--green)' : 'var(--red)'};font-weight:700">${x.abs >= 0 ? '+' : ''}${fmtInt(x.abs)}</td>
+            <td style="color:var(--muted)">${x.pct === null ? '–' : fmtPct(x.pct)}</td>
             <td style="color:var(--muted)">${escapeHtml(x.firstDate)}</td>
             <td style="color:var(--muted)">${escapeHtml(x.lastDate)}</td>
           </tr>
@@ -808,165 +803,125 @@
         : `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:1.6rem">No snapshot history for the selected range yet.</td></tr>`;
     }
 
-    if (importBtn){
-      importBtn.addEventListener("click", async () => {
-        if (!requireAuthOrAlert()) return;
+    importBtn?.addEventListener("click", async () => {
+      if (!requireAuthOrAlert()) return;
 
-        const f = csvInput.files && csvInput.files[0];
-        if (!f) { showToast("Bitte eine CSV auswählen.", "error"); return; }
+      const f = csvInput.files?.[0];
+      if (!f) { showToast("Bitte eine CSV auswählen.", "error"); return; }
 
-        const snapshot_at = (dateInput.value || "").trim();
-        if (!snapshot_at) { showToast("Bitte Snapshot Date auswählen.", "error"); return; }
+      const snapshot_at = (dateInput.value || "").trim();
+      if (!snapshot_at) { showToast("Bitte Snapshot Date auswählen.", "error"); return; }
 
-        if (!members.length) await loadMembers();
-        if (!members.length) return;
+      if (!members.length) await loadMembers();
+      if (!members.length) return;
 
-        importBtn.disabled = true;
-        importBtn.style.opacity = "0.6";
+      importBtn.disabled = true;
+      importBtn.style.opacity = "0.6";
 
-        try {
-          const text = await f.text();
-          const parsed = parseCSV(text, ["power", "stärke", "staerke"]);
-
-          if (!parsed.length){
-            showToast("CSV enthält keine gültigen Zeilen (name,power).", "error", 6000);
-            return;
-          }
-
-          const unmatched = [];
-          const upserts = [];
-
-          for (const row of parsed){
-            const key = String(row.name||"").trim().toLowerCase();
-            const m = memberByName.get(key);
-            if (!m){
-              unmatched.push(row.name);
-              continue;
-            }
-            upserts.push({
-              member_id: m.id,
-              snapshot_at,
-              power: row.value
-            });
-          }
-
-          if (!upserts.length){
-            showToast("Keine Zeilen konnten zu Members gematcht werden.", "error", 6000);
-            importResult.style.display = "";
-            importResult.innerHTML = `0 importiert. Unmatched: ${unmatched.length ? unmatched.map(escapeHtml).join(", ") : "—"}`;
-            return;
-          }
-
-          const { error } = await sb
-            .from(SNAP_TABLE)
-            .upsert(upserts, { onConflict: "member_id,snapshot_at" });
-
-          if (error){
-            console.error(error);
-            showToast("Import fehlgeschlagen (DB).", "error", 6000);
-            importResult.style.display = "";
-            importResult.innerHTML = `<span style="color:var(--red)">DB error:</span> ${escapeHtml(error.message || "unknown")}`;
-            return;
-          }
-
-          showToast(`Import ok: ${upserts.length} Zeilen (${snapshot_at}).`, "success", 4500);
-
-          importResult.style.display = "";
-          importResult.innerHTML = `
-            <div class="member-row">
-              <span class="chip">Imported: ${upserts.length}</span>
-              <span class="chip">Unmatched: ${unmatched.length}</span>
-              <span class="chip">Date: ${escapeHtml(snapshot_at)}</span>
-            </div>
-            ${unmatched.length ? `<div style="margin-top:.45rem"><span style="color:var(--red)">Unmatched:</span> ${unmatched.map(escapeHtml).join(", ")}</div>` : ``}
-          `;
-
-          await refreshAll();
-        } finally {
-          importBtn.disabled = false;
-          importBtn.style.opacity = "";
+      try {
+        const text = await f.text();
+        const parsed = parseCSV(text, ["power", "stärke", "staerke"]);
+        if (!parsed.length){
+          showToast("CSV enthält keine gültigen Zeilen (name,power).", "error", 6000);
+          return;
         }
-      });
-    }
 
-    if (eventImportBtn){
-      eventImportBtn.addEventListener("click", async () => {
-        if (!requireAuthOrAlert()) return;
+        const unmatched = [];
+        const upserts = [];
 
-        const f = eventCsvFile.files && eventCsvFile.files[0];
-        if (!f) { showToast("Bitte eine CSV auswählen.", "error"); return; }
-
-        const event_date = (eventDate.value || "").trim();
-        if (!event_date) { showToast("Bitte Event Date auswählen.", "error"); return; }
-
-        const event_key = (eventKey.value || "").trim();
-        if (!event_key) { showToast("Bitte Event Key auswählen.", "error"); return; }
-
-        if (!members.length) await loadMembers();
-        if (!members.length) return;
-
-        eventImportBtn.disabled = true;
-        eventImportBtn.style.opacity = "0.6";
-
-        try {
-          const text = await f.text();
-          const parsed = parseCSV(text, ["points", "punkte"]);
-
-          if (!parsed.length){
-            showToast("CSV enthält keine gültigen Zeilen (name,points).", "error", 6000);
-            return;
+        for (const row of parsed){
+          const key = String(row.name || "").trim().toLowerCase();
+          const m = memberByName.get(key);
+          if (!m){
+            unmatched.push(row.name);
+            continue;
           }
-
-          const csvMap = new Map();
-          const unmatched = [];
-
-          for (const row of parsed){
-            const key = String(row.name || "").trim().toLowerCase();
-            const member = memberByName.get(key);
-            if (!member){
-              unmatched.push(row.name);
-              continue;
-            }
-            csvMap.set(Number(member.id), Math.max(0, Math.round(Number(row.value) || 0)));
-          }
-
-          const upserts = members.map(m => ({
-            event_key,
-            event_date,
-            member_id: m.id,
-            points: csvMap.has(Number(m.id)) ? csvMap.get(Number(m.id)) : 0
-          }));
-
-          const { error } = await sb
-            .from(EVENT_POINTS_TABLE)
-            .upsert(upserts, { onConflict: "event_key,event_date,member_id" });
-
-          if (error){
-            console.error(error);
-            showToast("Event-Punkte Import fehlgeschlagen.", "error", 6000);
-            eventImportResult.style.display = "";
-            eventImportResult.innerHTML = `<span style="color:var(--red)">DB error:</span> ${escapeHtml(error.message || "unknown")}`;
-            return;
-          }
-
-          eventImportResult.style.display = "";
-          eventImportResult.innerHTML = `
-            <div class="member-row">
-              <span class="chip">Imported / updated: ${upserts.length}</span>
-              <span class="chip">Date: ${escapeHtml(event_date)}</span>
-              <span class="chip">Event: ${escapeHtml(event_key)}</span>
-            </div>
-            ${unmatched.length ? `<div style="margin-top:.45rem"><span style="color:var(--red)">Unmatched:</span> ${unmatched.map(escapeHtml).join(", ")}</div>` : ``}
-          `;
-
-          showToast("Event points importiert.", "success", 4000);
-          await renderArmsRaceSection();
-        } finally {
-          eventImportBtn.disabled = false;
-          eventImportBtn.style.opacity = "";
+          upserts.push({ member_id: m.id, snapshot_at, power: row.value });
         }
-      });
-    }
+
+        if (!upserts.length){
+          showToast("Keine Zeilen konnten zu Members gematcht werden.", "error", 6000);
+          return;
+        }
+
+        const { error } = await sb.from(SNAP_TABLE).upsert(upserts, { onConflict: "member_id,snapshot_at" });
+        if (error){
+          console.error(error);
+          showToast("Import fehlgeschlagen (DB).", "error", 6000);
+          return;
+        }
+
+        showToast(`Import ok: ${upserts.length} Zeilen (${snapshot_at}).`, "success", 4500);
+        await refreshAll();
+      } finally {
+        importBtn.disabled = false;
+        importBtn.style.opacity = "";
+      }
+    });
+
+    eventImportBtn?.addEventListener("click", async () => {
+      if (!requireAuthOrAlert()) return;
+
+      const f = eventCsvFile.files?.[0];
+      if (!f) { showToast("Bitte eine CSV auswählen.", "error"); return; }
+
+      const event_date = (eventDate.value || "").trim();
+      if (!event_date) { showToast("Bitte Event Date auswählen.", "error"); return; }
+
+      const event_key = (eventKey.value || "").trim();
+      if (!event_key) { showToast("Bitte Event Key auswählen.", "error"); return; }
+
+      if (!members.length) await loadMembers();
+      if (!members.length) return;
+
+      eventImportBtn.disabled = true;
+      eventImportBtn.style.opacity = "0.6";
+
+      try {
+        const text = await f.text();
+        const parsed = parseCSV(text, ["points", "punkte"]);
+        if (!parsed.length){
+          showToast("CSV enthält keine gültigen Zeilen (name,points).", "error", 6000);
+          return;
+        }
+
+        const csvMap = new Map();
+        const unmatched = [];
+
+        for (const row of parsed){
+          const key = String(row.name || "").trim().toLowerCase();
+          const member = memberByName.get(key);
+          if (!member){
+            unmatched.push(row.name);
+            continue;
+          }
+          csvMap.set(Number(member.id), Math.max(0, Math.round(Number(row.value) || 0)));
+        }
+
+        const upserts = members.map(m => ({
+          event_key,
+          event_date,
+          member_id: m.id,
+          points: csvMap.has(Number(m.id)) ? csvMap.get(Number(m.id)) : 0
+        }));
+
+        const { error } = await sb
+          .from(EVENT_POINTS_TABLE)
+          .upsert(upserts, { onConflict: "event_key,event_date,member_id" });
+
+        if (error){
+          console.error(error);
+          showToast("Event-Punkte Import fehlgeschlagen.", "error", 6000);
+          return;
+        }
+
+        showToast("Event points importiert.", "success", 4000);
+        await renderArmsRaceSection();
+      } finally {
+        eventImportBtn.disabled = false;
+        eventImportBtn.style.opacity = "";
+      }
+    });
 
     async function fetchEventPoints(event_key, startISO, endISO){
       const { data, error } = await sb
@@ -989,7 +944,6 @@
     function renderEventPointsStats(rows, days){
       const total = rows.reduce((sum, r) => sum + r.total, 0);
       const activeCount = rows.filter(r => r.total > 0).length;
-
       const dayTotals = days.map(day => rows.reduce((sum, r) => sum + (r.byDay[day] || 0), 0));
       const bestDayVal = dayTotals.length ? Math.max(...dayTotals) : 0;
       const bestDayIdx = dayTotals.findIndex(x => x === bestDayVal);
@@ -1005,7 +959,6 @@
 
     function renderEventPointsChart(days, rows){
       const totals = days.map(day => rows.reduce((sum, r) => sum + (r.byDay[day] || 0), 0));
-
       const ctx = document.getElementById("eventPointsChart").getContext("2d");
       if (eventPointsChart) eventPointsChart.destroy();
 
@@ -1026,11 +979,11 @@
           maintainAspectRatio: false,
           plugins: {
             legend: { labels: { color: "#e5e7eb" } },
-            tooltip: { callbacks: { label: (ctx) => ` ${fmtInt(ctx.parsed.y)}` } }
+            tooltip: { callbacks: { label: ctx => ` ${fmtInt(ctx.parsed.y)}` } }
           },
           scales: {
             x: { ticks: { color: "#9ca3af" }, grid: { color: "rgba(255,255,255,.06)" } },
-            y: { ticks: { color: "#9ca3af", callback: (v) => fmtInt(v) }, grid: { color: "rgba(255,255,255,.06)" } }
+            y: { ticks: { color: "#9ca3af", callback: v => fmtInt(v) }, grid: { color: "rgba(255,255,255,.06)" } }
           }
         }
       });
@@ -1087,15 +1040,17 @@
       }
 
       for (const row of data){
-        const memberRow = byMember.get(Number(row.member_id));
-        if (!memberRow) continue;
-        memberRow.byDay[row.event_date] = Number(row.points || 0);
+        const bucket = byMember.get(Number(row.member_id));
+        if (!bucket) continue;
+        bucket.byDay[row.event_date] = Number(row.points || 0);
       }
 
-      const rows = Array.from(byMember.values()).map(r => ({
-        ...r,
-        total: days.reduce((sum, day) => sum + (Number(r.byDay[day]) || 0), 0)
-      })).sort((a,b) => b.total - a.total || a.name.localeCompare(b.name));
+      const rows = Array.from(byMember.values())
+        .map(r => ({
+          ...r,
+          total: days.reduce((sum, day) => sum + (Number(r.byDay[day]) || 0), 0)
+        }))
+        .sort((a,b) => b.total - a.total || a.name.localeCompare(b.name));
 
       renderEventPointsStats(rows, days);
       renderEventPointsChart(days, rows);
