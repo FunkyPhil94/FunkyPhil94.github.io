@@ -97,12 +97,12 @@
     <!-- STATS -->
     <div class="stat-grid" id="powerStats" style="margin-bottom:1.2rem"></div>
 
-    <!-- CHART -->
+    <!-- CHART 1 -->
     <div class="card" style="margin-bottom:1.2rem">
       <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap">
         <div>
           <div class="page-label">Curve</div>
-          <div class="small-help">Wähle ein Mitglied, um die Power-Historie zu sehen.</div>
+          <div class="small-help">Wähle ein Mitglied, um die komplette Power-Historie zu sehen.</div>
         </div>
 
         <div class="form-group" style="margin:0;min-width:240px">
@@ -113,6 +113,46 @@
 
       <div style="margin-top:1rem">
         <canvas id="powerChart"></canvas>
+      </div>
+    </div>
+
+    <!-- CHART 2 -->
+    <div class="card" style="margin-bottom:1.2rem">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+        <div>
+          <div class="page-label">Range Curve</div>
+          <div class="small-help">
+            Tagesdarstellung für einen vorgegebenen Zeitraum. Wenn am Starttag kein Wert existiert,
+            wird der letzte Snapshot davor verwendet.
+          </div>
+        </div>
+
+        <div style="display:flex;gap:1rem;flex-wrap:wrap">
+          <div class="form-group" style="margin:0;min-width:240px">
+            <label>Member</label>
+            <select id="rangeMemberSelect"></select>
+          </div>
+
+          <div class="form-group" style="margin:0;min-width:240px">
+            <label>Date Range</label>
+            <select id="rangePreset">
+              <option value="arms_race">Guild Arms Race (2026-03-07 → 2026-03-15)</option>
+              <option value="last_7_days">Last 7 Days</option>
+              <option value="last_14_days">Last 14 Days</option>
+              <option value="current_month">Current Month</option>
+              <option value="last_month">Last Month</option>
+              <option value="last_30_days">Last 30 Days</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="member-row" style="margin-top:.8rem">
+        <span class="chip" id="rangeInfo">Range: –</span>
+      </div>
+
+      <div style="margin-top:1rem">
+        <canvas id="rangeChart"></canvas>
       </div>
     </div>
 
@@ -160,7 +200,7 @@
     applyAuthUI();
 
     const MEMBERS_TABLE = "members";
-    const SNAP_TABLE = "power_snapshots";
+    const SNAP_TABLE = "power_snapshot";
 
     const csvInput = document.getElementById("csvFile");
     const dateInput = document.getElementById("snapshotDate");
@@ -168,6 +208,10 @@
     const importResult = document.getElementById("importResult");
 
     const memberSelect = document.getElementById("memberSelect");
+    const rangeMemberSelect = document.getElementById("rangeMemberSelect");
+    const rangePreset = document.getElementById("rangePreset");
+    const rangeInfo = document.getElementById("rangeInfo");
+
     const powerStats = document.getElementById("powerStats");
     const deltaBody = document.getElementById("deltaBody");
     const monthHint = document.getElementById("monthHint");
@@ -180,11 +224,13 @@
 
     let members = [];
     let memberByName = new Map();
-    let chart = null;
+    let memberIds = [];
 
-    // month deltas cache
+    let chart = null;
+    let rangeChart = null;
+
     let monthDeltas = [];
-    let sortMode = "abs_desc"; // abs_desc | abs_asc | pct_desc | pct_asc
+    let sortMode = "abs_desc";
 
     function setSort(mode){
       sortMode = mode;
@@ -209,7 +255,6 @@
     btnPctDesc.addEventListener("click", () => setSort("pct_desc"));
     btnPctAsc.addEventListener("click",  () => setSort("pct_asc"));
 
-    // --- Utils ---
     function toISODateLocal(d){
       const x = new Date(d);
       const yyyy = x.getFullYear();
@@ -239,7 +284,6 @@
         .replaceAll("'","&#39;");
     }
 
-    // CSV parser (tolerant)
     function parseCSV(text){
       const lines = String(text || "")
         .replace(/\r\n/g,"\n")
@@ -275,7 +319,76 @@
       return out;
     }
 
-    // --- file pick -> set date to file lastModified ---
+    function toDateObj(iso){
+      const [y,m,d] = String(iso).split("-").map(Number);
+      return new Date(Date.UTC(y, m - 1, d));
+    }
+
+    function toISODateUTC(d){
+      return d.toISOString().slice(0,10);
+    }
+
+    function addDaysUTC(iso, days){
+      const d = toDateObj(iso);
+      d.setUTCDate(d.getUTCDate() + days);
+      return toISODateUTC(d);
+    }
+
+    function buildDateRange(startISO, endISO){
+      const out = [];
+      let cur = startISO;
+      while (cur <= endISO){
+        out.push(cur);
+        cur = addDaysUTC(cur, 1);
+      }
+      return out;
+    }
+
+    function getPresetRange(preset){
+      const today = new Date();
+      const todayISO = toISODateLocal(today);
+
+      if (preset === "arms_race"){
+        return { start: "2026-03-07", end: "2026-03-15", label: "Guild Arms Race (2026-03-07 → 2026-03-15)" };
+      }
+
+      if (preset === "last_7_days"){
+        const end = todayISO;
+        const start = addDaysUTC(end, -6);
+        return { start, end, label: `Last 7 Days (${start} → ${end})` };
+      }
+
+      if (preset === "last_14_days"){
+        const end = todayISO;
+        const start = addDaysUTC(end, -13);
+        return { start, end, label: `Last 14 Days (${start} → ${end})` };
+      }
+
+      if (preset === "last_30_days"){
+        const end = todayISO;
+        const start = addDaysUTC(end, -29);
+        return { start, end, label: `Last 30 Days (${start} → ${end})` };
+      }
+
+      if (preset === "current_month"){
+        const y = today.getUTCFullYear();
+        const m = today.getUTCMonth();
+        const start = toISODateUTC(new Date(Date.UTC(y, m, 1)));
+        const end = toISODateLocal(today);
+        return { start, end, label: `Current Month (${start} → ${end})` };
+      }
+
+      if (preset === "last_month"){
+        const y = today.getUTCFullYear();
+        const m = today.getUTCMonth();
+        const start = toISODateUTC(new Date(Date.UTC(y, m - 1, 1)));
+        const end = toISODateUTC(new Date(Date.UTC(y, m, 0)));
+        return { start, end, label: `Last Month (${start} → ${end})` };
+      }
+
+      return { start: "2026-03-07", end: "2026-03-15", label: "Guild Arms Race (2026-03-07 → 2026-03-15)" };
+    }
+
     if (csvInput){
       csvInput.addEventListener("change", () => {
         const f = csvInput.files && csvInput.files[0];
@@ -299,9 +412,16 @@
 
       members = (data || []).slice().sort((a,b) => String(a.name||"").localeCompare(String(b.name||"")));
       memberByName = new Map(members.map(m => [String(m.name||"").trim().toLowerCase(), m]));
+      memberIds = members.map(m => Number(m.id));
 
-      memberSelect.innerHTML = members.map(m => `<option value="${m.id}">${escapeHtml(m.name||"")}</option>`).join("");
-      if (members[0]) memberSelect.value = members[0].id;
+      const memberOptions = members.map(m => `<option value="${m.id}">${escapeHtml(m.name||"")}</option>`).join("");
+      memberSelect.innerHTML = memberOptions;
+      rangeMemberSelect.innerHTML = memberOptions;
+
+      if (members[0]){
+        memberSelect.value = members[0].id;
+        rangeMemberSelect.value = members[0].id;
+      }
 
       return members;
     }
@@ -352,7 +472,11 @@
           maintainAspectRatio: false,
           plugins: {
             legend: { labels: { color: "#e5e7eb" } },
-            tooltip: { callbacks: { label: (ctx) => ` ${fmtInt(ctx.parsed.y)}` } }
+            tooltip: {
+              callbacks: {
+                label: (ctx) => ` ${fmtInt(ctx.parsed.y)}`
+              }
+            }
           },
           scales: {
             x: { ticks: { color: "#9ca3af" }, grid: { color: "rgba(255,255,255,.06)" } },
@@ -363,6 +487,116 @@
     }
 
     memberSelect.addEventListener("change", () => renderChartForMember(Number(memberSelect.value)));
+
+    async function fetchSnapshotsInRangeWithFallback(memberId, startISO, endISO){
+      const { data, error } = await sb
+        .from(SNAP_TABLE)
+        .select("snapshot_at,power,member_id")
+        .eq("member_id", memberId)
+        .lte("snapshot_at", endISO)
+        .order("snapshot_at", { ascending: true });
+
+      if (error){
+        console.error(error);
+        showToast("Fehler: Range-Snapshots konnten nicht geladen werden.", "error", 5000);
+        return [];
+      }
+
+      return (data || []).filter(x => memberIds.includes(Number(x.member_id)));
+    }
+
+    function buildRangeSeries(snaps, startISO, endISO){
+      const days = buildDateRange(startISO, endISO);
+
+      let lastKnown = null;
+      for (const s of snaps){
+        if (s.snapshot_at <= startISO){
+          lastKnown = Number(s.power);
+        } else {
+          break;
+        }
+      }
+
+      const byDate = new Map();
+      for (const s of snaps){
+        if (s.snapshot_at >= startISO && s.snapshot_at <= endISO){
+          byDate.set(s.snapshot_at, Number(s.power));
+        }
+      }
+
+      const series = [];
+      for (const day of days){
+        if (byDate.has(day)) lastKnown = byDate.get(day);
+        series.push({ date: day, power: lastKnown });
+      }
+
+      return series;
+    }
+
+    async function renderRangeChart(){
+      const memberId = Number(rangeMemberSelect.value);
+      const preset = rangePreset.value;
+      const range = getPresetRange(preset);
+
+      rangeInfo.textContent = `Range: ${range.label}`;
+
+      const snaps = await fetchSnapshotsInRangeWithFallback(memberId, range.start, range.end);
+      const series = buildRangeSeries(snaps, range.start, range.end);
+
+      const m = members.find(x => Number(x.id) === memberId);
+      const title = m ? m.name : "Member";
+
+      const labels = series.map(x => x.date.slice(5));
+      const values = series.map(x => x.power);
+
+      const ctx = document.getElementById("rangeChart").getContext("2d");
+      if (rangeChart) rangeChart.destroy();
+
+      rangeChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: `Range Power – ${title}`,
+            data: values,
+            borderColor: "rgba(61,127,255,.95)",
+            backgroundColor: "rgba(61,127,255,.12)",
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            tension: 0.22,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: "#e5e7eb" } },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => ` ${fmtInt(ctx.parsed.y)}`
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: "#9ca3af" },
+              grid: { color: "rgba(255,255,255,.06)" }
+            },
+            y: {
+              ticks: {
+                color: "#9ca3af",
+                callback: (v) => fmtInt(v)
+              },
+              grid: { color: "rgba(255,255,255,.06)" }
+            }
+          }
+        }
+      });
+    }
+
+    rangeMemberSelect.addEventListener("change", renderRangeChart);
+    rangePreset.addEventListener("change", renderRangeChart);
 
     async function renderStats(){
       const { count, error } = await sb
@@ -387,16 +621,15 @@
     function monthRangeUTC0(){
       const now = new Date();
       const y = now.getUTCFullYear();
-      const m = now.getUTCMonth(); // 0-based
+      const m = now.getUTCMonth();
       const start = new Date(Date.UTC(y, m, 1));
-      const end = new Date(Date.UTC(y, m+1, 1)); // exclusive
+      const end = new Date(Date.UTC(y, m+1, 1));
       return { startISO: toISODateLocal(start), endISO: toISODateLocal(end), y, m };
     }
 
     async function computeCurrentMonthDeltas(){
       const { startISO, endISO, y, m } = monthRangeUTC0();
 
-      const monthName = new Date(Date.UTC(y, m, 1)).toLocaleString("en-US", { month:"long", year:"numeric", timeZone:"UTC" });
       monthHint.textContent = `From ${startISO} to ${toISODateLocal(new Date(Date.UTC(y, m+1, 0)))} (UTC 0).`;
 
       const { data, error } = await sb
@@ -412,8 +645,10 @@
         return [];
       }
 
+      const filtered = (data || []).filter(r => memberIds.includes(Number(r.member_id)));
+
       const byMember = new Map();
-      for (const r of (data||[])){
+      for (const r of filtered){
         const arr = byMember.get(r.member_id) || [];
         arr.push({ d: r.snapshot_at, p: Number(r.power) });
         byMember.set(r.member_id, arr);
@@ -422,7 +657,7 @@
       const out = [];
       for (const mm of members){
         const arr = byMember.get(mm.id) || [];
-        if (arr.length < 2) continue; // need start+end (or at least 2 points)
+        if (arr.length < 2) continue;
         const first = arr[0];
         const last  = arr[arr.length - 1];
         const abs = last.p - first.p;
@@ -469,7 +704,6 @@
         : `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:1.6rem">No snapshot history for the current month yet.</td></tr>`;
     }
 
-    // --- Import ---
     if (importBtn){
       importBtn.addEventListener("click", async () => {
         if (!requireAuthOrAlert()) return;
@@ -505,7 +739,11 @@
               unmatched.push(row.name);
               continue;
             }
-            upserts.push({ member_id: m.id, snapshot_at, power: row.power });
+            upserts.push({
+              member_id: m.id,
+              snapshot_at,
+              power: row.power
+            });
           }
 
           if (!upserts.length){
@@ -555,7 +793,10 @@
       monthDeltas = await computeCurrentMonthDeltas();
       renderDeltaTable();
 
-      if (members[0]) await renderChartForMember(Number(memberSelect.value || members[0].id));
+      if (members[0]){
+        await renderChartForMember(Number(memberSelect.value || members[0].id));
+        await renderRangeChart();
+      }
     }
 
     (async function init(){
