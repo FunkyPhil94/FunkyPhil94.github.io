@@ -7,6 +7,7 @@
 
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="style.css"/>
+  <link rel="icon" href="/favicon.ico"/>
 
   <style>
     .toolbar {
@@ -122,8 +123,8 @@
         <div>
           <div class="page-label">Range Curve</div>
           <div class="small-help">
-            Tagesdarstellung für einen vorgegebenen Zeitraum. Wenn am Starttag kein Wert existiert,
-            wird der letzte Snapshot davor verwendet.
+            Tagesdarstellung für einen gewählten Zeitraum. Startwert = letzter Snapshot am/vor Start,
+            falls nicht vorhanden: erster Snapshot innerhalb des Zeitraums.
           </div>
         </div>
 
@@ -507,12 +508,20 @@
       const days = buildDateRange(startISO, endISO);
 
       let lastKnown = null;
+
+      // 1) letzter Snapshot am/vor Start
       for (const s of snaps){
         if (s.snapshot_at <= startISO){
           lastKnown = Number(s.power);
         } else {
           break;
         }
+      }
+
+      // 2) falls keiner vorhanden: erster Snapshot im Zeitraum als initialer Wert
+      if (lastKnown === null){
+        const firstInRange = snaps.find(s => s.snapshot_at >= startISO && s.snapshot_at <= endISO);
+        if (firstInRange) lastKnown = Number(firstInRange.power);
       }
 
       const byDate = new Map();
@@ -647,6 +656,9 @@
 
         if (!snaps.length) continue;
 
+        const inRange = snaps.filter(s => s.d >= range.start && s.d <= range.end);
+
+        // Start: letzter Snapshot am/vor Start, sonst erster im Zeitraum
         let startSnap = null;
         for (const s of snaps){
           if (s.d <= range.start){
@@ -655,7 +667,11 @@
             break;
           }
         }
+        if (!startSnap && inRange.length){
+          startSnap = inRange[0];
+        }
 
+        // Ende: letzter Snapshot am/vor Ende
         let endSnap = null;
         for (const s of snaps){
           if (s.d <= range.end){
@@ -665,8 +681,7 @@
           }
         }
 
-        if (!startSnap) continue;
-        if (!endSnap) continue;
+        if (!startSnap || !endSnap) continue;
 
         const startPower = startSnap.p;
         const endPower = endSnap.p;
