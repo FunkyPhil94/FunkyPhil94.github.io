@@ -161,9 +161,28 @@
       </div>
     </div>
 
-    <!-- ARMS RACE POINTS -->
+    <!-- ARMS RACE SECTION -->
     <div id="armsRaceSection" class="section-hidden">
-      <div class="card" data-requires-auth="true" style="margin-bottom:1.2rem">
+
+      <!-- EVENT KEY: IMMER SICHTBAR, WENN ARMS RACE AKTIV -->
+      <div class="card" style="margin-bottom:1.2rem">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+          <div>
+            <div class="page-label">Guild Event</div>
+            <div class="small-help">Wähle den Event-Key für Punkte-Auswertung und Upload.</div>
+          </div>
+
+          <div class="form-group" style="margin:0;min-width:260px">
+            <label>Event Key</label>
+            <select id="eventKey">
+              <option value="guild_arms_race">Guild Arms Race</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- EVENT POINTS IMPORT: NUR EINGELOGGT -->
+      <div class="card" id="eventImportCard" data-requires-auth="true" style="margin-bottom:1.2rem">
         <div class="page-label">Guild Event Points Import</div>
         <div class="small-help" style="margin-top:.4rem">
           CSV Format: <span class="mono">name,points</span>. Nicht enthaltene Member werden automatisch mit <strong>0</strong> Punkten gespeichert.
@@ -175,18 +194,9 @@
             <input id="eventCsvFile" type="file" accept=".csv,text/csv"/>
           </div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
-            <div class="form-group" style="margin:0">
-              <label>Event Key</label>
-              <select id="eventKey">
-                <option value="guild_arms_race">Guild Arms Race</option>
-              </select>
-            </div>
-
-            <div class="form-group" style="margin:0">
-              <label>Event Date</label>
-              <input id="eventDate" type="date"/>
-            </div>
+          <div class="form-group" style="margin:0">
+            <label>Event Date</label>
+            <input id="eventDate" type="date"/>
           </div>
 
           <button class="btn btn-gold" id="eventImportBtn" type="button" style="height:40px">Import Points</button>
@@ -1091,6 +1101,10 @@
       renderEventPointsChart(days, rows);
       renderEventPointsTable(days, rows);
     }
+
+    eventKey.addEventListener("change", async () => {
+      await renderArmsRaceSection();
+    });
 
     async function refreshAll(){
       await loadMembers();
