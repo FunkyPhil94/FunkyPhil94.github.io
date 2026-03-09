@@ -385,12 +385,6 @@ function renderTable(rows, days){
   currentRows = rows;
   currentDays = days;
 
-  // Statischen Rang einmalig nach Total berechnen — bleibt fix egal wie sortiert wird
-  const rankMap = new Map();
-  [...rows]
-    .sort((a,b) => (b.total || 0) - (a.total || 0))
-    .forEach((r, i) => rankMap.set(r.name, i));
-
   const sorted = sortRows(rows);
 
   pointsHead.innerHTML = `
@@ -408,9 +402,9 @@ function renderTable(rows, days){
     </tr>
   `;
 
-  pointsBody.innerHTML = sorted.map(r => `
+  pointsBody.innerHTML = sorted.map((r, i) => `
     <tr>
-      <td>${rankHtml(rankMap.get(r.name))}</td>
+      <td>${rankHtml(i)}</td>
       <td>${escapeHtml(r.name)}</td>
       ${days.map(d => {
         const val = Number(r.days[d] || 0);
