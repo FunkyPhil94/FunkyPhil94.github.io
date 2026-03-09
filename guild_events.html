@@ -60,24 +60,6 @@ canvas{ max-height:380px; }
   color:var(--gold);
   font-size:.7rem;
 }
-
-.rank-cell{
-  font-weight:700;
-  white-space:nowrap;
-}
-
-.rank-1{
-  color:#f0cc72;
-}
-.rank-2{
-  color:#cfd8e3;
-}
-.rank-3{
-  color:#d9a066;
-}
-.rank-default{
-  color:var(--muted);
-}
 </style>
 </head>
 
@@ -200,16 +182,16 @@ let currentDays = [];
 
 let sortState = {
   key: "total",
-  dir: "desc"
+  dir: "desc" // asc | desc
 };
 
 const eventSelect = document.getElementById("eventSelect");
-const eventRange  = document.getElementById("eventRange");
-const sortInfo    = document.getElementById("sortInfo");
+const eventRange = document.getElementById("eventRange");
+const sortInfo = document.getElementById("sortInfo");
 
 const pointsHead = document.getElementById("pointsHead");
 const pointsBody = document.getElementById("pointsBody");
-const stats      = document.getElementById("eventStats");
+const stats = document.getElementById("eventStats");
 
 function iso(d){
   return d.toISOString().slice(0,10);
@@ -224,6 +206,7 @@ function addDays(d,n){
 function dateRange(start,end){
   const arr = [];
   let d = new Date(start);
+
   while(iso(d) <= end){
     arr.push(iso(d));
     d = addDays(d,1);
@@ -245,37 +228,41 @@ function escapeHtml(s){
 }
 
 function updateSortInfo(){
-  const dir   = sortState.dir === "desc" ? "↓" : "↑";
-  const label = sortState.key === "total" ? "Total" : sortState.key.slice(5);
+  const dir = sortState.dir === "desc" ? "↓" : "↑";
+  const label = sortState.key === "total" ? "Total" : sortState.key.slice(5); // MM-DD
   sortInfo.textContent = `Sort: ${label} ${dir}`;
 }
 
 function setSort(key){
-  if(sortState.key === key){
+  if (sortState.key === key){
     sortState.dir = sortState.dir === "desc" ? "asc" : "desc";
   } else {
     sortState.key = key;
     sortState.dir = "desc";
   }
+
   updateSortInfo();
   renderTable(currentRows, currentDays);
 }
 
 function sortRows(rows){
-  const arr    = [...rows];
+  const arr = [...rows];
   const factor = sortState.dir === "desc" ? -1 : 1;
 
   arr.sort((a,b) => {
     let av, bv;
-    if(sortState.key === "total"){
+
+    if (sortState.key === "total"){
       av = Number(a.total || 0);
       bv = Number(b.total || 0);
     } else {
       av = Number(a.days[sortState.key] || 0);
       bv = Number(b.days[sortState.key] || 0);
     }
-    if(av < bv) return -1 * factor;
-    if(av > bv) return  1 * factor;
+
+    if (av < bv) return -1 * factor;
+    if (av > bv) return  1 * factor;
+
     return a.name.localeCompare(b.name);
   });
 
@@ -283,16 +270,8 @@ function sortRows(rows){
 }
 
 function sortIndicatorFor(key){
-  if(sortState.key !== key) return "";
+  if (sortState.key !== key) return "";
   return `<span class="sort-indicator">${sortState.dir === "desc" ? "▼" : "▲"}</span>`;
-}
-
-// Statische Rangdarstellung: 0-basierter Index → Emoji oder Zahl
-function rankHtml(rank){
-  if(rank === 0) return `<span class="rank-cell rank-1">🥇 1</span>`;
-  if(rank === 1) return `<span class="rank-cell rank-2">🥈 2</span>`;
-  if(rank === 2) return `<span class="rank-cell rank-3">🥉 3</span>`;
-  return `<span class="rank-cell rank-default">${rank + 1}</span>`;
 }
 
 async function loadMembers(){
@@ -301,12 +280,13 @@ async function loadMembers(){
     .select("id,name")
     .order("name");
 
-  if(error){
+  if (error){
     console.error(error);
     showToast("Members konnten nicht geladen werden.", "error");
     members = [];
     return;
   }
+
   members = data || [];
 }
 
@@ -318,41 +298,45 @@ async function fetchPoints(eventKey,start,end){
     .gte("event_date", start)
     .lte("event_date", end);
 
-  if(error){
+  if (error){
     console.error(error);
     showToast("Event points konnten nicht geladen werden.", "error");
     return [];
   }
+
   return data || [];
 }
 
 function renderStats(rows,days){
-  let total  = 0;
+  let total = 0;
   let active = 0;
 
   rows.forEach(r => {
     total += r.total;
-    if(r.total > 0) active++;
+    if (r.total > 0) active++;
   });
 
-  const dayTotals  = days.map(day => rows.reduce((sum,r) => sum + (r.days[day] || 0), 0));
+  const dayTotals = days.map(day => rows.reduce((sum, r) => sum + (r.days[day] || 0), 0));
   const bestDayVal = dayTotals.length ? Math.max(...dayTotals) : 0;
   const bestDayIdx = dayTotals.findIndex(x => x === bestDayVal);
-  const bestDay    = bestDayIdx >= 0 ? days[bestDayIdx] : "–";
+  const bestDay = bestDayIdx >= 0 ? days[bestDayIdx] : "–";
 
   stats.innerHTML = `
     <div class="stat-card">
       <div class="s-label">Members</div>
       <div class="s-value">${rows.length}</div>
     </div>
+
     <div class="stat-card">
       <div class="s-label">Active</div>
       <div class="s-value">${active}</div>
     </div>
+
     <div class="stat-card">
       <div class="s-label">Total Points</div>
       <div class="s-value">${fmt(total)}</div>
     </div>
+
     <div class="stat-card">
       <div class="s-label">Best Day</div>
       <div class="s-value" style="font-size:1.4rem">${bestDay === "–" ? "–" : bestDay.slice(5)}</div>
@@ -363,12 +347,13 @@ function renderStats(rows,days){
 function renderChart(rows,days){
   const totals = days.map(day => {
     let sum = 0;
-    rows.forEach(r => sum += r.days[day] || 0);
+    rows.forEach(r => sum += r.days[day]);
     return sum;
   });
 
   const ctx = document.getElementById("eventChart");
-  if(chart) chart.destroy();
+
+  if (chart) chart.destroy();
 
   chart = new Chart(ctx, {
     type: "bar",
@@ -378,12 +363,14 @@ function renderChart(rows,days){
         label: "Guild Points",
         data: totals,
         backgroundColor: "rgba(201,168,76,.7)",
-        borderColor:     "rgba(201,168,76,1)",
+        borderColor: "rgba(201,168,76,1)",
         borderWidth: 1
       }]
     },
     options: {
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: { display: false }
+      },
       scales: {
         x: { ticks: { color:"#aaa" } },
         y: { ticks: { color:"#aaa" } }
@@ -392,21 +379,14 @@ function renderChart(rows,days){
   });
 }
 
-function renderTable(rows, days){
+function renderTable(rows,days){
   currentRows = rows;
   currentDays = days;
-
-  // Statischer Rang: einmalig nach Total absteigend berechnen, bleibt beim Umsortieren fix
-  const rankMap = new Map();
-  [...rows]
-    .sort((a,b) => (b.total || 0) - (a.total || 0))
-    .forEach((r, i) => rankMap.set(r.name, i));
 
   const sorted = sortRows(rows);
 
   pointsHead.innerHTML = `
     <tr>
-      <th>#</th>
       <th>Name</th>
       ${days.map(d => `
         <th class="sortable-th" onclick="setSort('${d}')">
@@ -421,48 +401,85 @@ function renderTable(rows, days){
 
   pointsBody.innerHTML = sorted.map(r => `
     <tr>
-      <td>${rankHtml(rankMap.get(r.name))}</td>
       <td>${escapeHtml(r.name)}</td>
+
       ${days.map(d => {
         const val = Number(r.days[d] || 0);
         return `<td class="${val ? "points-pos" : "points-zero"}">${fmt(val)}</td>`;
       }).join("")}
+
       <td style="font-weight:700">${fmt(r.total)}</td>
     </tr>
   `).join("");
 }
 
-document.getElementById("uploadBtn").onclick = async () => {
-  if(!requireAuthOrAlert()) return;
+async function render(){
+  const eventKey = eventSelect.value;
+  const conf = EVENTS[eventKey];
 
-  const file     = document.getElementById("csvFile").files[0];
-  const date     = document.getElementById("eventDate").value;
+  eventRange.innerText = `Range: ${conf.start} → ${conf.end}`;
+
+  const days = dateRange(conf.start, conf.end);
+  const data = await fetchPoints(eventKey, conf.start, conf.end);
+
+  const byMember = {};
+
+  members.forEach(m => {
+    byMember[m.id] = {
+      name: m.name,
+      total: 0,
+      days: {}
+    };
+
+    days.forEach(d => byMember[m.id].days[d] = 0);
+  });
+
+  data.forEach(r => {
+    if (!byMember[r.member_id]) return;
+    byMember[r.member_id].days[r.event_date] = Number(r.points || 0);
+    byMember[r.member_id].total += Number(r.points || 0);
+  });
+
+  const rows = Object.values(byMember);
+
+  renderStats(rows, days);
+  renderChart(rows, days);
+  renderTable(rows, days);
+}
+
+document.getElementById("uploadBtn").onclick = async () => {
+  if (!requireAuthOrAlert()) return;
+
+  const file = document.getElementById("csvFile").files[0];
+  const date = document.getElementById("eventDate").value;
   const eventKey = eventSelect.value;
 
-  if(!file || !date){
+  if (!file || !date){
     showToast("Missing file/date", "error");
     return;
   }
 
-  const text  = await file.text();
+  const text = await file.text();
   const lines = text.trim().split(/\r?\n/);
-  const rows  = lines.slice(1);
-  const map   = {};
+
+  const rows = lines.slice(1);
+  const map = {};
 
   rows.forEach(r => {
     const [name, points] = r.split(",");
-    if(!name) return;
+    if (!name) return;
     map[name.trim().toLowerCase()] = Number((points || "").trim()) || 0;
   });
 
   const upserts = [];
+
   members.forEach(m => {
     const p = map[m.name.toLowerCase()] || 0;
     upserts.push({
-      event_key:  eventKey,
+      event_key: eventKey,
       event_date: date,
-      member_id:  m.id,
-      points:     p
+      member_id: m.id,
+      points: p
     });
   });
 
@@ -470,7 +487,7 @@ document.getElementById("uploadBtn").onclick = async () => {
     .from(EVENT_TABLE)
     .upsert(upserts, { onConflict: "event_key,event_date,member_id" });
 
-  if(error){
+  if (error){
     console.error(error);
     showToast("Import failed", "error");
     return;
