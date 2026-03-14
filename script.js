@@ -174,9 +174,7 @@ function buildNav(currentPage) {
   const ul = nav.querySelector("ul");
   if (!ul) return;
 
-  const visiblePages = CONFIG.pages.filter(p => !p.requiresAuth || authed);
-
-  ul.innerHTML = visiblePages.map(p => {
+  ul.innerHTML = CONFIG.pages.map(p => {
     const active = currentPage === p.href ? ' class="active"' : "";
     return `<li><a href="${p.href}"${active}>${p.label}</a></li>`;
   }).join("");
