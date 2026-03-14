@@ -165,12 +165,18 @@ function buildNav(currentPage) {
   const logoEl = nav.querySelector(".nav-logo");
   if (logoEl) logoEl.textContent = CONFIG.guildName;
 
+  let ul = nav.querySelector("ul");
+  if (!ul) {
+    ul = document.createElement("ul");
+    nav.appendChild(ul);
+  }
+
   const authed = isAuthed();
-  const ul = nav.querySelector("ul");
-  if (!ul) return;
 
   ul.innerHTML = CONFIG.pages.map(p => {
-    const active = currentPage === p.href ? ' class="active"' : "";
+    const hrefKey = (p.href || "").replace(".html", "");
+    const currentKey = (currentPage || "").replace(".html", "");
+    const active = currentKey === hrefKey ? ' class="active"' : "";
     const locked = p.requiresAuth && !authed ? " 🔒" : "";
     return `<li><a href="${p.href}"${active}>${p.label}${locked}</a></li>`;
   }).join("");
@@ -182,10 +188,19 @@ function buildNav(currentPage) {
     btn.type = "button";
     btn.textContent = "Logout";
     btn.onclick = logout;
+
+    btn.style.marginLeft = "1rem";
+    btn.style.padding = ".45rem .8rem";
+    btn.style.border = "1px solid rgba(201,168,76,.35)";
+    btn.style.background = "transparent";
+    btn.style.color = "inherit";
+    btn.style.borderRadius = "4px";
+    btn.style.cursor = "pointer";
+
     nav.appendChild(btn);
   }
 
-  btn.style.display = authed ? "" : "none";
+  btn.style.display = authed ? "inline-block" : "none";
 }
 
 // ============================================================
@@ -412,3 +427,13 @@ function closeModal(id) {
 function openModal(id) {
   document.getElementById(id)?.classList.add("open");
 }
+
+// ============================================================
+// AUTO INIT
+// ============================================================
+document.addEventListener("DOMContentLoaded", () => {
+  const currentPage = location.pathname.split("/").pop() || "index";
+
+  buildNav(currentPage.replace(".html", ""));
+  applyAuthUI();
+});
