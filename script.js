@@ -28,6 +28,17 @@ function loginWithPassword() {
   return false;
 }
 
+let btn = nav.querySelector(".nav-logout");
+if (!btn) {
+  btn = document.createElement("button");
+  btn.className = "nav-logout";
+  btn.type = "button";
+  btn.textContent = "Logout";
+  btn.onclick = logout;
+  nav.appendChild(btn);
+}
+btn.style.display = authed ? "" : "none";
+
 function applyAuthUI() {
   const a = isAuthed();
 
