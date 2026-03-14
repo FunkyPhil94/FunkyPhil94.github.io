@@ -156,9 +156,7 @@ const CONFIG = {
     { label: "Rules", href: "rules" },
     { label: "Power", href: "power" },
     { label: "Guild Events", href: "guild_events" },
-
-    // only for logged-in users
-    { label: "Member Roster", href: "roster",, requiresAuth: true},
+    { label: "Member Roster", href: "roster", requiresAuth: true },
   ],
 };
 
@@ -176,7 +174,8 @@ function buildNav(currentPage) {
 
   ul.innerHTML = CONFIG.pages.map(p => {
     const active = currentPage === p.href ? ' class="active"' : "";
-    return `<li><a href="${p.href}"${active}>${p.label}</a></li>`;
+    const locked = p.requiresAuth && !authed ? " 🔒" : "";
+    return `<li><a href="${p.href}"${active}>${p.label}${locked}</a></li>`;
   }).join("");
 
   let btn = nav.querySelector(".nav-logout");
@@ -410,15 +409,3 @@ function today() { return new Date().toISOString().split("T")[0]; }
 
 function closeModal(id) { document.getElementById(id)?.classList.remove("open"); }
 function openModal(id) { document.getElementById(id)?.classList.add("open"); }
-
-// ============================================================
-// PROTECT RESTRICTED PAGES (Influence/Roster only for authed)
-// ============================================================
-/*(function protectRestrictedPages() {
-  const restricted = ["roster", "roster.html"];
-  const current = location.pathname.split("/").pop();
-  if (restricted.includes(current) && !isAuthed()) {
-    location.href = "index";
-  }
-})*/
-();
