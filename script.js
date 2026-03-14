@@ -56,11 +56,7 @@ function requireAuthOrAlert() {
 // CONSTANTS
 // ============================================================
 const AUTHORS = ["Pengwing", "Finnegan", "MonkeyGod", "GettoBird", "Kait_See", "Squirtle"];
-
-// Attachments bucket (Supabase Storage)
 const STORAGE_BUCKET = "attachments";
-
-// Max attachments per item
 const MAX_ATTACHMENTS = 3;
 
 // ============================================================
@@ -111,7 +107,9 @@ function showToast(message, type, durationMs) {
     setTimeout(() => {
       t.style.opacity = "0";
       t.style.transform = "translateX(20px)";
-      setTimeout(() => { if (t.parentElement) t.remove(); }, 280);
+      setTimeout(() => {
+        if (t.parentElement) t.remove();
+      }, 280);
     }, durationMs);
   }
 }
@@ -168,7 +166,6 @@ function buildNav(currentPage) {
   if (logoEl) logoEl.textContent = CONFIG.guildName;
 
   const authed = isAuthed();
-
   const ul = nav.querySelector("ul");
   if (!ul) return;
 
@@ -184,12 +181,11 @@ function buildNav(currentPage) {
     btn.className = "nav-logout";
     btn.type = "button";
     btn.textContent = "Logout";
-    btn.style.marginLeft = "1rem";
     btn.onclick = logout;
     nav.appendChild(btn);
   }
 
-  btn.style.display = authed ? "inline-block" : "none";
+  btn.style.display = authed ? "" : "none";
 }
 
 // ============================================================
@@ -409,5 +405,10 @@ function attachmentsViewHtml(row) {
 function fmt(n) { return Number(n).toLocaleString(); }
 function today() { return new Date().toISOString().split("T")[0]; }
 
-function closeModal(id) { document.getElementById(id)?.classList.remove("open"); }
-function openModal(id) { document.getElementById(id)?.classList.add("open"); }
+function closeModal(id) {
+  document.getElementById(id)?.classList.remove("open");
+}
+
+function openModal(id) {
+  document.getElementById(id)?.classList.add("open");
+}
