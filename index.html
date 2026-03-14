@@ -43,29 +43,6 @@
 
   <div class="page fade-up">
 
-    <!-- LOGIN CARD -->
-    <div class="card" id="loginCard" style="margin-bottom:1.2rem">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
-        <div>
-          <div style="font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin-bottom:.35rem">
-            Admin Unlock
-          </div>
-          <div style="font-size:.85rem;color:var(--muted);line-height:1.6">
-            Enter password to unlock edit/create functions on this portal.
-          </div>
-        </div>
-
-        <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
-          <input id="pwInput" type="password" placeholder="Password"
-            style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;
-                   color:var(--text);padding:.6rem .9rem;outline:none;min-width:220px"/>
-          <button class="btn btn-gold" id="loginBtn" type="button">Unlock</button>
-          <button class="btn btn-ghost" id="logoutBtn" type="button" style="display:none">Logout</button>
-        </div>
-      </div>
-      <div id="loginMsg" class="login-status"></div>
-    </div>
-
     <!-- STATS -->
     <div class="stat-grid" id="statGrid" style="margin-bottom:1.2rem"></div>
 
@@ -75,7 +52,7 @@
       <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.6rem" id="leaderNames"></div>
     </div>
 
-    <!-- ✅ TIME CARD (between Leadership and Latest) -->
+    <!-- TIME CARD -->
     <div class="card" id="timeCard" style="margin-bottom:2rem">
       <div class="page-label">Time</div>
       <div style="display:flex;gap:1.2rem;flex-wrap:wrap;margin-top:.6rem">
@@ -119,18 +96,14 @@
     <div class="section-heading">Sections</div>
     <div class="quicklinks">
       <a href="pinboard" class="quicklink"><span class="ql-icon">📌</span><span class="ql-label">Pinboard</span></a>
-      <a href="guides"   class="quicklink"><span class="ql-icon">📖</span><span class="ql-label">Guides</span></a>
-      <a href="events"   class="quicklink"><span class="ql-icon">📅</span><span class="ql-label">Events</span></a>
-      <a href="relic"    class="quicklink"><span class="ql-icon">🗿</span><span class="ql-label">Relic</span></a>
-      <a href="heroes"   class="quicklink"><span class="ql-icon">🧙</span><span class="ql-label">Heroes</span></a>
-      <a href="rules"    class="quicklink"><span class="ql-icon">📜</span><span class="ql-label">Rules</span></a>
+      <a href="guides" class="quicklink"><span class="ql-icon">📖</span><span class="ql-label">Guides</span></a>
+      <a href="events" class="quicklink"><span class="ql-icon">📅</span><span class="ql-label">Events</span></a>
+      <a href="relic" class="quicklink"><span class="ql-icon">🗿</span><span class="ql-label">Relic</span></a>
+      <a href="heroes" class="quicklink"><span class="ql-icon">🧙</span><span class="ql-label">Heroes</span></a>
+      <a href="rules" class="quicklink"><span class="ql-icon">📜</span><span class="ql-label">Rules</span></a>
       <a href="power" class="quicklink"><span class="ql-icon">📊</span><span class="ql-label">Power</span></a>
       <a href="guild_events" class="quicklink"><span class="ql-icon">📊</span><span class="ql-label">Guild Events</span></a>
-      
-      <a href="roster" class="quicklink" data-requires-auth="true">
-        <span class="ql-icon">🛡</span><span class="ql-label">Roster</span>
-      </a>
-      
+      <a href="roster" class="quicklink"><span class="ql-icon">🛡</span><span class="ql-label">Roster</span></a>
     </div>
   </div>
 
@@ -156,12 +129,12 @@
 
       <div class="modal-actions">
         <button class="btn btn-ghost" onclick="closeModal('pinModal');resetPinForm()">Cancel</button>
-        <button class="btn btn-gold"  onclick="savePin()">Save</button>
+        <button class="btn btn-gold" onclick="savePin()">Save</button>
       </div>
     </div>
   </div>
 
-  <!-- ✅ Supabase MUST be before script.js -->
+  <!-- Supabase MUST be before script.js -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="script.js"></script>
 
@@ -212,39 +185,11 @@
       _timeTicker = setInterval(renderTimes, 1000);
     }
 
-    // start once
-    startTimeTicker();
-
-    const pw  = document.getElementById("pwInput");
-    const lb  = document.getElementById("loginBtn");
-    const lob = document.getElementById("logoutBtn");
-
     async function updateLoginUI() {
-      const a = isAuthed();
-      lb.style.display  = a ? "none" : "";
-      pw.style.display  = a ? "none" : "";
-      lob.style.display = a ? "" : "none";
-
       buildNav("index");
       applyAuthUI();
       await renderDash();
     }
-
-    lb.addEventListener("click", async () => {
-      const v = (pw.value || "").trim();
-      if (!v) { showToast("Bitte Passwort eingeben.", "error"); return; }
-
-      const ok = loginWithPassword(v);
-      pw.value = "";
-
-      if (!ok) { showToast("Falsches Passwort.", "error"); pw.focus(); return; }
-
-      await updateLoginUI();
-      showToast("Eingeloggt! Admin freigeschaltet.", "success", 4000);
-    });
-
-    pw.addEventListener("keydown", (e) => { if (e.key === "Enter") lb.click(); });
-    lob.addEventListener("click", () => logout());
 
     async function renderDash() {
       // --- MEMBERS (Supabase table: members) ---
@@ -279,7 +224,7 @@
             const ra = String(a.rank || "").toLowerCase();
             const rb = String(b.rank || "").toLowerCase();
             if (ra === rb) return String(a.name||"").localeCompare(String(b.name||""));
-            return ra === "r5" ? -1 : 1; // r5 first
+            return ra === "r5" ? -1 : 1;
           })
           .map(l => {
             const r = String(l.rank || "").toLowerCase();
@@ -336,8 +281,8 @@
       const id = document.getElementById("editPinId").value;
 
       const entry = {
-        title:    document.getElementById("pinTitle").value.trim()  || "Untitled",
-        body:     document.getElementById("pinBody").value.trim()   || "",
+        title:    document.getElementById("pinTitle").value.trim() || "Untitled",
+        body:     document.getElementById("pinBody").value.trim() || "",
         priority: document.getElementById("pinPriority").value,
         author:   document.getElementById("pinAuthor").value.trim() || "Unknown",
         date:     new Date().toISOString().split("T")[0],
@@ -360,10 +305,14 @@
     }
 
     document.getElementById("pinModal").addEventListener("click", e => {
-      if (e.target.id === "pinModal") { closeModal("pinModal"); resetPinForm(); }
+      if (e.target.id === "pinModal") {
+        closeModal("pinModal");
+        resetPinForm();
+      }
     });
 
     // Init
+    startTimeTicker();
     updateLoginUI();
   </script>
 </body>
