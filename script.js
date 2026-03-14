@@ -17,10 +17,7 @@ function isAuthed() {
 }
 
 function logout() {
-  fetch("/cf-logout", { credentials: "include" })
-    .finally(() => {
-      location.reload();
-    });
+  window.location.href = "/cf-logout";
 }
 
 function loginWithPassword() {
