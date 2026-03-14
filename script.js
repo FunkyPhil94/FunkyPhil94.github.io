@@ -1,39 +1,30 @@
 // ============================================================
-//  AUTH  -  Passwort aendern: AUTH.PASSWORD
+// AUTH - via Cloudflare cookie
 // ============================================================
 const AUTH = {
-  PASSWORD: "tester",
-  TTL_MS: 12 * 60 * 60 * 1000, // 12h
-  KEY: "nato_auth",
+  COOKIE_NAME: "nato_auth",
 };
 
-function nowMs() { return Date.now(); }
-
-function isAuthed() {
-  try {
-    const r = localStorage.getItem(AUTH.KEY);
-    if (!r) return false;
-    const o = JSON.parse(r);
-    return !!o && o.ok === true && typeof o.until === "number" && o.until > nowMs();
-  } catch {
-    return false;
-  }
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(";").shift();
+  return null;
 }
 
-function setAuthed() {
-  localStorage.setItem(AUTH.KEY, JSON.stringify({ ok: true, until: nowMs() + AUTH.TTL_MS }));
+function isAuthed() {
+  return getCookie(AUTH.COOKIE_NAME) === "1";
 }
 
 function logout() {
-  localStorage.removeItem(AUTH.KEY);
-  location.reload();
+  fetch("/cf-logout", { credentials: "include" })
+    .finally(() => {
+      location.reload();
+    });
 }
 
-function loginWithPassword(pw) {
-  if ((pw || "") === AUTH.PASSWORD) {
-    setAuthed();
-    return true;
-  }
+function loginWithPassword() {
+  // Nicht mehr benötigt, da Auth jetzt über Cloudflare läuft
   return false;
 }
 
@@ -51,6 +42,7 @@ function applyAuthUI() {
     el.style.opacity = a ? "" : "0.45";
     el.style.pointerEvents = a ? "" : "none";
     if (!a) el.setAttribute("title", "Locked - login required");
+    else el.removeAttribute("title");
   });
 }
 
@@ -61,7 +53,7 @@ function requireAuthOrAlert() {
 }
 
 // ============================================================
-//  CONSTANTS
+// CONSTANTS
 // ============================================================
 const AUTHORS = ["Pengwing", "Finnegan", "MonkeyGod", "GettoBird", "Kait_See", "Squirtle"];
 
@@ -72,7 +64,7 @@ const STORAGE_BUCKET = "attachments";
 const MAX_ATTACHMENTS = 3;
 
 // ============================================================
-//  TOAST  -  showToast("Text", "success"|"error"|"info", ms)
+// TOAST  -  showToast("Text", "success"|"error"|"info", ms)
 // ============================================================
 function showToast(message, type, durationMs) {
   type = type || "info";
@@ -125,19 +117,17 @@ function showToast(message, type, durationMs) {
 }
 
 // ============================================================
-//  SUPABASE (Scoped Init)
-//  WICHTIG: CDN Script muss VOR script.js geladen werden:
-//  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+// SUPABASE (Scoped Init)
+// WICHTIG: CDN Script muss VOR script.js geladen werden:
+// <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 // ============================================================
 (function initSupabaseScoped() {
-  // ❗️WICHTIG: Diese consts sind jetzt NICHT mehr global => kein "already declared" mehr
   const SUPABASE_URL = "https://ztvimtaecxxtltpnxxrg.supabase.co";
   const SUPABASE_ANON_KEY =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0dmltdGFlY3h4dGx0cG54eHJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NjE4MzEsImV4cCI6MjA4ODEzNzgzMX0.W9c_Sy6dcNHwjr3hYSjBmh5vDyY1KBQbeYsw4wG5gGw";
 
   try {
     if (typeof supabase !== "undefined" && supabase?.createClient) {
-      // ✅ global verfügbar machen
       window.sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     } else {
       console.warn("[script.js] Supabase library not loaded. Add CDN script tag before script.js.");
@@ -156,7 +146,7 @@ function requireSupabase() {
 }
 
 // ============================================================
-//  CONFIG + NAV
+// CONFIG + NAV
 // ============================================================
 const CONFIG = {
   guildName: "NATO [GBR]",
@@ -166,7 +156,7 @@ const CONFIG = {
     { label: "Rules", href: "rules" },
     { label: "Power", href: "power" },
     { label: "Guild Events", href: "guild_events" },
-    
+
     // only for logged-in users
     { label: "Member Roster", href: "roster", requiresAuth: true },
   ],
@@ -191,7 +181,6 @@ function buildNav(currentPage) {
     return `<li><a href="${p.href}"${active}>${p.label}</a></li>`;
   }).join("");
 
-  // Optional Logout button
   let btn = nav.querySelector(".nav-logout");
   if (!btn) {
     btn = document.createElement("button");
@@ -205,7 +194,7 @@ function buildNav(currentPage) {
 }
 
 // ============================================================
-//  DB HELPERS
+// DB HELPERS
 // ============================================================
 async function dbList(table, options = {}) {
   if (!requireSupabase()) return [];
@@ -275,7 +264,7 @@ async function dbDelete(table, id) {
 }
 
 // ============================================================
-//  STORAGE HELPERS (single upload) + MULTI (max 3)
+// STORAGE HELPERS (single upload) + MULTI (max 3)
 // ============================================================
 function safeFileExt(name = "") {
   const i = name.lastIndexOf(".");
@@ -351,11 +340,11 @@ async function deleteAttachmentByPath(path) {
 }
 
 // ============================================================
-//  ATTACHMENT ARRAY HELPERS
-//  DB columns:
-//   attachment_paths text[]
-//   attachment_types text[]
-//   attachment_names text[]
+// ATTACHMENT ARRAY HELPERS
+// DB columns:
+//  attachment_paths text[]
+//  attachment_types text[]
+//  attachment_names text[]
 // ============================================================
 function attachmentsFromRow(row) {
   const paths = Array.isArray(row?.attachment_paths) ? row.attachment_paths : [];
@@ -416,7 +405,7 @@ function attachmentsViewHtml(row) {
 }
 
 // ============================================================
-//  GENERIC HELPERS
+// GENERIC HELPERS
 // ============================================================
 function fmt(n) { return Number(n).toLocaleString(); }
 function today() { return new Date().toISOString().split("T")[0]; }
@@ -425,10 +414,10 @@ function closeModal(id) { document.getElementById(id)?.classList.remove("open");
 function openModal(id) { document.getElementById(id)?.classList.add("open"); }
 
 // ============================================================
-//  PROTECT RESTRICTED PAGES (Influence/Roster only for authed)
+// PROTECT RESTRICTED PAGES (Influence/Roster only for authed)
 // ============================================================
 (function protectRestrictedPages() {
-  const restricted = ["roster"];
+  const restricted = ["roster", "roster.html"];
   const current = location.pathname.split("/").pop();
   if (restricted.includes(current) && !isAuthed()) {
     location.href = "index";
