@@ -184,10 +184,12 @@ function buildNav(currentPage) {
     btn.className = "nav-logout";
     btn.type = "button";
     btn.textContent = "Logout";
+    btn.style.marginLeft = "1rem";
     btn.onclick = logout;
     nav.appendChild(btn);
   }
-  btn.style.display = authed ? "" : "none";
+
+  btn.style.display = authed ? "inline-block" : "none";
 }
 
 // ============================================================
