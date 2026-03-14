@@ -158,7 +158,7 @@ const CONFIG = {
     { label: "Guild Events", href: "guild_events" },
 
     // only for logged-in users
-    { label: "Member Roster", href: "roster",
+    { label: "Member Roster", href: "roster",, requiresAuth: true},
   ],
 };
 
