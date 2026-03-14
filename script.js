@@ -158,7 +158,7 @@ const CONFIG = {
     { label: "Guild Events", href: "guild_events" },
 
     // only for logged-in users
-    { label: "Member Roster", href: "roster", requiresAuth: true },
+    { label: "Member Roster", href: "roster",
   ],
 };
 
@@ -416,10 +416,11 @@ function openModal(id) { document.getElementById(id)?.classList.add("open"); }
 // ============================================================
 // PROTECT RESTRICTED PAGES (Influence/Roster only for authed)
 // ============================================================
-(function protectRestrictedPages() {
+/*(function protectRestrictedPages() {
   const restricted = ["roster", "roster.html"];
   const current = location.pathname.split("/").pop();
   if (restricted.includes(current) && !isAuthed()) {
     location.href = "index";
   }
-})();
+})*/
+();
