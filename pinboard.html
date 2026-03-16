@@ -44,6 +44,62 @@
       flex-wrap:wrap;
       align-self:flex-start;
     }
+
+    .pin-image{
+      margin:.7rem 0 .3rem;
+    }
+
+    .pin-image img{
+      max-width:100%;
+      border-radius:6px;
+      border:1px solid var(--border);
+      display:block;
+    }
+
+    .upload-area {
+      border:2px dashed var(--border);
+      border-radius:4px;
+      padding:1rem;
+      text-align:center;
+      cursor:pointer;
+      transition:border-color .2s, background .2s;
+      position:relative;
+    }
+
+    .upload-area:hover,
+    .upload-area.dragover {
+      border-color:var(--gold);
+      background:rgba(201,168,76,.04);
+    }
+
+    .upload-area input[type=file] {
+      position:absolute;
+      inset:0;
+      opacity:0;
+      cursor:pointer;
+      width:100%;
+      height:100%;
+    }
+
+    .upload-preview{
+      margin-top:.75rem;
+      display:none;
+      flex-direction:column;
+      gap:.5rem;
+    }
+
+    .upload-preview img{
+      max-width:100%;
+      border-radius:6px;
+      border:1px solid var(--border);
+    }
+
+    .upload-remove{
+      font-size:.78rem;
+      color:#ff6b6b;
+      cursor:pointer;
+      width:fit-content;
+    }
   </style>
 </head>
 <body>
@@ -93,7 +149,7 @@
       <div class="form-group">
         <label>Author</label>
         <select id="pinAuthor">
-          <option value="Pingwing">Pingwing</option>
+          <option value="Pingwing">pengwing</option>
           <option value="Finnegan">Finnegan</option>
           <option value="MonkeyGod">MonkeyGod</option>
           <option value="GettoBird">GettoBird</option>
@@ -101,6 +157,15 @@
           <option value="Squirtle">Squirtle</option>
           <option value="KlakeOSol">KlakeOSol</option>
         </select>
+      </div>
+
+      <div class="form-group">
+        <label>Picture</label>
+        <div class="upload-area" id="uploadArea">
+          <input type="file" id="fileInput" accept="image/*" />
+          <div>🖼️ Click or drag an image here</div>
+        </div>
+        <div class="upload-preview" id="uploadPreview"></div>
       </div>
 
       <div class="modal-actions">
@@ -124,6 +189,78 @@
     };
 
     let currentPins = [];
+    let pendingImage = null;
+    let existingAttachments = [];
+
+    const fileInput = document.getElementById("fileInput");
+    const uploadArea = document.getElementById("uploadArea");
+    const uploadPreview = document.getElementById("uploadPreview");
+
+    fileInput.addEventListener("change", () => {
+      const f = fileInput.files?.[0] || null;
+      if (!f) return;
+      pendingImage = f;
+      existingAttachments = [];
+      renderPreview();
+    });
+
+    uploadArea.addEventListener("dragover", e => {
+      e.preventDefault();
+      uploadArea.classList.add("dragover");
+    });
+
+    uploadArea.addEventListener("dragleave", () => {
+      uploadArea.classList.remove("dragover");
+    });
+
+    uploadArea.addEventListener("drop", e => {
+      e.preventDefault();
+      uploadArea.classList.remove("dragover");
+      const f = e.dataTransfer.files?.[0] || null;
+      if (!f) return;
+      if (!f.type.startsWith("image/")) return;
+      pendingImage = f;
+      existingAttachments = [];
+      fileInput.value = "";
+      renderPreview();
+    });
+
+    function clearImage() {
+      pendingImage = null;
+      existingAttachments = [];
+      fileInput.value = "";
+      uploadPreview.style.display = "none";
+      uploadPreview.innerHTML = "";
+    }
+
+    function renderPreview() {
+      uploadPreview.innerHTML = "";
+
+      if (pendingImage) {
+        const url = URL.createObjectURL(pendingImage);
+        uploadPreview.style.display = "flex";
+        uploadPreview.innerHTML = `
+          <img src="${url}" alt="preview">
+          <span class="upload-remove" onclick="clearImage()">Remove image</span>
+        `;
+        return;
+      }
+
+      if (existingAttachments.length) {
+        const a = existingAttachments[0];
+        const url = publicUrlForPath(a.attachment_path);
+        if (url) {
+          uploadPreview.style.display = "flex";
+          uploadPreview.innerHTML = `
+            <img src="${url}" alt="existing image">
+            <span class="upload-remove" onclick="clearImage()">Remove image</span>
+          `;
+          return;
+        }
+      }
+
+      uploadPreview.style.display = "none";
+    }
 
     function openPinModal() {
       if (!requireAuthOrAlert()) return;
@@ -159,6 +296,8 @@
                   <div class="pin-title">${p.title || "Untitled"}</div>
                 </div>
 
+                ${attachmentsHtml(p) ? `<div class="pin-image">${attachmentsHtml(p)}</div>` : ""}
+
                 <div class="pin-body">${p.body || ""}</div>
 
                 <div class="pin-meta">
@@ -190,12 +329,21 @@
 
       const id = document.getElementById("editPinId").value;
 
+      let metas = [];
+      if (pendingImage) {
+        metas = await uploadAttachments("pins", [pendingImage], 1);
+        if (!metas.length) return;
+      } else {
+        metas = existingAttachments;
+      }
+
       const entry = {
         title: document.getElementById("pinTitle").value.trim() || "Untitled",
         body: document.getElementById("pinBody").value.trim() || "",
         priority: document.getElementById("pinPriority").value,
         author: document.getElementById("pinAuthor").value,
-        date: new Date().toISOString().split("T")[0]
+        date: new Date().toISOString().split("T")[0],
+        ...attachmentsToRow(metas)
       };
 
       if (id) entry.id = Number(id);
@@ -225,6 +373,10 @@
       document.getElementById("pinPriority").value = p.priority || "normal";
       document.getElementById("pinAuthor").value = p.author || "Squirtle";
 
+      pendingImage = null;
+      existingAttachments = attachmentsFromRow(p);
+      renderPreview();
+
       document.getElementById("pinModalTitle").textContent = "Edit Announcement";
       openModal("pinModal");
     }
@@ -232,6 +384,8 @@
     async function deletePin(id) {
       if (!requireAuthOrAlert()) return;
       if (!confirm("Delete this announcement?")) return;
+
+      const p = currentPins.find(x => x.id === id);
 
       const { error } = await sb
         .from("pins")
@@ -244,6 +398,11 @@
         return;
       }
 
+      const metas = p ? attachmentsFromRow(p) : [];
+      for (const m of metas) {
+        if (m.attachment_path) await deleteAttachmentByPath(m.attachment_path);
+      }
+
       await render();
     }
 
@@ -252,8 +411,9 @@
       document.getElementById("pinTitle").value = "";
       document.getElementById("pinBody").value = "";
       document.getElementById("pinPriority").value = "normal";
-      document.getElementById("pinAuthor").value = "Pingwing";
+      document.getElementById("pinAuthor").value = "pengwing";
       document.getElementById("pinModalTitle").textContent = "New Announcement";
+      clearImage();
     }
 
     document.getElementById("pinModal").addEventListener("click", e => {
