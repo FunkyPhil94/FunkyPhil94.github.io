@@ -322,15 +322,15 @@
       }
 
       // --- GUIDES count (sum of guides + events + relics + heroes) ---
-      const [events, relics, heroes] = await Promise.all([
+      const [events, relic, heroes] = await Promise.all([
         dbList("events", { orderBy: "date", ascending: false }),
-        dbList("relics", { orderBy: "date", ascending: false }),
+        dbList("relic", { orderBy: "date", ascending: false }),
         dbList("heroes", { orderBy: "date", ascending: false })
       ]);
 
       const totalGuidesCount =
         (events || []).length +
-        (relics || []).length +
+        (relic || []).length +
         (heroes || []).length;
 
       document.getElementById("statGrid").innerHTML = `
