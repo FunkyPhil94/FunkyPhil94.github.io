@@ -9,31 +9,86 @@
 
   <style>
     .pin-list-item{
-      display:flex;align-items:flex-start;gap:1rem;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:1rem;
       padding:.9rem 1.2rem;
-      background:var(--surface);border:1px solid var(--border);border-radius:4px;
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius:4px;
       transition:border-color .2s;
     }
     .pin-list-item:hover{ border-color:rgba(201,168,76,.3); }
-    .pli-title{ font-size:.9rem;font-weight:500;color:var(--text); }
-    .pli-meta{ font-size:.72rem;color:var(--muted);margin-top:.2rem;letter-spacing:.05em; }
+
+    .pli-left{
+      display:flex;
+      align-items:flex-start;
+      gap:1rem;
+      flex:1;
+      min-width:0;
+    }
+
+    .pli-title{
+      font-size:.9rem;
+      font-weight:500;
+      color:var(--text);
+    }
+
+    .pli-meta{
+      font-size:.72rem;
+      color:var(--muted);
+      margin-top:.2rem;
+      letter-spacing:.05em;
+    }
+
+    .pli-open{
+      flex-shrink:0;
+      align-self:center;
+    }
+
     .section-heading{
-      font-family:'Rajdhani',sans-serif;font-size:.72rem;font-weight:700;
-      letter-spacing:.18em;text-transform:uppercase;color:var(--muted);
+      font-family:'Rajdhani',sans-serif;
+      font-size:.72rem;
+      font-weight:700;
+      letter-spacing:.18em;
+      text-transform:uppercase;
+      color:var(--muted);
       margin:1.8rem 0 .8rem;
     }
-    .quicklinks{ display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.75rem; }
+
+    .quicklinks{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+      gap:.75rem;
+    }
+
     .quicklink{
-      background:var(--surface);border:1px solid var(--border);border-radius:4px;
-      padding:1rem 1.2rem;text-decoration:none;
-      display:flex;align-items:center;gap:.8rem;
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius:4px;
+      padding:1rem 1.2rem;
+      text-decoration:none;
+      display:flex;
+      align-items:center;
+      gap:.8rem;
       transition:border-color .2s,background .2s;
     }
-    .quicklink:hover{ border-color:rgba(201,168,76,.35);background:rgba(201,168,76,.04); }
+
+    .quicklink:hover{
+      border-color:rgba(201,168,76,.35);
+      background:rgba(201,168,76,.04);
+    }
+
     .ql-icon{ font-size:1.3rem; }
+
     .ql-label{
-      font-family:'Rajdhani',sans-serif;font-size:1rem;font-weight:700;
-      letter-spacing:.04em;text-transform:uppercase;color:var(--text);
+      font-family:'Rajdhani',sans-serif;
+      font-size:1rem;
+      font-weight:700;
+      letter-spacing:.04em;
+      text-transform:uppercase;
+      color:var(--text);
     }
   </style>
 </head>
@@ -254,23 +309,35 @@
         recentHeading.style.display = "block";
         recentPinsEl.innerHTML = latest3.map(p => `
           <div class="pin-list-item">
-            <div style="margin-top:.15rem;flex-shrink:0">${PRIORITY_BADGE[p.priority] || PRIORITY_BADGE.normal}</div>
-            <div style="flex:1">
-              <div class="pli-title">${p.title || "Untitled"}</div>
-              <div class="pli-meta">${p.author || "Unknown"} · ${p.date || ""}</div>
+            <div class="pli-left">
+              <div style="margin-top:.15rem;flex-shrink:0">${PRIORITY_BADGE[p.priority] || PRIORITY_BADGE.normal}</div>
+              <div style="flex:1;min-width:0">
+                <div class="pli-title">${p.title || "Untitled"}</div>
+                <div class="pli-meta">${p.author || "Unknown"} · ${p.date || ""}</div>
+              </div>
             </div>
+            <a href="pinboard" class="btn btn-ghost pli-open" style="padding:.35rem .8rem;font-size:.72rem">Open</a>
           </div>
         `).join("");
       }
 
-      // --- GUIDES count (Supabase table: guides) ---
-      const guides = await dbList("guides", { orderBy: "date", ascending: false });
+      // --- GUIDES count (sum of guides + events + relics + heroes) ---
+      const [events, relics, heroes] = await Promise.all([
+        dbList("events", { orderBy: "date", ascending: false }),
+        dbList("relics", { orderBy: "date", ascending: false }),
+        dbList("heroes", { orderBy: "date", ascending: false })
+      ]);
+
+      const totalGuidesCount =
+        (events || []).length +
+        (relics || []).length +
+        (heroes || []).length;
 
       document.getElementById("statGrid").innerHTML = `
         <div class="stat-card"><div class="s-label">Members</div><div class="s-value">${totalMembers}</div></div>
         <div class="stat-card"><div class="s-label">R5 / R4</div><div class="s-value">${leaderCount}</div></div>
         <div class="stat-card"><div class="s-label">Announcements</div><div class="s-value">${(pins||[]).length}</div></div>
-        <div class="stat-card"><div class="s-label">Guides</div><div class="s-value">${(guides||[]).length}</div></div>
+        <div class="stat-card"><div class="s-label">Guides</div><div class="s-value">${totalGuidesCount}</div></div>
       `;
     }
 
