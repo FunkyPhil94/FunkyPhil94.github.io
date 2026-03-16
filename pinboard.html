@@ -6,9 +6,51 @@
   <title>NATO [GBR] – Pinboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="style.css"/>
+
+  <style>
+    .pin-card{
+      margin-bottom:1rem;
+    }
+
+    .pin-title{
+      font-family:'Rajdhani',sans-serif;
+      font-weight:700;
+      font-size:1.1rem;
+      line-height:1.2;
+      color:var(--text);
+    }
+
+    .pin-body{
+      margin-top:.4rem;
+      white-space:pre-wrap;
+      overflow-wrap:anywhere;
+      word-break:break-word;
+      text-align:left;
+      line-height:1.7;
+      color:var(--text);
+      padding:0;
+    }
+
+    .pin-meta{
+      margin-top:.8rem;
+      font-size:.75rem;
+      color:var(--muted);
+      text-align:left;
+    }
+
+    .pin-actions{
+      display:flex;
+      gap:.5rem;
+      flex-wrap:wrap;
+      align-self:flex-start;
+    }
+  </style>
 </head>
 <body>
-  <nav id="mainNav"><a class="nav-logo" href="index.html">NATO [GBR]</a><ul></ul></nav>
+  <nav id="mainNav">
+    <a class="nav-logo" href="index.html">NATO [GBR]</a>
+    <ul></ul>
+  </nav>
 
   <div class="page fade-up">
     <div class="page-header" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem">
@@ -17,7 +59,8 @@
         <div class="page-title">Pinboard</div>
         <div class="page-divider"></div>
       </div>
-        <button class="btn btn-gold" data-requires-auth="true" onclick="openPinModal()">+ New Post</button>    </div>
+      <button class="btn btn-gold" data-requires-auth="true" onclick="openPinModal()">+ New Post</button>
+    </div>
 
     <div id="pinList" style="display:flex;flex-direction:column;gap:1rem"></div>
   </div>
@@ -27,14 +70,17 @@
     <div class="modal">
       <h3 id="pinModalTitle">New Announcement</h3>
       <input type="hidden" id="editPinId"/>
+
       <div class="form-group">
         <label>Title</label>
         <input type="text" id="pinTitle" placeholder="Announcement title…"/>
       </div>
+
       <div class="form-group">
         <label>Body</label>
         <textarea id="pinBody" rows="5" placeholder="Write your announcement here…"></textarea>
       </div>
+
       <div class="form-group">
         <label>Priority</label>
         <select id="pinPriority">
@@ -43,6 +89,7 @@
           <option value="urgent">Urgent</option>
         </select>
       </div>
+
       <div class="form-group">
         <label>Author</label>
         <select id="pinAuthor">
@@ -52,67 +99,75 @@
           <option value="GettoBird">GettoBird</option>
           <option value="Kait_See">Kait_See</option>
           <option value="Squirtle">Squirtle</option>
+          <option value="KlakeOSol">KlakeOSol</option>
         </select>
       </div>
+
       <div class="modal-actions">
-        <button class="btn btn-ghost" onclick="closeModal('pinModal')">Cancel</button>
-        <button class="btn btn-gold"  onclick="savePin()">Save</button>
+        <button class="btn btn-ghost" onclick="closeModal('pinModal'); resetPinForm()">Cancel</button>
+        <button class="btn btn-gold" onclick="savePin()">Save</button>
       </div>
     </div>
   </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="script.js"></script>
-<script>
-    buildNav("pinboard.html");
+
+  <script>
+    buildNav("pinboard");
+    applyAuthUI();
+
     const PRIORITY_BADGE = {
       urgent: '<span class="badge badge-red">Urgent</span>',
       high:   '<span class="badge badge-gold">High</span>',
       normal: '<span class="badge badge-muted">Normal</span>',
     };
 
-  function openPinModal() {
-  if (!requireAuthOrAlert()) return;
-  openModal("pinModal");
-}
-    async function render() {
-    const canEdit = isAuthed();
-    const container = document.getElementById("pinList");
-    if (!container) return;
-  
-    const { data: pins, error } = await sb
-      .from("pins")
-      .select("*")
-      .order("date", { ascending: false });
-  
-    if (error) {
-      console.error("Supabase error:", error);
-      container.innerHTML = `<div style="color:red">Error loading pins.</div>`;
-      return;
+    let currentPins = [];
+
+    function openPinModal() {
+      if (!requireAuthOrAlert()) return;
+      resetPinForm();
+      openModal("pinModal");
     }
-  
-    container.innerHTML = pins.length
-      ? pins.map(p => `
-          <div class="card" style="margin-bottom:1rem">
+
+    async function render() {
+      const canEdit = isAuthed();
+      const container = document.getElementById("pinList");
+      if (!container) return;
+
+      const { data: pins, error } = await sb
+        .from("pins")
+        .select("*")
+        .order("date", { ascending: false });
+
+      if (error) {
+        console.error("Supabase error:", error);
+        container.innerHTML = `<div style="color:red">Error loading pins.</div>`;
+        return;
+      }
+
+      currentPins = pins || [];
+
+      container.innerHTML = currentPins.length
+        ? currentPins.map(p => `
+          <div class="card pin-card">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
-              <div style="flex:1">
-                <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.4rem">
+              <div style="flex:1;min-width:260px">
+                <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.4rem">
                   ${PRIORITY_BADGE[p.priority] || PRIORITY_BADGE.normal}
-                  <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:1.1rem">
-                    ${p.title}
-                  </div>
+                  <div class="pin-title">${p.title || "Untitled"}</div>
                 </div>
-  
-                <div class="pin-body" style="white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;">
-                  ${p.body}
-                </div>
-  
-                <div style="margin-top:.8rem;font-size:.75rem;color:var(--muted)">
-                  Posted by ${p.author} · ${p.date}
+
+                <div class="pin-body">${p.body || ""}</div>
+
+                <div class="pin-meta">
+                  Posted by ${p.author || "Unknown"} · ${p.date || ""}
                 </div>
               </div>
-  
+
               ${canEdit ? `
-                <div style="display:flex;gap:.5rem">
+                <div class="pin-actions">
                   <button class="btn btn-ghost"
                           style="padding:.35rem .8rem;font-size:.72rem"
                           onclick="editPin(${p.id})">Edit</button>
@@ -124,49 +179,52 @@
             </div>
           </div>
         `).join("")
-      : `<div style="color:var(--muted);font-size:.9rem">No announcements yet.</div>`;
-  }
+        : `<div style="color:var(--muted);font-size:.9rem">No announcements yet.</div>`;
+
+      applyAuthUI();
+      buildNav("pinboard");
+    }
 
     async function savePin() {
       if (!requireAuthOrAlert()) return;
-    
+
       const id = document.getElementById("editPinId").value;
-    
+
       const entry = {
-        title:    document.getElementById("pinTitle").value.trim() || "Untitled",
-        body:     document.getElementById("pinBody").value.trim() || "",
+        title: document.getElementById("pinTitle").value.trim() || "Untitled",
+        body: document.getElementById("pinBody").value.trim() || "",
         priority: document.getElementById("pinPriority").value,
-        author:   document.getElementById("pinAuthor").value,
-        date:     new Date().toISOString().split("T")[0]
+        author: document.getElementById("pinAuthor").value,
+        date: new Date().toISOString().split("T")[0]
       };
-    
+
       if (id) entry.id = Number(id);
-    
+
       const { error } = await sb.from("pins").upsert(entry);
-    
+
       if (error) {
         console.error(error);
         alert("Error saving pin.");
         return;
       }
-    
+
       closeModal("pinModal");
       resetPinForm();
-      render();
+      await render();
     }
 
     function editPin(id) {
       if (!requireAuthOrAlert()) return;
-    
+
       const p = currentPins.find(x => x.id === id);
       if (!p) return;
-    
+
       document.getElementById("editPinId").value = p.id;
-      document.getElementById("pinTitle").value = p.title;
-      document.getElementById("pinBody").value = p.body;
-      document.getElementById("pinPriority").value = p.priority;
-      document.getElementById("pinAuthor").value = p.author;
-    
+      document.getElementById("pinTitle").value = p.title || "";
+      document.getElementById("pinBody").value = p.body || "";
+      document.getElementById("pinPriority").value = p.priority || "normal";
+      document.getElementById("pinAuthor").value = p.author || "Squirtle";
+
       document.getElementById("pinModalTitle").textContent = "Edit Announcement";
       openModal("pinModal");
     }
@@ -174,30 +232,38 @@
     async function deletePin(id) {
       if (!requireAuthOrAlert()) return;
       if (!confirm("Delete this announcement?")) return;
-    
+
       const { error } = await sb
         .from("pins")
         .delete()
         .eq("id", id);
-    
+
       if (error) {
         console.error(error);
         alert("Error deleting pin.");
         return;
       }
-    
-      render();
+
+      await render();
     }
 
     function resetPinForm() {
-      ["editPinId","pinTitle","pinBody","pinAuthor"].forEach(i => document.getElementById(i).value = "");
+      document.getElementById("editPinId").value = "";
+      document.getElementById("pinTitle").value = "";
+      document.getElementById("pinBody").value = "";
       document.getElementById("pinPriority").value = "normal";
+      document.getElementById("pinAuthor").value = "Pingwing";
       document.getElementById("pinModalTitle").textContent = "New Announcement";
     }
 
-    document.getElementById("pinModal").addEventListener("click", e => { if (e.target === document.getElementById("pinModal")) { closeModal("pinModal"); resetPinForm(); } });
+    document.getElementById("pinModal").addEventListener("click", e => {
+      if (e.target.id === "pinModal") {
+        closeModal("pinModal");
+        resetPinForm();
+      }
+    });
 
     render();
-</script>
+  </script>
 </body>
 </html>
