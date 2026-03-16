@@ -1,69 +1,128 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>NATO [GBR] – Rules</title>
-  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="style.css"/>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NATO [GBR] – Rules</title>
 
-  <style>
-    .rules-wrap{
-      min-height:calc(100vh - 140px);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-    }
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="style.css"/>
 
-    .rules-box{
-      width:min(700px, 100%);
-      background:var(--surface);
-      border:1px solid var(--border);
-      border-radius:4px;
-      padding:2.5rem 2rem;
-      text-align:center;
-      box-shadow:0 10px 30px rgba(0,0,0,.25);
-    }
+<style>
 
-    .rules-box h1{
-      margin:0;
-      font-family:'Rajdhani',sans-serif;
-      font-size:2rem;
-      font-weight:700;
-      letter-spacing:.04em;
-      text-transform:uppercase;
-      color:var(--text);
-    }
-  </style>
+.rules-wrap{
+  min-height:calc(100vh - 140px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.rules-box{
+  width:min(900px,100%);
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:2.8rem 2.4rem;
+  box-shadow:0 12px 40px rgba(0,0,0,.35);
+}
+
+.rules-title{
+  font-family:'Rajdhani',sans-serif;
+  font-size:2rem;
+  font-weight:700;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:var(--gold);
+  margin-bottom:1.6rem;
+}
+
+.rules-list{
+  list-style:disc;
+  padding-left:1.6rem;
+  margin:0;
+  display:flex;
+  flex-direction:column;
+  gap:.9rem;
+}
+
+.rules-list li{
+  font-size:1rem;
+  line-height:1.7;
+  color:var(--text);
+}
+
+.rules-no{
+  color:#ff5b5b;
+  text-decoration:underline;
+  font-weight:600;
+}
+
+.rules-end{
+  margin-top:1.4rem;
+  font-size:1rem;
+  color:var(--text);
+}
+
+</style>
 </head>
 
 <body>
-  <nav id="mainNav">
-    <a class="nav-logo" href="index">NATO [GBR]</a>
-    <ul></ul>
-  </nav>
 
-  <div class="page fade-up">
-    <div class="rules-wrap">
-      <div class="rules-box">
-        <h1>Those are the rules!</h1>
-        <h2>Do NOT attack red mythic carriages.</h2>
-        <h2>Do NOT attack guild carriages</h2>
-        <h2>Do NOT attack players belonging in a guild</h2>
-        <h2>Do NOT attack already occupied server tiles (Timber / Stone / Ruby)</h2>
-        <h2>NO wars between the guilds that will result to soldier loss</h2>
-        <h2></h2>
-        <h2>Please follow those rules. Thank you :)</h2>
+<nav id="mainNav">
+  <a class="nav-logo" href="index">NATO [GBR]</a>
+  <ul></ul>
+</nav>
 
-      </div>
-    </div>
-  </div>
+<div class="page fade-up">
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js"></script>
-  <script>
-    buildNav("rules");
-    applyAuthUI();
-  </script>
+<div class="rules-wrap">
+
+<div class="rules-box">
+
+<div class="rules-title">
+THOSE ARE THE RULES!
+</div>
+
+<ul class="rules-list">
+
+<li>
+Do <span class="rules-no">NOT</span> attack red mythic carriages
+</li>
+
+<li>
+Do <span class="rules-no">NOT</span> attack guild carriages
+</li>
+
+<li>
+Do <span class="rules-no">NOT</span> attack players belonging in a guild
+</li>
+
+<li>
+Do <span class="rules-no">NOT</span> attack already occupied server tiles
+(Timber / Stone / Ruby)
+</li>
+
+<li>
+<span class="rules-no">NO</span> wars between the guilds that will result to soldier loss
+</li>
+
+</ul>
+
+<div class="rules-end">
+Please follow those rules. Thank you :)
+</div>
+
+</div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="script.js"></script>
+
+<script>
+buildNav("rules");
+applyAuthUI();
+</script>
+
 </body>
 </html>
