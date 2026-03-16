@@ -9,9 +9,6 @@
 <link rel="stylesheet" href="style.css"/>
 
 <style>
-
-/* ================= SUB PAGES ================= */
-
 .subsections{
   margin-bottom:1.5rem;
 }
@@ -27,11 +24,9 @@
   align-items:center;
   gap:.9rem;
   padding:1rem 1.1rem;
-
   background:var(--surface);
   border:1px solid var(--border);
   border-radius:4px;
-
   text-decoration:none;
   transition:border-color .2s, background .2s;
 }
@@ -53,419 +48,51 @@
   text-transform:uppercase;
   color:var(--text);
 }
-
-
-/* ================= FILTER ================= */
-
-.guide-filters{
-  display:flex;
-  gap:.5rem;
-  flex-wrap:wrap;
-  margin-bottom:1.5rem;
-}
-
-.filter-btn{
-  padding:.35rem .85rem;
-  border-radius:2px;
-  font-size:.75rem;
-  font-weight:600;
-  letter-spacing:.08em;
-  text-transform:uppercase;
-  cursor:pointer;
-
-  background:transparent;
-  border:1px solid var(--border);
-  color:var(--muted);
-
-  transition:all .2s;
-}
-
-.filter-btn.active,
-.filter-btn:hover{
-  border-color:var(--gold);
-  color:var(--gold);
-  background:rgba(201,168,76,.08);
-}
-
-
-/* ================= GRID ================= */
-
-.guides-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
-  gap:1rem;
-}
-
-.guide-card{
-  display:flex;
-  flex-direction:column;
-  gap:.5rem;
-}
-
-.guide-card h3{
-  font-family:'Rajdhani',sans-serif;
-  font-size:1.1rem;
-  font-weight:700;
-  letter-spacing:.03em;
-  text-transform:uppercase;
-}
-
-.guide-card p{
-  font-size:.84rem;
-  color:var(--muted);
-  line-height:1.6;
-  flex:1;
-  display:-webkit-box;
-  -webkit-line-clamp:3;
-  -webkit-box-orient:vertical;
-  overflow:hidden;
-}
-
-.guide-meta{
-  font-size:.7rem;
-  color:var(--muted);
-  letter-spacing:.06em;
-}
-
-.guide-actions{
-  display:flex;
-  gap:.5rem;
-  margin-top:.4rem;
-  flex-wrap:wrap;
-}
-
-
-/* ================= UPLOAD ================= */
-
-.upload-area{
-  border:2px dashed var(--border);
-  border-radius:4px;
-  padding:1.2rem;
-  text-align:center;
-  cursor:pointer;
-  transition:border-color .2s, background .2s;
-  position:relative;
-}
-
-.upload-area:hover,
-.upload-area.dragover{
-  border-color:var(--gold);
-  background:rgba(201,168,76,.04);
-}
-
-.upload-area input[type=file]{
-  position:absolute;
-  inset:0;
-  opacity:0;
-  cursor:pointer;
-  width:100%;
-  height:100%;
-}
-
-.upload-area .ua-icon{
-  font-size:1.5rem;
-  margin-bottom:.3rem;
-}
-
-.upload-area .ua-label{
-  font-size:.8rem;
-  color:var(--muted);
-}
-
-.upload-preview{
-  margin-top:.6rem;
-  display:flex;
-  align-items:center;
-  gap:.6rem;
-}
-
-.upload-preview .up-name{
-  font-size:.78rem;
-  color:var(--text);
-}
-
-.upload-preview .up-remove{
-  font-size:.72rem;
-  color:var(--red);
-  cursor:pointer;
-  margin-left:auto;
-}
-
-
-/* ================= VIEW ================= */
-
-#viewBody{
-  font-size:.9rem;
-  line-height:1.75;
-  color:var(--muted);
-  white-space:pre-wrap;
-}
-
-#viewAttachment{
-  margin-top:1.2rem;
-}
-
 </style>
 </head>
 
 <body>
 
 <nav id="mainNav">
-<a class="nav-logo" href="index.html">NATO [GBR]</a>
-<ul></ul>
+  <a class="nav-logo" href="index.html">NATO [GBR]</a>
+  <ul></ul>
 </nav>
 
-
 <div class="page fade-up">
+  <div class="page-header" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+    <div>
+      <div class="page-label">Strategy & How-to</div>
+      <div class="page-title">Guides</div>
+      <div class="page-divider"></div>
+    </div>
+  </div>
 
-<div class="page-header" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+  <div class="subsections">
+    <div class="sub-grid">
+      <a class="sub-tile" href="events.html">
+        <span class="sub-emoji">🗓️</span>
+        <span class="sub-label">Events</span>
+      </a>
 
-<div>
-<div class="page-label">Strategy & How-to</div>
-<div class="page-title">Guides</div>
-<div class="page-divider"></div>
+      <a class="sub-tile" href="relic.html">
+        <span class="sub-emoji">🗿</span>
+        <span class="sub-label">Relic</span>
+      </a>
+
+      <a class="sub-tile" href="heroes.html">
+        <span class="sub-emoji">🦸</span>
+        <span class="sub-label">Heroes</span>
+      </a>
+    </div>
+  </div>
 </div>
-
-</div>
-
-
-<!-- SUB PAGES -->
-
-<div class="subsections">
-
-<div class="sub-grid">
-
-<a class="sub-tile" href="events.html">
-<span class="sub-emoji">🗓️</span>
-<span class="sub-label">Events</span>
-</a>
-
-<a class="sub-tile" href="relic.html">
-<span class="sub-emoji">🗿</span>
-<span class="sub-label">Relic</span>
-</a>
-
-<a class="sub-tile" href="heroes.html">
-<span class="sub-emoji">🦸</span>
-<span class="sub-label">Heroes</span>
-</a>
-
-</div>
-
-</div>
-
-
-<div class="guide-filters" id="filterBar"></div>
-<div class="guides-grid" id="itemsGrid"></div>
-
-</div>
-
-
-
-<!-- VIEW MODAL -->
-
-<div class="modal-overlay" id="viewModal">
-<div class="modal" style="max-width:620px;max-height:90vh;overflow-y:auto">
-
-<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:1rem">
-
-<div>
-<div id="viewCategory" style="font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:.3rem"></div>
-<h3 id="viewTitle" style="margin:0;font-size:1.5rem"></h3>
-<div id="viewMeta" style="font-size:.72rem;color:var(--muted);margin-top:.4rem;letter-spacing:.06em"></div>
-</div>
-
-<button class="btn btn-ghost" style="padding:.3rem .7rem;font-size:.72rem;flex-shrink:0" onclick="closeModal('viewModal')">✕</button>
-
-</div>
-
-<p id="viewBody"></p>
-<div id="viewAttachment"></div>
-
-</div>
-</div>
-
-
-
-<!-- EDIT MODAL -->
-
-<div class="modal-overlay" id="itemModal">
-
-<div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto">
-
-<input type="hidden" id="editId"/>
-
-
-<div class="form-group">
-<label>Title</label>
-<input type="text" id="itemTitle"/>
-</div>
-
-
-<div class="form-group">
-<label>Category</label>
-<select id="itemCategory">
-<option>Mythic Plunder</option>
-<option>Castle Crashers GE</option>
-<option>General</option>
-</select>
-</div>
-
-
-<div class="form-group">
-<label>Content</label>
-<textarea id="itemBody" rows="5"></textarea>
-</div>
-
-
-<div class="form-group">
-<label>Attachments (max 3)</label>
-
-<div class="upload-area" id="uploadArea">
-<input type="file" id="fileInput" accept="image/*,.pdf" multiple/>
-<div class="ua-icon">📎</div>
-<div class="ua-label">Click or drag up to 3 files here</div>
-</div>
-
-<div class="upload-preview" id="uploadPreview" style="display:none"></div>
-
-</div>
-
-
-<div class="form-group">
-<label>Author</label>
-<select id="itemAuthor"></select>
-</div>
-
-
-<div class="modal-actions">
-
-<button class="btn btn-ghost" onclick="closeModal('itemModal');resetForm()">Cancel</button>
-
-<button class="btn btn-gold" onclick="saveItem()">Save</button>
-
-</div>
-
-</div>
-</div>
-
-
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="script.js"></script>
 
 <script>
-
-const TABLE="guides";
-
-let activeFilter="All";
-let currentItems=[];
-
-buildNav("guides.html");
-applyAuthUI();
-
-(function initAuthors(){
-const sel=document.getElementById("itemAuthor");
-sel.innerHTML=AUTHORS.map(a=>`<option>${a}</option>`).join("");
-})();
-
-
-function categoriesFromItems(items){
-const cats=items.map(x=>x.category).filter(Boolean);
-return ["All",...new Set(cats)];
-}
-
-
-function renderFilters(){
-
-const categories=categoriesFromItems(currentItems);
-
-document.getElementById("filterBar").innerHTML=categories.map(c=>`
-
-<button class="filter-btn ${c===activeFilter?'active':''}" onclick="setFilter('${c}')">
-${c}
-</button>
-
-`).join("");
-
-}
-
-
-function setFilter(cat){
-
-activeFilter=cat;
-
-renderFilters();
-renderGrid();
-
-}
-
-
-function renderGrid(){
-
-const canEdit=isAuthed();
-
-const items=currentItems.filter(x=>activeFilter==="All"||x.category===activeFilter);
-
-document.getElementById("itemsGrid").innerHTML=items.length ?
-
-items.map(it=>`
-
-<div class="card guide-card">
-
-<span class="badge badge-muted">${it.category}</span>
-
-${attachmentsHtml(it)}
-
-<h3>${it.title}</h3>
-
-<p>${it.body}</p>
-
-<div class="guide-meta">
-By <strong style="color:var(--text)">${it.author}</strong> · ${it.date}
-</div>
-
-<div class="guide-actions">
-
-<button class="btn btn-gold" style="padding:.35rem .8rem;font-size:.72rem" onclick="viewItem(${it.id})">
-Read
-</button>
-
-${canEdit ? `
-
-<button class="btn btn-ghost" style="padding:.35rem .8rem;font-size:.72rem" onclick="editItem(${it.id})">
-Edit
-</button>
-
-<button class="btn btn-danger" style="padding:.35rem .8rem;font-size:.72rem" onclick="deleteItem(${it.id})">
-Delete
-</button>
-
-` : ``}
-
-</div>
-
-</div>
-
-`).join("")
-
-: `<div style="color:var(--muted);font-size:.9rem">No guides found.</div>`;
-
-}
-
-
-async function loadAndRender(){
-
-currentItems=await dbList(TABLE,{orderBy:"date",ascending:false});
-
-renderFilters();
-renderGrid();
-applyAuthUI();
-
-}
-
-loadAndRender();
-
+  buildNav("guides");
+  applyAuthUI();
 </script>
 
 </body>
