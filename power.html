@@ -137,7 +137,7 @@
           <div class="form-group" style="margin:0;min-width:240px">
             <label>Date Range</label>
             <select id="rangePreset">
-              <option value="arms_race">Guild Arms Race (2026-03-07 → 2026-03-15)</option>
+              <option value="arms_race">Guild Arms Race (2026-03-08 → 2026-03-13)</option>
               <option value="last_7_days">Last 7 Days</option>
               <option value="last_14_days">Last 14 Days</option>
               <option value="current_month">Current Month</option>
@@ -347,7 +347,7 @@
       const todayISO = toISODateLocal(today);
 
       if (preset === "arms_race"){
-        return { start: "2026-03-07", end: "2026-03-15", label: "Guild Arms Race (2026-03-07 → 2026-03-15)" };
+        return { start: "2026-03-08", end: "2026-03-13", label: "Guild Arms Race (2026-03-08 → 2026-03-13)" };
       }
 
       if (preset === "last_7_days"){
@@ -384,7 +384,7 @@
         return { start, end, label: `Last Month (${start} → ${end})` };
       }
 
-      return { start: "2026-03-07", end: "2026-03-15", label: "Guild Arms Race (2026-03-07 → 2026-03-15)" };
+      return { start: "2026-03-08", end: "2026-03-13", label: "Guild Arms Race (2026-03-08 → 2026-03-13)" };
     }
 
     if (csvInput){
