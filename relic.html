@@ -1,374 +1,362 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>NATO [GBR] – Relic</title>
-  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="style.css"/>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NATO [GBR] – Relic</title>
 
-  <style>
-    .guide-filters { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1.5rem; }
-    .filter-btn {
-      padding:.35rem .85rem; border-radius:2px; font-size:.75rem; font-weight:600;
-      letter-spacing:.08em; text-transform:uppercase; cursor:pointer;
-      background:transparent; border:1px solid var(--border); color:var(--muted);
-      transition:all .2s;
-    }
-    .filter-btn.active, .filter-btn:hover { border-color:var(--gold); color:var(--gold); background:rgba(201,168,76,.08); }
-    .guides-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:1rem; }
-    .guide-card  { display:flex; flex-direction:column; gap:.5rem; }
-    .guide-card h3 { font-family:'Rajdhani',sans-serif; font-size:1.1rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase; }
-    .guide-card p  { font-size:.84rem; color:var(--muted); line-height:1.6; flex:1; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
-    .guide-meta    { font-size:.7rem; color:var(--muted); letter-spacing:.06em; }
-    .guide-actions { display:flex; gap:.5rem; margin-top:.4rem; flex-wrap:wrap; }
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="style.css"/>
 
-    /* Upload area */
-    .upload-area {
-      border:2px dashed var(--border); border-radius:4px;
-      padding:1.2rem; text-align:center; cursor:pointer;
-      transition:border-color .2s, background .2s;
-      position:relative;
-    }
-    .upload-area:hover, .upload-area.dragover { border-color:var(--gold); background:rgba(201,168,76,.04); }
-    .upload-area input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
-    .upload-area .ua-icon { font-size:1.5rem; margin-bottom:.3rem; }
-    .upload-area .ua-label { font-size:.8rem; color:var(--muted); }
-    .upload-preview { margin-top:.6rem; display:flex; align-items:center; gap:.6rem; }
-    .upload-preview .up-name { font-size:.78rem; color:var(--text); overflow-wrap:anywhere; word-break:break-word; }
-    .upload-preview .up-remove { font-size:.72rem; color:var(--red); cursor:pointer; margin-left:auto; }
+<style>
 
-    /* View modal content */
-    #viewBody { font-size:.9rem; line-height:1.75; color:var(--muted); white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; }
-    #viewAttachment { margin-top:1.2rem; }
-  </style>
+.guide-filters{
+  display:flex;
+  gap:.5rem;
+  flex-wrap:wrap;
+  margin-bottom:1.5rem;
+}
+
+.filter-btn{
+  padding:.35rem .85rem;
+  border-radius:2px;
+  font-size:.75rem;
+  font-weight:600;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  cursor:pointer;
+
+  background:transparent;
+  border:1px solid var(--border);
+  color:var(--muted);
+
+  transition:all .2s;
+}
+
+.filter-btn.active,
+.filter-btn:hover{
+  border-color:var(--gold);
+  color:var(--gold);
+  background:rgba(201,168,76,.08);
+}
+
+.guides-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+  gap:1rem;
+}
+
+.guide-card{
+  display:flex;
+  flex-direction:column;
+  gap:.5rem;
+}
+
+.guide-card h3{
+  font-family:'Rajdhani',sans-serif;
+  font-size:1.1rem;
+  font-weight:700;
+  letter-spacing:.03em;
+  text-transform:uppercase;
+}
+
+.guide-card p{
+  font-size:.84rem;
+  color:var(--muted);
+  line-height:1.6;
+  flex:1;
+  display:-webkit-box;
+  -webkit-line-clamp:3;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+
+.guide-meta{
+  font-size:.7rem;
+  color:var(--muted);
+  letter-spacing:.06em;
+}
+
+.guide-actions{
+  display:flex;
+  gap:.5rem;
+  margin-top:.4rem;
+  flex-wrap:wrap;
+}
+
+
+/* BACK BUTTON */
+
+.back-row{
+  margin-bottom:1rem;
+}
+
+.back-btn{
+  display:inline-flex;
+  align-items:center;
+  gap:.45rem;
+  padding:.38rem .8rem;
+  border:1px solid var(--border);
+  border-radius:4px;
+  text-decoration:none;
+  color:var(--muted);
+  font-size:.78rem;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  transition:border-color .2s, background .2s, color .2s;
+}
+
+.back-btn:hover{
+  border-color:var(--gold);
+  background:rgba(201,168,76,.06);
+  color:var(--gold);
+}
+
+
+/* VIEW MODAL */
+
+#viewBody{
+  font-size:.9rem;
+  line-height:1.75;
+  color:var(--muted);
+  white-space:pre-wrap;
+}
+
+#viewAttachment{
+  margin-top:1.2rem;
+}
+
+</style>
 </head>
 
 <body>
-  <nav id="mainNav"><a class="nav-logo" href="index.html">NATO [GBR]</a><ul></ul></nav>
 
-  <div class="page fade-up">
-    <div class="page-header" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem">
-      <div>
-        <div class="page-label">Relic notes</div>
-        <div class="page-title">Relic</div>
-        <div class="page-divider"></div>
-      </div>
-      <button class="btn btn-gold" data-requires-auth="true" onclick="openItemModal()">+ New Relic</button>
-    </div>
+<nav id="mainNav">
+<a class="nav-logo" href="index.html">NATO [GBR]</a>
+<ul></ul>
+</nav>
 
-    <div class="guide-filters" id="filterBar"></div>
-    <div class="guides-grid"  id="itemsGrid"></div>
-  </div>
 
-  <!-- View Modal -->
-  <div class="modal-overlay" id="viewModal">
-    <div class="modal" style="max-width:620px;max-height:90vh;overflow-y:auto">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:1rem">
-        <div>
-          <div id="viewCategory" style="font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:.3rem"></div>
-          <h3 id="viewTitle" style="margin:0;font-size:1.5rem"></h3>
-          <div id="viewMeta" style="font-size:.72rem;color:var(--muted);margin-top:.4rem;letter-spacing:.06em"></div>
-        </div>
-        <button class="btn btn-ghost" style="padding:.3rem .7rem;font-size:.72rem;flex-shrink:0" onclick="closeModal('viewModal')">✕</button>
-      </div>
-      <p id="viewBody"></p>
-      <div id="viewAttachment"></div>
-    </div>
-  </div>
+<div class="page fade-up">
 
-  <!-- Edit / New Modal -->
-  <div class="modal-overlay" id="itemModal">
-    <div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto">
-      <h3 id="itemModalTitle">New Relic</h3>
-      <input type="hidden" id="editId"/>
+<div class="page-header" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem">
 
-      <div class="form-group"><label>Title</label><input type="text" id="itemTitle" placeholder="Relic title…"/></div>
+<div>
+<div class="page-label">Relic information</div>
+<div class="page-title">Relic</div>
+<div class="page-divider"></div>
+</div>
 
-      <div class="form-group">
-        <label>Category</label>
-        <select id="itemCategory">
-          <option>Mythic Plunder</option>
-          <option>Castle Crashers GE</option>
-          <option>General</option>
-        </select>
-      </div>
+<button class="btn btn-gold" data-requires-auth="true" onclick="openItemModal()">+ New Relic</button>
 
-      <div class="form-group"><label>Content</label><textarea id="itemBody" rows="5" placeholder="Write your relic info here…"></textarea></div>
+</div>
 
-      <div class="form-group">
-        <label>Attachments (max 3) – Image or PDF</label>
-        <div class="upload-area" id="uploadArea">
-          <input type="file" id="fileInput" accept="image/*,.pdf" multiple />
-          <div class="ua-icon">📎</div>
-          <div class="ua-label">Click or drag up to 3 files here</div>
-        </div>
-        <div class="upload-preview" id="uploadPreview" style="display:none"></div>
-      </div>
 
-      <div class="form-group">
-        <label>Author</label>
-        <select id="itemAuthor"></select>
-      </div>
+<!-- BACK BUTTON -->
 
-      <div class="modal-actions">
-        <button class="btn btn-ghost" onclick="closeModal('itemModal');resetForm()">Cancel</button>
-        <button class="btn btn-gold"  onclick="saveItem()">Save</button>
-      </div>
-    </div>
-  </div>
+<div class="back-row">
+<a href="guides.html" class="back-btn">← Back to Guides</a>
+</div>
 
-  <!-- Supabase client MUST be before script.js -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js"></script>
 
-  <script>
-    const TABLE = "relic";
+<div class="guide-filters" id="filterBar"></div>
+<div class="guides-grid" id="itemsGrid"></div>
 
-    let activeFilter = "All";
-    let currentItems = [];
+</div>
 
-    let pendingFiles = [];        // File[]
-    let existingAttachments = []; // metas[]
 
-    buildNav("relic.html");
-    applyAuthUI();
 
-    (function initAuthors(){
-      const sel = document.getElementById("itemAuthor");
-      sel.innerHTML = AUTHORS.map(a => `<option value="${a}">${a}</option>`).join("");
-    })();
+<!-- VIEW MODAL -->
 
-    const fileInput = document.getElementById("fileInput");
-    fileInput.addEventListener("change", () => handleFiles(fileInput.files));
+<div class="modal-overlay" id="viewModal">
 
-    const ua = document.getElementById("uploadArea");
-    ua.addEventListener("dragover",  e => { e.preventDefault(); ua.classList.add("dragover"); });
-    ua.addEventListener("dragleave", () => ua.classList.remove("dragover"));
-    ua.addEventListener("drop", e => {
-      e.preventDefault(); ua.classList.remove("dragover");
-      handleFiles(e.dataTransfer.files);
-    });
+<div class="modal" style="max-width:620px;max-height:90vh;overflow-y:auto">
 
-    function handleFiles(fileList) {
-      const files = Array.from(fileList || []);
-      if (!files.length) return;
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:1rem">
 
-      pendingFiles = files.slice(0, MAX_ATTACHMENTS);
-      existingAttachments = [];
-      renderPreview();
+<div>
+<div id="viewCategory" style="font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:.3rem"></div>
+<h3 id="viewTitle" style="margin:0;font-size:1.5rem"></h3>
+<div id="viewMeta" style="font-size:.72rem;color:var(--muted);margin-top:.4rem;letter-spacing:.06em"></div>
+</div>
 
-      if (files.length > MAX_ATTACHMENTS) {
-        showToast(`Max ${MAX_ATTACHMENTS} Dateien. Nur die ersten ${MAX_ATTACHMENTS} wurden übernommen.`, "info", 4500);
-      }
-    }
+<button class="btn btn-ghost" style="padding:.3rem .7rem;font-size:.72rem;flex-shrink:0" onclick="closeModal('viewModal')">✕</button>
 
-    function clearFiles() {
-      pendingFiles = [];
-      existingAttachments = [];
-      document.getElementById("uploadPreview").style.display = "none";
-      document.getElementById("uploadPreview").innerHTML = "";
-      document.getElementById("fileInput").value = "";
-    }
+</div>
 
-    function renderPreview() {
-      const preview = document.getElementById("uploadPreview");
-      const metas = pendingFiles.length
-        ? pendingFiles.map(f => ({ attachment_name: f.name, attachment_type: f.type }))
-        : existingAttachments.map(a => ({ attachment_name: a.attachment_name, attachment_type: a.attachment_type }));
+<p id="viewBody"></p>
+<div id="viewAttachment"></div>
 
-      if (!metas.length) {
-        preview.style.display = "none";
-        preview.innerHTML = "";
-        return;
-      }
+</div>
+</div>
 
-      preview.style.display = "flex";
-      preview.style.flexDirection = "column";
-      preview.style.alignItems = "stretch";
-      preview.innerHTML = `
-        <div style="display:flex;align-items:flex-start;gap:.6rem">
-          <div style="flex:1;display:flex;flex-direction:column;gap:.35rem">
-            ${metas.map(m => {
-              const isImg = (m.attachment_type || "").startsWith("image/");
-              return `
-                <div style="display:flex;align-items:center;gap:.5rem">
-                  <span style="font-size:1.2rem">${isImg ? "🖼️" : "📄"}</span>
-                  <span class="up-name" style="flex:1">${m.attachment_name || "attachment"}</span>
-                </div>`;
-            }).join("")}
-          </div>
-          <span class="up-remove" onclick="clearFiles()">Remove</span>
-        </div>
-        <div style="margin-top:.35rem;font-size:.72rem;color:var(--muted)">Max ${MAX_ATTACHMENTS} files.</div>
-      `;
-    }
 
-    function escapeQuotes(s) { return String(s).replace(/'/g, "\\'"); }
 
-    function categoriesFromItems(items) {
-      const cats = items.map(x => x.category).filter(Boolean);
-      return ["All", ...new Set(cats)];
-    }
+<!-- EDIT MODAL -->
 
-    function renderFilters() {
-      const categories = categoriesFromItems(currentItems);
-      if (!categories.includes(activeFilter)) activeFilter = "All";
+<div class="modal-overlay" id="itemModal">
 
-      document.getElementById("filterBar").innerHTML = categories.map(c =>
-        `<button class="filter-btn ${c===activeFilter?'active':''}" onclick="setFilter('${escapeQuotes(c)}')">${c}</button>`
-      ).join("");
-    }
+<div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto">
 
-    function setFilter(cat) {
-      activeFilter = cat;
-      renderFilters();
-      renderGrid();
-    }
+<h3 id="itemModalTitle">New Relic</h3>
 
-    function renderGrid() {
-      const canEdit = isAuthed();
-      const items = currentItems.filter(x => activeFilter === "All" || x.category === activeFilter);
+<input type="hidden" id="editId"/>
 
-      document.getElementById("itemsGrid").innerHTML = items.length
-        ? items.map(it => `
-          <div class="card guide-card">
-            <span class="badge badge-muted">${it.category}</span>
-            ${attachmentsHtml(it)}
-            <h3>${it.title}</h3>
-            <p>${it.body}</p>
-            <div class="guide-meta">By <strong style="color:var(--text)">${it.author}</strong> · ${it.date}</div>
-            <div class="guide-actions">
-              <button class="btn btn-gold" style="padding:.35rem .8rem;font-size:.72rem" onclick="viewItem(${it.id})">Read</button>
-              ${canEdit ? `
-                <button class="btn btn-ghost"  style="padding:.35rem .8rem;font-size:.72rem" onclick="editItem(${it.id})">Edit</button>
-                <button class="btn btn-danger" style="padding:.35rem .8rem;font-size:.72rem" onclick="deleteItem(${it.id})">Delete</button>
-              ` : ``}
-            </div>
-          </div>`).join("")
-        : `<div style="color:var(--muted);font-size:.9rem">No relic entries found.</div>`;
-    }
 
-    function viewItem(id) {
-      const it = currentItems.find(x => x.id === id);
-      if (!it) return;
+<div class="form-group">
+<label>Title</label>
+<input type="text" id="itemTitle"/>
+</div>
 
-      document.getElementById("viewCategory").textContent = it.category;
-      document.getElementById("viewTitle").textContent    = it.title;
-      document.getElementById("viewMeta").textContent     = `By ${it.author} · ${it.date}`;
-      document.getElementById("viewBody").textContent     = it.body;
 
-      document.getElementById("viewAttachment").innerHTML = attachmentsViewHtml(it);
-      openModal("viewModal");
-    }
+<div class="form-group">
+<label>Category</label>
+<select id="itemCategory">
+<option>Relic</option>
+</select>
+</div>
 
-    function openItemModal() {
-      if (!requireAuthOrAlert()) return;
-      resetForm();
-      openModal("itemModal");
-    }
 
-    async function editItem(id) {
-      if (!requireAuthOrAlert()) return;
+<div class="form-group">
+<label>Content</label>
+<textarea id="itemBody" rows="5"></textarea>
+</div>
 
-      const it = currentItems.find(x => x.id === id);
-      if (!it) return;
 
-      document.getElementById("editId").value = it.id;
-      document.getElementById("itemTitle").value = it.title || "";
-      document.getElementById("itemCategory").value = it.category || "General";
-      document.getElementById("itemBody").value = it.body || "";
-      document.getElementById("itemAuthor").value = it.author || AUTHORS[0];
+<div class="form-group">
+<label>Author</label>
+<select id="itemAuthor"></select>
+</div>
 
-      document.getElementById("itemModalTitle").textContent = "Edit Relic";
 
-      pendingFiles = [];
-      existingAttachments = attachmentsFromRow(it);
-      renderPreview();
+<div class="modal-actions">
 
-      openModal("itemModal");
-    }
+<button class="btn btn-ghost" onclick="closeModal('itemModal');resetForm()">Cancel</button>
 
-    async function deleteItem(id) {
-      if (!requireAuthOrAlert()) return;
-      if (!confirm("Delete this relic entry?")) return;
+<button class="btn btn-gold" onclick="saveItem()">Save</button>
 
-      const it = currentItems.find(x => x.id === id);
+</div>
 
-      const ok = await dbDelete(TABLE, id);
-      if (!ok) return;
+</div>
+</div>
 
-      // best-effort delete attachments
-      const metas = it ? attachmentsFromRow(it) : [];
-      for (const m of metas) {
-        if (m.attachment_path) await deleteAttachmentByPath(m.attachment_path);
-      }
 
-      await loadAndRender();
-      showToast("Deleted.", "success");
-    }
 
-    async function saveItem() {
-      if (!requireAuthOrAlert()) return;
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="script.js"></script>
 
-      const id = document.getElementById("editId").value;
+<script>
 
-      let metas = [];
-      if (pendingFiles.length) {
-        metas = await uploadAttachments(TABLE, pendingFiles, MAX_ATTACHMENTS);
-        if (!metas.length) return;
-      } else {
-        metas = existingAttachments;
-      }
+const TABLE="relics";
 
-      const entry = {
-        title: document.getElementById("itemTitle").value.trim() || "Untitled",
-        category: document.getElementById("itemCategory").value,
-        body: document.getElementById("itemBody").value.trim() || "",
-        author: document.getElementById("itemAuthor").value,
-        date: new Date().toISOString().split("T")[0],
-        ...attachmentsToRow(metas),
-      };
+let activeFilter="All";
+let currentItems=[];
 
-      if (id) entry.id = Number(id);
+buildNav("relic.html");
+applyAuthUI();
 
-      const res = await dbUpsert(TABLE, entry);
-      if (!res.ok) return;
 
-      closeModal("itemModal");
-      resetForm();
-      await loadAndRender();
-      showToast("Saved.", "success");
-    }
+(function initAuthors(){
+const sel=document.getElementById("itemAuthor");
+sel.innerHTML=AUTHORS.map(a=>`<option>${a}</option>`).join("");
+})();
 
-    function resetForm() {
-      document.getElementById("editId").value = "";
-      document.getElementById("itemTitle").value = "";
-      document.getElementById("itemCategory").value = "General";
-      document.getElementById("itemBody").value = "";
-      document.getElementById("itemAuthor").value = AUTHORS[0];
 
-      document.getElementById("itemModalTitle").textContent = "New Relic";
-      clearFiles();
-    }
+function categoriesFromItems(items){
+const cats=items.map(x=>x.category).filter(Boolean);
+return ["All",...new Set(cats)];
+}
 
-    ["itemModal", "viewModal"].forEach(id =>
-      document.getElementById(id).addEventListener("click", e => {
-        if (e.target.id === id) {
-          closeModal(id);
-          if (id === "itemModal") resetForm();
-        }
-      })
-    );
 
-    async function loadAndRender() {
-      currentItems = await dbList(TABLE, { orderBy: "date", ascending: false });
-      renderFilters();
-      renderGrid();
-      applyAuthUI();
-    }
+function renderFilters(){
 
-    loadAndRender();
-  </script>
+const categories=categoriesFromItems(currentItems);
+
+document.getElementById("filterBar").innerHTML=categories.map(c=>`
+
+<button class="filter-btn ${c===activeFilter?'active':''}" onclick="setFilter('${c}')">
+${c}
+</button>
+
+`).join("");
+
+}
+
+
+function setFilter(cat){
+
+activeFilter=cat;
+
+renderFilters();
+renderGrid();
+
+}
+
+
+function renderGrid(){
+
+const canEdit=isAuthed();
+
+const items=currentItems.filter(x=>activeFilter==="All"||x.category===activeFilter);
+
+document.getElementById("itemsGrid").innerHTML=items.length ?
+
+items.map(it=>`
+
+<div class="card guide-card">
+
+<span class="badge badge-muted">${it.category}</span>
+
+<h3>${it.title}</h3>
+
+<p>${it.body}</p>
+
+<div class="guide-meta">
+By <strong style="color:var(--text)">${it.author}</strong> · ${it.date}
+</div>
+
+<div class="guide-actions">
+
+<button class="btn btn-gold" style="padding:.35rem .8rem;font-size:.72rem" onclick="viewItem(${it.id})">
+Read
+</button>
+
+${canEdit ? `
+
+<button class="btn btn-ghost" style="padding:.35rem .8rem;font-size:.72rem" onclick="editItem(${it.id})">
+Edit
+</button>
+
+<button class="btn btn-danger" style="padding:.35rem .8rem;font-size:.72rem" onclick="deleteItem(${it.id})">
+Delete
+</button>
+
+` : ``}
+
+</div>
+
+</div>
+
+`).join("")
+
+: `<div style="color:var(--muted);font-size:.9rem">No relics found.</div>`;
+
+}
+
+
+async function loadAndRender(){
+
+currentItems=await dbList(TABLE,{orderBy:"date",ascending:false});
+
+renderFilters();
+renderGrid();
+applyAuthUI();
+
+}
+
+loadAndRender();
+
+</script>
+
 </body>
 </html>
